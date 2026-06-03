@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# env（含金鑰，勿提交）
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# logs / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
