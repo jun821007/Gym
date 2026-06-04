@@ -122,6 +122,41 @@ https://gym-production-830b.up.railway.app/
 
 ---
 
+## 日誌有 `API http://0.0.0.0:8080` 但瀏覽器仍 502（你現在的情況）
+
+代表 **程式有啟動，但 Railway 網域沒連到容器**（回應標頭會有 `X-Railway-Fallback: true`）。
+
+### 請做：重綁網域（最重要）
+
+1. Railway → 服務 **Gym** → **Settings**
+2. 往下 **Networking** / **Public Networking**
+3. 確認 **Public Networking 是開啟**
+4. 在現有網域 `gym-production-830b.up.railway.app` 旁：
+   - 先 **Delete** 刪掉舊網域  
+   - 再按 **Generate Domain** 產生**新網址**
+5. 複製**新網址**測試：`https://新網址.up.railway.app/health`
+6. 若成功，到 Netlify 環境變數把 `NEXT_PUBLIC_API_URL` 和 Railway `CORS_ORIGINS` 改成新網址
+
+### 再確認 Port（若有這欄）
+
+Networking 裡若有 **Port / Target port**：
+
+- 留 **空**（自動），或填 **`8080`**（要和 log 裡 PORT 一致）
+- **不要**填 `3001`
+
+### 然後 push + Redeploy
+
+```powershell
+cd c:\Users\rsz97\gym
+git add backend/src/index.js backend/railway.toml backend/railway.json railway.toml
+git commit -m "Fix Railway health probe and routing"
+git push origin main
+```
+
+Railway 會自動 deploy；完成後再測 `/health`。
+
+---
+
 ## 仍 502 時檢查清單
 
 | 檢查 | 正確值 |
@@ -131,7 +166,8 @@ https://gym-production-830b.up.railway.app/
 | 最新 Deployment | Active（不是 Crashed） |
 | GitHub 有根目錄 Dockerfile | 有 |
 | Deploy log 結尾 | 有 `API http://0.0.0.0:xxxx` |
-| 網域 | Settings → Networking 有 `gym-production-830b` |
+| 網域 | Networking 已 Generate，且 Public 開啟 |
+| 瀏覽器網址 | 用 **Networking 顯示的最新網域**，不要打錯舊的 |
 
 ---
 

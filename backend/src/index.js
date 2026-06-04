@@ -8,7 +8,19 @@ import weeklyRouter from "./routes/weekly.js";
 import workoutRouter from "./routes/workout.js";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || "0.0.0.0";
+
+// 健康檢查放最前面，避免 CORS / body parser 影響 Railway 探測
+app.get("/health", (_req, res) => {
+  res.status(200).type("json").send('{"ok":true}');
+});
+app.head("/health", (_req, res) => {
+  res.sendStatus(200);
+});
+app.get("/", (_req, res) => {
+  res.json({ ok: true, service: "body-management-api" });
+});
 
 const origins = (process.env.CORS_ORIGINS || "http://localhost:3000")
   .split(",")
@@ -22,22 +34,14 @@ app.use(
 );
 app.use(express.json({ limit: "12mb" }));
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
 app.use("/api/chat/inbody", inbodyRouter);
 app.use("/api/chat/workout", workoutRouter);
 app.use("/api/chat/diet", dietChatRouter);
 app.use("/api/diet", dietRouter);
 app.use("/api/weekly", weeklyRouter);
 
-app.get("/", (_req, res) => {
-  res.json({ ok: true, service: "body-management-api" });
-});
-
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`API http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`API http://${HOST}:${PORT}`);
   console.log(`CORS: ${origins.join(", ")}`);
 });
 

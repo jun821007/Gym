@@ -5,5 +5,4 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 restartPolicyType = "on_failure"
-healthcheckPath = "/health"
-healthcheckTimeout = 300
+# 不在此設 healthcheckPath，避免探測失敗導致外網 502（X-Railway-Fallback）

@@ -5,6 +5,4 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node src/index.js"
-healthcheckPath = "/health"
-healthcheckTimeout = 120
 restartPolicyType = "on_failure"
