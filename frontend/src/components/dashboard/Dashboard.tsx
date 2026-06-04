@@ -4,8 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MobileChat } from "@/components/chat/MobileChat";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
+import { DayRolloverModal } from "@/components/dashboard/DayRolloverModal";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
+import { buildLoggedAtIso, shouldPromptDayRollover } from "@/lib/day-rollover";
+import { resolveMealType } from "@/lib/meal-type";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import { getSupabase } from "@/lib/supabase/client";
@@ -112,6 +115,9 @@ export function Dashboard({
   const [dataLoading, setDataLoading] = useState(true);
   const [xpPop, setXpPop] = useState<number | null>(null);
   const [levelPulse, setLevelPulse] = useState(false);
+  const [pendingDiet, setPendingDiet] = useState<Omit<DietLog, "id"> | null>(
+    null,
+  );
 
   const refreshData = useCallback(async () => {
     const [w, d, water, ws, ds, wg] = await Promise.all([
@@ -176,7 +182,23 @@ export function Dashboard({
 
   const chat = CHAT_CONFIG[tab];
 
-  async function handleChatUpdate(data: unknown) {
+  async function saveDietLog(log: Omit<DietLog, "id">) {
+    const inserted = await insertDiet(supabase, userId, log);
+    setDiets((prev) => [inserted, ...prev]);
+  }
+
+  function handleDayRolloverChoice(choice: "today" | "yesterday") {
+    if (!pendingDiet) return;
+    const loggedAt = buildLoggedAtIso(choice);
+    const log = { ...pendingDiet, loggedAt };
+    setPendingDiet(null);
+    void saveDietLog(log);
+  }
+
+  async function handleChatUpdate(
+    data: unknown,
+    context?: { userMessage?: string },
+  ) {
     if (tab === "control") {
       const payload = data as {
         inbodyRecord?: InbodyRecord;
@@ -208,17 +230,10 @@ export function Dashboard({
       const calories = payload?.calories;
       if (calories == null || calories <= 0) return;
       const now = new Date();
-      const hour = now.getHours();
-      const mealType =
-        hour < 10
-          ? "breakfast"
-          : hour < 15
-            ? "lunch"
-            : hour < 21
-              ? "dinner"
-              : "snack";
+      const userMessage = context?.userMessage ?? "";
+      const mealType = resolveMealType(userMessage, now);
 
-      const inserted = await insertDiet(supabase, userId, {
+      const draft: Omit<DietLog, "id"> = {
         foodName: payload.food_name ?? "未知食物",
         calories,
         proteinG: payload.protein ?? 0,
@@ -226,8 +241,14 @@ export function Dashboard({
         fatG: payload.fat ?? 0,
         loggedAt: now.toISOString(),
         mealType,
-      });
-      setDiets((prev) => [inserted, ...prev]);
+      };
+
+      if (shouldPromptDayRollover(now)) {
+        setPendingDiet(draft);
+        return;
+      }
+
+      await saveDietLog(draft);
     }
   }
 
@@ -350,6 +371,13 @@ export function Dashboard({
         imageHint={chat.imageHint}
         onProfileUpdate={handleChatUpdate}
       />
+
+      {pendingDiet && (
+        <DayRolloverModal
+          foodLabel={pendingDiet.foodName}
+          onChoose={handleDayRolloverChoice}
+        />
+      )}
 
       <BottomTabNav active={tab} onChange={setTab} />
     </div>

@@ -15,7 +15,10 @@ export interface MobileChatProps {
   /** 上傳按鈕說明，例如 InBody */
   imageHint?: string;
   welcomeMessage: string;
-  onProfileUpdate?: (data: unknown) => void;
+  onProfileUpdate?: (
+    data: unknown,
+    context?: { userMessage: string },
+  ) => void;
 }
 
 export function MobileChat({
@@ -89,7 +92,7 @@ export function MobileChat({
         throw new Error(data.reply ?? data.error ?? "請求失敗");
       }
 
-      onProfileUpdate?.(data);
+      onProfileUpdate?.(data, { userMessage: text });
 
       setMessages((prev) => [
         ...prev,
