@@ -1,77 +1,57 @@
-/** 產生 PWA 用 PNG 圖示（加入主畫面需要） */
-import { writeFileSync, mkdirSync } from "fs";
+/**
+ * 從來源圖產生 PWA 圖示（192 / 512）與 favicon
+ * 用法：node scripts/generate-icons.mjs [來源圖路徑]
+ */
+import { mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import zlib from "zlib";
+import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outDir = join(__dirname, "../public/icons");
-mkdirSync(outDir, { recursive: true });
+const publicDir = join(__dirname, "../public");
+const iconsDir = join(publicDir, "icons");
+const appDir = join(__dirname, "../src/app");
 
-function crc32(buf) {
-  let c = ~0;
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i];
-    for (let k = 0; k < 8; k++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : c >>> 1;
-  }
-  return (c ^ ~0) >>> 0;
+const defaultSource = join(iconsDir, "app-icon-source.png");
+const sourceArg = process.argv[2];
+const sourcePath = sourceArg
+  ? sourceArg.startsWith("/") || /^[A-Za-z]:/.test(sourceArg)
+    ? sourceArg
+    : join(process.cwd(), sourceArg)
+  : defaultSource;
+
+if (!existsSync(sourcePath)) {
+  console.error(`找不到來源圖：${sourcePath}`);
+  console.error("請將圖檔放到 public/icons/app-icon-source.png 或傳入路徑");
+  process.exit(1);
 }
 
-function pngChunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const chunk = Buffer.concat([
-    Buffer.from(type),
-    data,
-  ]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([Buffer.from(type), data])));
-  return Buffer.concat([len, chunk, crc]);
+mkdirSync(iconsDir, { recursive: true });
+
+const sizes = [
+  { name: "icon-192.png", size: 192 },
+  { name: "icon-512.png", size: 512 },
+];
+
+for (const { name, size } of sizes) {
+  await sharp(sourcePath)
+    .resize(size, size, { fit: "cover", position: "centre" })
+    .png()
+    .toFile(join(iconsDir, name));
+  console.log(`✓ public/icons/${name}`);
 }
 
-function createPng(size) {
-  const row = 1 + size * 3;
-  const raw = Buffer.alloc(row * size);
-  const bg = [12, 16, 24];
-  const accent = [56, 189, 148];
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size * 0.28;
+// Next.js App Router 自動讀取
+await sharp(sourcePath)
+  .resize(512, 512, { fit: "cover", position: "centre" })
+  .png()
+  .toFile(join(appDir, "icon.png"));
 
-  for (let y = 0; y < size; y++) {
-    const off = y * row;
-    raw[off] = 0;
-    for (let x = 0; x < size; x++) {
-      const i = off + 1 + x * 3;
-      const inCircle =
-        (x - cx) ** 2 + (y - cy) ** 2 <= r ** 2;
-      const [r8, g8, b8] = inCircle ? accent : bg;
-      raw[i] = r8;
-      raw[i + 1] = g8;
-      raw[i + 2] = b8;
-    }
-  }
+await sharp(sourcePath)
+  .resize(180, 180, { fit: "cover", position: "centre" })
+  .png()
+  .toFile(join(appDir, "apple-icon.png"));
 
-  const compressed = zlib.deflateSync(raw);
-  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  ihdr[10] = 0;
-  ihdr[11] = 0;
-  ihdr[12] = 0;
-
-  return Buffer.concat([
-    signature,
-    pngChunk("IHDR", ihdr),
-    pngChunk("IDAT", compressed),
-    pngChunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-for (const size of [192, 512]) {
-  writeFileSync(join(outDir, `icon-${size}.png`), createPng(size));
-}
-console.log("Icons written to public/icons/");
+console.log("✓ src/app/icon.png");
+console.log("✓ src/app/apple-icon.png");
+console.log("完成");
