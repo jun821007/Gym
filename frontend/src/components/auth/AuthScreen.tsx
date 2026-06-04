@@ -4,21 +4,32 @@ import { useState } from "react";
 import { setAuthPersistence } from "@/lib/supabase/client";
 
 interface AuthScreenProps {
+  initialError?: string;
+  defaultRemember?: boolean;
   onSignIn: (email: string, password: string, remember: boolean) => Promise<void>;
   onSignUp: (email: string, password: string, remember: boolean) => Promise<void>;
+  onResetPassword: (email: string) => Promise<void>;
 }
 
-export function AuthScreen({ onSignIn, onSignUp }: AuthScreenProps) {
+export function AuthScreen({
+  initialError = "",
+  defaultRemember = true,
+  onSignIn,
+  onSignUp,
+  onResetPassword,
+}: AuthScreenProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(defaultRemember);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
+  const [info, setInfo] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setInfo("");
     setLoading(true);
     setAuthPersistence(remember);
     try {
@@ -32,6 +43,25 @@ export function AuthScreen({ onSignIn, onSignUp }: AuthScreenProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "登入失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError("請先輸入 Email，再按忘記密碼");
+      return;
+    }
+    setError("");
+    setInfo("");
+    setLoading(true);
+    try {
+      await onResetPassword(trimmed);
+      setInfo("已寄出重設密碼信，請到信箱點連結後用新密碼登入。");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "寄信失敗");
     } finally {
       setLoading(false);
     }
@@ -74,18 +104,25 @@ export function AuthScreen({ onSignIn, onSignUp }: AuthScreenProps) {
             />
           </label>
 
-          <label className="flex items-center gap-2 text-sm text-text-muted">
+          <label className="flex items-start gap-2 text-sm text-text-muted">
             <input
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="h-4 w-4 accent-accent"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
             />
-            保持登入（關閉則關閉瀏覽器後需重登）
+            <span>
+              保持登入（建議勾選：關閉瀏覽器後仍維持登入；取消則僅本次分頁有效）
+            </span>
           </label>
 
           {error && (
-            <p className="text-center text-sm text-danger">{error}</p>
+            <p className="whitespace-pre-line text-center text-sm text-danger">
+              {error}
+            </p>
+          )}
+          {info && (
+            <p className="text-center text-sm text-accent-light">{info}</p>
           )}
 
           <button
@@ -101,12 +138,24 @@ export function AuthScreen({ onSignIn, onSignUp }: AuthScreenProps) {
           </button>
         </form>
 
+        {mode === "login" && (
+          <button
+            type="button"
+            className="mt-3 w-full text-center text-sm text-text-muted underline"
+            onClick={handleForgotPassword}
+            disabled={loading}
+          >
+            忘記密碼？
+          </button>
+        )}
+
         <button
           type="button"
           className="mt-4 w-full text-center text-sm text-accent-light underline"
           onClick={() => {
             setMode(mode === "login" ? "register" : "login");
             setError("");
+            setInfo("");
           }}
         >
           {mode === "login" ? "還沒帳號？註冊" : "已有帳號？登入"}

@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { Dashboard } from "@/components/dashboard/Dashboard";
-import { getSupabase, isSupabaseConfigured, setAuthPersistence } from "@/lib/supabase/client";
+import { translateAuthError } from "@/lib/supabase/auth-errors";
+import {
+  getRememberPreference,
+  getSupabase,
+  isSupabaseConfigured,
+  setAuthPersistence,
+} from "@/lib/supabase/client";
 import { fetchProfile } from "@/lib/supabase/repository";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import type { BodyGoals, UserProfile } from "@/lib/types";
@@ -12,6 +18,8 @@ import type { BodyGoals, UserProfile } from "@/lib/types";
 export function AppGate() {
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [goals, setGoals] = useState<BodyGoals>(DEFAULT_BODY_GOALS);
 
@@ -30,12 +38,25 @@ export function AppGate() {
       return;
     }
 
+    setAuthPersistence(getRememberPreference());
     const supabase = getSupabase();
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       if (data.session?.user) {
-        loadUser(data.session.user.id).finally(() => setBooting(false));
+        setProfileLoading(true);
+        try {
+          await loadUser(data.session.user.id);
+        } catch (e) {
+          setAuthError(
+            translateAuthError(
+              e instanceof Error ? e.message : "載入角色檔案失敗",
+            ),
+          );
+        } finally {
+          setProfileLoading(false);
+          setBooting(false);
+        }
       } else {
         setBooting(false);
       }
@@ -56,26 +77,39 @@ export function AppGate() {
   }, [loadUser]);
 
   async function signIn(email: string, password: string, remember: boolean) {
+    setAuthError("");
     setAuthPersistence(remember);
     const supabase = getSupabase();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
+    if (error) throw new Error(translateAuthError(error.message));
     if (data.user) await loadUser(data.user.id);
   }
 
   async function signUp(email: string, password: string, remember: boolean) {
+    setAuthError("");
     setAuthPersistence(remember);
     const supabase = getSupabase();
     const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
+    if (error) throw new Error(translateAuthError(error.message));
     if (data.session?.user) {
       await loadUser(data.session.user.id);
     } else {
       throw new Error("註冊成功，請到 Email 點確認連結後再登入");
     }
+  }
+
+  async function resetPassword(email: string) {
+    setAuthError("");
+    const supabase = getSupabase();
+    const redirectTo =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    if (error) throw new Error(translateAuthError(error.message));
   }
 
   if (!isSupabaseConfigured()) {
@@ -95,8 +129,24 @@ export function AppGate() {
     );
   }
 
+  if (session && !profile && (booting || profileLoading)) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center text-text-muted">
+        載入冒險者檔案…
+      </div>
+    );
+  }
+
   if (!session || !profile) {
-    return <AuthScreen onSignIn={signIn} onSignUp={signUp} />;
+    return (
+      <AuthScreen
+        initialError={authError}
+        defaultRemember={getRememberPreference()}
+        onSignIn={signIn}
+        onSignUp={signUp}
+        onResetPassword={resetPassword}
+      />
+    );
   }
 
   return (

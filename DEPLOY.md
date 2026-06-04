@@ -16,6 +16,15 @@
 
 一人自用建議：**Authentication → Email → 關閉「Confirm email」**，註冊後可直接登入。
 
+### 4. Site URL（登入失敗常見原因）
+
+**Authentication → URL Configuration**：
+
+- **Site URL**：你的 Netlify 網址，例如 `https://bucolic-arithmetic-1cae20.netlify.app`
+- **Redirect URLs** 新增同一網址與 `http://localhost:3000`
+
+未設定時可能出現 `Invalid login credentials` 或無法保持登入。
+
 ### 3. 複製 API 金鑰
 
 **Project Settings → API**：
