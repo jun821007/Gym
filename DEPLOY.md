@@ -44,8 +44,9 @@ GEMINI_API_KEY=你的金鑰
 CORS_ORIGINS=http://localhost:3000
 ```
 
-**InBody 圖片解析失敗時**：到 https://aistudio.google.com/apikey 產生金鑰，貼到 Railway `GEMINI_API_KEY`（不要加引號），Redeploy。  
-測試：開 `https://你的-railway網址/health/ai` 應為 `{"ok":true,...}`。
+**Gemini API（2026）**：詳見 [GEMINI-API.md](./GEMINI-API.md)。  
+若 `/health/ai` 顯示 `leaked`：金鑰已外洩停用，必須在 [AI Studio](https://aistudio.google.com/apikey) **新建**金鑰，更新 Railway `GEMINI_API_KEY` 後 Redeploy。  
+模型使用 `gemini-2.5-flash`（勿用已停用的 `gemini-2.0-flash`）。
 
 ### frontend/.env.local
 

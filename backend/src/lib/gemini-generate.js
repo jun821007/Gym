@@ -1,10 +1,13 @@
 import { getGemini } from "./gemini.js";
 
+/** 2026/06：gemini-2.0 已停用；AI Studio 建議用 2.5 / 3.5 stable */
 const MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
   "gemini-3.5-flash",
-];
+  "gemini-flash-latest",
+].filter(Boolean);
 
 function extractJson(text) {
   const trimmed = text.trim();
@@ -82,8 +85,14 @@ export async function generateJsonContent({
 export function geminiErrorMessage(err, fallback) {
   const msg = String(err?.message ?? "");
 
+  if (/leaked|reported as leaked/i.test(msg)) {
+    return (
+      "此 API 金鑰已被 Google 判定外洩並停用。請到 aistudio.google.com/apikey 建立「全新」金鑰，" +
+      "更新 Railway GEMINI_API_KEY 後 Redeploy。切勿把金鑰寫進 Git 或貼在聊天裡。"
+    );
+  }
   if (/GEMINI_API_KEY|API key|API_KEY_INVALID|401|403/i.test(msg)) {
-    return "Gemini API 金鑰無效：請到 Railway Variables 更新 GEMINI_API_KEY（Google AI Studio 重新產生）";
+    return "Gemini API 金鑰無效：請到 aistudio.google.com/apikey 重新產生並更新 Railway";
   }
   if (/quota|429|RESOURCE_EXHAUSTED|rate limit/i.test(msg)) {
     return "AI 配額已用完或太頻繁，請稍後再試";
