@@ -62,38 +62,39 @@ cd frontend && npm run dev
 4. **Variables**：`GEMINI_API_KEY`、`CORS_ORIGINS=...`
 5. **Redeploy**
 
-### Netlify（前端）— Publish 刪不掉時這樣填
+### Netlify — Package / Publish 鎖在 `frontend/` 改不了
 
-錯誤 `publish directory cannot be the same as the base directory` = Publish 不能和 Base 一樣。
+這是**舊站**被 Next 範本鎖死，請**新建 Netlify site**（同一 GitHub repo），不要改舊站 UI。
 
-**做法 A（UI 的 Publish 鎖在 `frontend` 改不了）：**
+| 新站 Build 欄位 | 值 |
+|----------------|-----|
+| Base / Package / Publish / Build command | **全部留空** |
 
-不用改 UI，已寫在 `frontend/netlify.toml`：`publish = ".next"` 會覆寫 UI。
-
-| 欄位 | 填什麼 |
-|------|--------|
-| Base directory | `frontend` |
-| Package directory | **留空** |
-| Publish directory | UI 顯示 `frontend` **沒關係**，交給 toml |
-| Build command | 留空 |
-
-改完 push 或 Netlify **Clear cache and deploy**。
-
-**做法 B（改從 repo 根目錄建置，用根目錄 `netlify.toml`）：**
-
-| 欄位 | 填什麼 |
-|------|--------|
-| Base directory | **留空** |
-| Package directory | **留空** |
-| Publish directory | **留空** 或 `.` |
-| Build command | 留空 |
+只靠 repo **根目錄** `netlify.toml`（`base=frontend`、`publish=.next`）。  
+已刪除 `frontend/netlify.toml` 避免衝突。
 
 ### Railway 502 Application failed to respond
 
-1. **Settings → Root Directory** 必須是 `backend`（不是空白）
-2. **Variables** 要有 `GEMINI_API_KEY`
-3. **Deployments → View logs** 看是否有 `API http://0.0.0.0:xxxx`；若沒有代表程序沒起來
-4. 打開 `https://你的網址/health` 應為 `{"ok":true}`
+**最常見原因：Variables 裡手動設了 `PORT=3001`** → Railway 代理連不到。請在 Variables **刪掉 `PORT`**，只留 Railway 自動注入的。
+
+1. **Settings → Root Directory** = `backend`（或留空，用 repo 根目錄 `Dockerfile`）
+2. **Variables**（只要這兩個，不要 PORT）：
+   - `GEMINI_API_KEY`
+   - `CORS_ORIGINS=https://你的-netlify網址.app`
+3. **Deployments** 最新一筆要是 **Active**（Crashed = 看 Deploy logs 最後幾行錯誤）
+4. Deploy logs 結尾要有：`API http://0.0.0.0:8080`（數字依 Railway 而定）
+5. 測試：`https://gym-production-830b.up.railway.app/health` → `{"ok":true}`
+
+改完 **Redeploy**。若仍 502：Settings → Builder 選 **Dockerfile**，再 Redeploy。
+
+**GitHub 需有最新檔**（本機 push）：
+
+```powershell
+cd c:\Users\rsz97\gym
+git add Dockerfile railway.toml backend/Dockerfile backend/railway.json DEPLOY.md
+git commit -m "Railway root Dockerfile fallback and deploy docs"
+git push
+```
 
 環境變數：
 
