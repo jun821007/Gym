@@ -1,0 +1,7 @@
+# Railway：服務 Root Directory 必須設為 backend
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on_failure"

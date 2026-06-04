@@ -52,21 +52,43 @@ cd frontend && npm run dev
 
 ## 三、雲端部署
 
-### Railway（後端）
+### Railway（後端）— 必設子目錄
 
-- Root Directory: `backend`
-- Start: `npm start`
-- 變數: `GEMINI_API_KEY`, `CORS_ORIGINS=https://你的-netlify網址.app`
+錯誤 `Railpack could not determine how to build` = **沒指定 backend 目錄**。
 
-### Netlify（前端）
+1. 打開服務 **Gym** → **Settings**
+2. **Root Directory** 填：`backend`（不是留空）
+3. **Start Command**：`npm start`
+4. **Variables**：`GEMINI_API_KEY`、`CORS_ORIGINS=...`
+5. **Redeploy**
 
-- Base directory: `frontend`
-- 變數:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `NEXT_PUBLIC_API_URL=https://你的-railway網址`
+### Netlify（前端）— Publish 不能等於 Base
 
-部署後把 Netlify 網址加回 Railway `CORS_ORIGINS`，並 **Clear cache and deploy** 前端。
+錯誤 `publish directory cannot be the same as the base directory` = **Publish 設錯了**。
+
+**做法 A（建議，用 repo 根目錄的 `netlify.toml`）：**
+
+| Netlify UI 欄位 | 填什麼 |
+|-----------------|--------|
+| Base directory | **留空** 或 `.` |
+| Publish directory | **留空**（刪掉 `frontend`） |
+| Build command | 留空（由 netlify.toml 決定） |
+
+**做法 B：**
+
+| 欄位 | 值 |
+|------|-----|
+| Base directory | `frontend` |
+| Publish directory | **留空**（千萬不要填 `frontend`） |
+
+環境變數：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_API_URL=https://你的-railway網址`
+
+改完 **Trigger deploy → Clear cache and deploy**。  
+部署成功後把 Netlify 網址加回 Railway `CORS_ORIGINS`。
 
 ---
 
