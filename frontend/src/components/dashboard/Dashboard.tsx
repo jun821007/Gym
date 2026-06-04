@@ -79,7 +79,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--tab-h) + var(--safe-bottom) + 20px)";
+const SCROLL_PAD = "calc(var(--tab-h) + var(--safe-bottom) + 12px)";
 
 interface DashboardProps {
   session: Session;
@@ -379,7 +379,9 @@ export function Dashboard({
         />
       )}
 
-      <BottomTabNav active={tab} onChange={setTab} />
+      <div className="bottom-nav-anchor">
+        <BottomTabNav active={tab} onChange={setTab} />
+      </div>
     </div>
   );
 }

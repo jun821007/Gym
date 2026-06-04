@@ -16,8 +16,8 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tab-h: 4.25rem;
-  --fab-offset: calc(var(--tab-h) + var(--safe-bottom) + 12px);
+  --tab-h: 3.75rem;
+  --fab-offset: calc(var(--tab-h) + var(--safe-bottom) + 8px);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -81,10 +81,24 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
+  min-height: 100dvh;
+  min-height: 100svh;
+  min-height: -webkit-fill-available;
   max-height: 100dvh;
+  max-height: 100svh;
   padding-top: var(--safe-top);
+  padding-bottom: 0;
   background: var(--bg-app);
+}
+
+/* 固定底欄不佔 flex 高度，避免底部多出一段空白 */
+.bottom-nav-anchor {
+  flex: 0 0 0;
+  height: 0;
+  width: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .app-scroll {
@@ -182,6 +196,10 @@ body {
   transition: width 0.35s ease;
 }
 
+.bottom-nav-anchor .bottom-nav {
+  pointer-events: auto;
+}
+
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -190,10 +208,11 @@ body {
   z-index: 50;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 6px 8px calc(6px + var(--safe-bottom));
+  gap: 2px;
+  padding: 4px 6px max(4px, var(--safe-bottom));
   background: var(--bg-card);
   border-top: 4px solid var(--border-pixel);
+  box-sizing: border-box;
 }
 
 .chat-fab {

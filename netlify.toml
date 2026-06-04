@@ -1,5 +1,4 @@
-# Monorepo：從 repo 根目錄部署，實際建置在 frontend/
-# Netlify UI：Base directory 留空（.），Publish directory 留空
+# 從 repo 根目錄部署（Netlify UI：Base / Package / Publish 全部留空）
 [build]
   base = "frontend"
   command = "npm run build"

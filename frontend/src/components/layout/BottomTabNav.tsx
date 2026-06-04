@@ -25,7 +25,7 @@ export function BottomTabNav({ active, onChange }: BottomTabNavProps) {
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex min-h-[52px] flex-col items-center justify-center gap-1 border-[3px] border-solid border-transparent text-sm font-semibold transition active:translate-y-0.5",
+              "flex min-h-[46px] flex-col items-center justify-center gap-0.5 border-[3px] border-solid border-transparent text-sm font-semibold transition active:translate-y-0.5",
               isActive
                 ? "border-border-pixel bg-accent text-bg-app shadow-[2px_2px_0_#0d0d1a]"
                 : "text-text-muted",

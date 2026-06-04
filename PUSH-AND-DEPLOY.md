@@ -122,11 +122,27 @@ https://gym-production-830b.up.railway.app/
 
 ---
 
-## 日誌有 `API http://0.0.0.0:8080` 但瀏覽器仍 502（你現在的情況）
+## 日誌有 `API http://0.0.0.0:8080` 但瀏覽器仍 502（最常見原因）
 
-代表 **程式有啟動，但 Railway 網域沒連到容器**（回應標頭會有 `X-Railway-Fallback: true`）。
+**Networking 的 Port 和 Deploy log 的 PORT 不一致。**
 
-### 請做：重綁網域（最重要）
+例如：
+
+- Deploy log：`API http://0.0.0.0:8080` → 程式聽 **8080**
+- Networking 顯示：`→ Port 5678` → 網域轉到 **5678** → **一定 502**
+
+### 修正（30 秒）
+
+1. Railway → **Gym** → **Settings** → **Networking**
+2. 在網域 `gym-production-xxxx.up.railway.app` 那一行，點 **Port 5678**（或旁邊編輯）
+3. 改成 **`8080`**（和 Deploy log 裡的數字**完全一樣**）
+4. 存檔後瀏覽器開：`https://你的網域.up.railway.app/health` → 應為 `{"ok":true}`
+
+若沒法改 Port：刪除網域 → **Generate Domain** → 確認新網域旁 Port 是 **8080**（或與 log 一致）。
+
+---
+
+## 舊說明：重綁網域（Port 已對仍 502 時才做）
 
 1. Railway → 服務 **Gym** → **Settings**
 2. 往下 **Networking** / **Public Networking**
