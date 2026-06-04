@@ -1,7 +1,9 @@
-# Railway：服務 Root Directory 必須設為 backend
+# Railway：Settings → Root Directory = backend，Builder = Dockerfile
 [build]
-builder = "nixpacks"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm start"
 restartPolicyType = "on_failure"
+healthcheckPath = "/health"
+healthcheckTimeout = 300

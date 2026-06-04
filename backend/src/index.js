@@ -32,7 +32,16 @@ app.use("/api/chat/diet", dietChatRouter);
 app.use("/api/diet", dietRouter);
 app.use("/api/weekly", weeklyRouter);
 
-app.listen(PORT, "0.0.0.0", () => {
+app.get("/", (_req, res) => {
+  res.json({ ok: true, service: "body-management-api" });
+});
+
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`API http://0.0.0.0:${PORT}`);
   console.log(`CORS: ${origins.join(", ")}`);
+});
+
+server.on("error", (err) => {
+  console.error("listen failed:", err);
+  process.exit(1);
 });
