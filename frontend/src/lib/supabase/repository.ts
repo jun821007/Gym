@@ -13,6 +13,7 @@ import type { WaterLogEntry } from "@/lib/water-intake";
 import {
   computeNutritionGoalsFromInbody,
   getLatestInbodyRecord,
+  isNutritionGoalsOutOfSync,
 } from "@/lib/nutrition-goals";
 import {
   rowToBodyGoals,
@@ -119,18 +120,25 @@ export async function syncNutritionGoalsFromInbody(
     nutritionGoalsInbodyDate: inbodyDate,
   };
 
-  const { error } = await supabase
+  const coreUpdate = {
+    daily_calorie_goal: computed.calories,
+    daily_protein_goal: computed.proteinG,
+    daily_carbs_goal: computed.carbsG,
+    daily_fat_goal: computed.fatG,
+  };
+
+  const { error: coreError } = await supabase
     .from("users_profile")
-    .update({
-      daily_calorie_goal: computed.calories,
-      daily_protein_goal: computed.proteinG,
-      daily_carbs_goal: computed.carbsG,
-      daily_fat_goal: computed.fatG,
-      nutrition_goals_inbody_date: inbodyDate,
-    })
+    .update(coreUpdate)
     .eq("id", userId);
 
-  if (error) throw error;
+  if (coreError) throw coreError;
+
+  await supabase
+    .from("users_profile")
+    .update({ nutrition_goals_inbody_date: inbodyDate })
+    .eq("id", userId);
+  /* 005 migration 未跑時略過日期欄位，核心目標已寫入 */
 
   return {
     profile: nextProfile,
@@ -150,8 +158,7 @@ export async function syncNutritionGoalsIfStale(
   const latest = getLatestInbodyRecord(bundle.profile.inbodyHistory);
   if (!latest) return null;
 
-  const latestDate = latest.recorded_at.slice(0, 10);
-  if (bundle.profile.nutritionGoalsInbodyDate === latestDate) {
+  if (!isNutritionGoalsOutOfSync(bundle.profile, bundle.goals)) {
     return null;
   }
 

@@ -11,10 +11,7 @@ import { buildLoggedAtIso, shouldPromptDayRollover } from "@/lib/day-rollover";
 import { resolveMealType } from "@/lib/meal-type";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
-import {
-  computeNutritionGoalsFromInbody,
-  getLatestInbodyRecord,
-} from "@/lib/nutrition-goals";
+import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
 import { getSupabase } from "@/lib/supabase/client";
 import {
   appendInbodyRecord,
@@ -154,8 +151,8 @@ export function Dashboard({
           onProfilePersist?.(stale.profile);
           setNutritionRationale(stale.rationale);
         }
-      } catch {
-        /* 欄位未 migration 時略過 */
+      } catch (e) {
+        console.warn("[nutrition-goals] sync on load failed", e);
       }
       await refreshData();
     })().finally(() => setDataLoading(false));
@@ -213,12 +210,13 @@ export function Dashboard({
     }
   }
 
-  const nutritionHint = useMemo(() => {
-    if (nutritionRationale) return nutritionRationale;
-    const latest = getLatestInbodyRecord(profile.inbodyHistory);
-    if (!latest) return null;
-    return computeNutritionGoalsFromInbody(latest, bodyGoals).rationale;
-  }, [nutritionRationale, profile.inbodyHistory, bodyGoals]);
+  const nutritionDisplay = useMemo(
+    () => resolveNutritionGoalsForDisplay(profile, bodyGoals),
+    [profile, bodyGoals],
+  );
+
+  const nutritionHint =
+    nutritionRationale ?? nutritionDisplay.rationale || null;
 
   const chat = CHAT_CONFIG[tab];
 
@@ -259,8 +257,22 @@ export function Dashboard({
             onProfilePersist?.(synced.profile);
             setNutritionRationale(synced.rationale);
           }
-        } catch {
-          /* ignore */
+        } catch (e) {
+          console.warn("[nutrition-goals] sync after InBody failed", e);
+          const display = resolveNutritionGoalsForDisplay(
+            refreshed?.profile ?? profile,
+            refreshed?.goals ?? bodyGoals,
+          );
+          if (display.fromInbody) {
+            setProfile((p) => ({
+              ...p,
+              dailyCalorieGoal: display.calories,
+              dailyProteinGoal: display.proteinG,
+              dailyCarbsGoal: display.carbsG,
+              dailyFatGoal: display.fatG,
+            }));
+            setNutritionRationale(display.rationale);
+          }
         }
       }
       if (payload?.profileUpdate?.xpGained) {
@@ -399,6 +411,7 @@ export function Dashboard({
           <TavernTab
             profile={profile}
             nutritionRationale={nutritionHint}
+            nutritionGoals={nutritionDisplay}
             diets={diets}
             waterLogs={waterLogs}
             settlementHistory={dietSettlements}

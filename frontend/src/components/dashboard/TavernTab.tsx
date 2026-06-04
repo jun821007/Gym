@@ -34,6 +34,12 @@ interface TavernTabProps {
   profile: UserProfile;
   /** 依 InBody 自動建議的說明 */
   nutritionRationale?: string | null;
+  nutritionGoals: {
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+  };
   diets: DietLog[];
   waterLogs: WaterLogEntry[];
   settlementHistory: DailyDietSettlement[];
@@ -74,6 +80,7 @@ const GRADE_BADGE: Record<DailyDietSettlement["grade"], string> = {
 export function TavernTab({
   profile,
   nutritionRationale,
+  nutritionGoals,
   diets,
   waterLogs,
   settlementHistory,
@@ -145,8 +152,8 @@ export function TavernTab({
     try {
       const payload = {
         goals: {
-          calories: profile.dailyCalorieGoal,
-          proteinG: profile.dailyProteinGoal,
+          calories: nutritionGoals.calories,
+          proteinG: nutritionGoals.proteinG,
           carbsG: profile.dailyCarbsGoal,
           fatG: profile.dailyFatGoal,
           waterMl: waterGoalMl,
@@ -243,8 +250,8 @@ export function TavernTab({
         ),
         waterLogs: waterLogs.filter((w) => w.logDate >= after),
         goals: {
-          calories: profile.dailyCalorieGoal,
-          protein: profile.dailyProteinGoal,
+          calories: nutritionGoals.calories,
+          protein: nutritionGoals.proteinG,
           waterMl: waterGoalMl,
         },
       };
@@ -294,28 +301,28 @@ export function TavernTab({
           <NutrientBar
             label="熱量"
             current={totals.calories}
-            goal={profile.dailyCalorieGoal}
+            goal={nutritionGoals.calories}
             unit=" kcal"
             color="#6ee7a0"
           />
           <NutrientBar
             label="蛋白質"
             current={Math.round(totals.protein)}
-            goal={profile.dailyProteinGoal}
+            goal={nutritionGoals.proteinG}
             unit="g"
             color="#38b764"
           />
           <NutrientBar
             label="碳水"
             current={Math.round(totals.carbs)}
-            goal={profile.dailyCarbsGoal}
+            goal={nutritionGoals.carbsG}
             unit="g"
             color="#5b9cf5"
           />
           <NutrientBar
             label="脂肪"
             current={Math.round(totals.fat)}
-            goal={profile.dailyFatGoal}
+            goal={nutritionGoals.fatG}
             unit="g"
             color="#e85d75"
           />

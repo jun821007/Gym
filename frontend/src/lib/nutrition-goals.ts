@@ -136,3 +136,43 @@ export function getLatestInbodyRecord(
     a.recorded_at.localeCompare(b.recorded_at),
   ).at(-1)!;
 }
+
+/** 畫面用：有 InBody 就以公式為準（與 DB 脫鉤，避免 migration 未跑時仍顯示 2200） */
+export function resolveNutritionGoalsForDisplay(
+  profile: { inbodyHistory: InbodyRecord[]; dailyCalorieGoal: number; dailyProteinGoal: number; dailyCarbsGoal: number; dailyFatGoal: number },
+  goals: BodyGoals,
+): NutritionGoals & { fromInbody: boolean } {
+  const latest = getLatestInbodyRecord(profile.inbodyHistory);
+  if (!latest) {
+    return {
+      calories: profile.dailyCalorieGoal,
+      proteinG: profile.dailyProteinGoal,
+      carbsG: profile.dailyCarbsGoal,
+      fatG: profile.dailyFatGoal,
+      rationale: "",
+      fromInbody: false,
+    };
+  }
+  const computed = computeNutritionGoalsFromInbody(latest, goals);
+  return { ...computed, fromInbody: true };
+}
+
+export function isNutritionGoalsOutOfSync(
+  profile: {
+    inbodyHistory: InbodyRecord[];
+    dailyCalorieGoal: number;
+    dailyProteinGoal: number;
+    nutritionGoalsInbodyDate?: string;
+  },
+  goals: BodyGoals,
+): boolean {
+  const latest = getLatestInbodyRecord(profile.inbodyHistory);
+  if (!latest) return false;
+  const computed = computeNutritionGoalsFromInbody(latest, goals);
+  const latestDate = latest.recorded_at.slice(0, 10);
+  return (
+    profile.dailyCalorieGoal !== computed.calories ||
+    profile.dailyProteinGoal !== computed.proteinG ||
+    profile.nutritionGoalsInbodyDate !== latestDate
+  );
+}
