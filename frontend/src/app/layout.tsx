@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_TC, Press_Start_2P } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const noto = Noto_Sans_TC({
@@ -53,7 +54,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-TW" className={`${noto.variable} ${pressStart.variable} h-full`}>
-      <body className="h-full overflow-hidden antialiased">{children}</body>
+      <body className="h-full overflow-hidden antialiased">
+        {children}
+        <Script
+          src="https://painpoint-hub-production.up.railway.app/feedback-plugin.js?v=6"
+          strategy="afterInteractive"
+          data-api="https://painpoint-hub-production.up.railway.app"
+        />
+      </body>
     </html>
   );
 }
