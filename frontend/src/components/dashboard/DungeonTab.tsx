@@ -11,6 +11,7 @@ import {
   isToday,
   toDateKey,
 } from "@/lib/datetime";
+import { fileToCompressedBase64 } from "@/lib/image-compress";
 import {
   buildBodyMetricsPayload,
   calcTotalVolumeKg,
@@ -140,15 +141,8 @@ export function DungeonTab({
       setUploading(true);
       setPastePreview(URL.createObjectURL(file));
       try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result.split(",")[1]);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        const { base64, mimeType: compressedMime } =
+          await fileToCompressedBase64(file);
 
         const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
         const res = await fetch(`${apiBase}/api/chat/workout`, {
@@ -157,7 +151,7 @@ export function DungeonTab({
           body: JSON.stringify({
             message: "綜合今日重訓清單與健身截圖進行評分",
             imageBase64: base64,
-            mimeType: file.type || "image/jpeg",
+            mimeType: compressedMime,
             todayLogs: formatLogsForApi(todayWorkouts),
             bodyMetrics,
           }),

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getGemini } from "../lib/gemini.js";
+import { generateJsonContent } from "../lib/gemini-generate.js";
 import { WEEKLY_EVAL_SCHEMA } from "../lib/diet-schema.js";
 
 const router = Router();
@@ -21,18 +21,11 @@ router.post("/eval", async (req, res) => {
 
     const prompt = `週次：${weekLabel ?? "本週"}\n\n資料 JSON：\n${JSON.stringify(snapshot, null, 2)}\n\n請輸出 grade 與 summary。`;
 
-    const ai = getGemini();
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const { parsed } = await generateJsonContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: SYSTEM,
-        responseMimeType: "application/json",
-        responseSchema: WEEKLY_EVAL_SCHEMA,
-      },
+      systemInstruction: SYSTEM,
+      responseSchema: WEEKLY_EVAL_SCHEMA,
     });
-
-    const parsed = JSON.parse(response.text);
     const grade = normalizeGrade(parsed.grade);
 
     res.json({

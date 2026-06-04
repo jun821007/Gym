@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getGemini } from "../lib/gemini.js";
+import { geminiErrorMessage, generateJsonContent } from "../lib/gemini-generate.js";
 import { DIET_RESPONSE_SCHEMA } from "../lib/diet-schema.js";
 
 const router = Router();
@@ -32,18 +32,11 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "請輸入文字或上傳食物照片" });
     }
 
-    const ai = getGemini();
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const { parsed } = await generateJsonContent({
       contents: [{ role: "user", parts: buildParts(message, imageBase64, mimeType) }],
-      config: {
-        systemInstruction: SYSTEM,
-        responseMimeType: "application/json",
-        responseSchema: DIET_RESPONSE_SCHEMA,
-      },
+      systemInstruction: SYSTEM,
+      responseSchema: DIET_RESPONSE_SCHEMA,
     });
-
-    const parsed = JSON.parse(response.text);
     res.json({
       reply: parsed.reply,
       food_name: parsed.food_name,
@@ -54,10 +47,7 @@ router.post("/", async (req, res) => {
     });
   } catch (err) {
     console.error("[diet-chat]", err);
-    const msg =
-      err.message?.includes("GEMINI_API_KEY")
-        ? "請在 backend/.env 設定 GEMINI_API_KEY"
-        : "解析失敗";
+    const msg = geminiErrorMessage(err, "解析失敗");
     res.status(500).json({ reply: msg, error: msg });
   }
 });

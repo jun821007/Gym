@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getGemini } from "../lib/gemini.js";
+import { geminiErrorMessage, generateJsonContent } from "../lib/gemini-generate.js";
 import {
   formatBodyMetricsPrompt,
   formatTodayLogsPrompt,
@@ -56,23 +56,16 @@ router.post("/", async (req, res) => {
     const bodyPrompt = formatBodyMetricsPrompt(bodyMetrics);
     const fullPrompt = `${bodyPrompt}\n\n${logsPrompt}`;
 
-    const ai = getGemini();
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+    const { parsed } = await generateJsonContent({
       contents: [
         {
           role: "user",
           parts: buildParts(message, imageBase64, mimeType, fullPrompt),
         },
       ],
-      config: {
-        systemInstruction: SYSTEM,
-        responseMimeType: "application/json",
-        responseSchema: WORKOUT_SETTLE_SCHEMA,
-      },
+      systemInstruction: SYSTEM,
+      responseSchema: WORKOUT_SETTLE_SCHEMA,
     });
-
-    const parsed = JSON.parse(response.text);
     const grade = normalizeGrade(parsed.grade);
 
     const manualLogs = Array.isArray(todayLogs)
@@ -115,10 +108,7 @@ router.post("/", async (req, res) => {
     });
   } catch (err) {
     console.error("[workout]", err);
-    const msg =
-      err.message?.includes("GEMINI_API_KEY")
-        ? "請在 backend/.env 設定 GEMINI_API_KEY"
-        : "解析失敗，請換清晰截圖重試";
+    const msg = geminiErrorMessage(err, "解析失敗，請換清晰截圖重試");
     res.status(500).json({ reply: msg, error: msg });
   }
 });

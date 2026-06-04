@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { fileToCompressedBase64 } from "@/lib/image-compress";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -116,22 +117,32 @@ export function MobileChat({
     }
   }
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      const prompt =
-        input.trim() ||
-        (imageHint.includes("InBody")
-          ? "請解析這張 InBody 報告並更新我的體態數據"
-          : "請解析這張圖片");
-      sendMessage(prompt, base64, file.type || "image/jpeg");
-    };
-    reader.readAsDataURL(file);
     e.target.value = "";
+
+    const prompt =
+      input.trim() ||
+      (imageHint.includes("InBody")
+        ? "請解析這張 InBody 報告並更新我的體態數據"
+        : "請解析這張圖片");
+
+    try {
+      const { base64, mimeType } = await fileToCompressedBase64(file);
+      await sendMessage(prompt, base64, mimeType);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "圖片處理失敗";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: errMsg,
+          timestamp: new Date(),
+        },
+      ]);
+    }
   }
 
   const fab = (
@@ -195,7 +206,7 @@ export function MobileChat({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/*"
                   className="hidden"
                   onChange={handleImageChange}
                 />
