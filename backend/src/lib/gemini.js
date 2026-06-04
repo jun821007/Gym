@@ -2,12 +2,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 let client;
 
+function readApiKey() {
+  const raw = process.env.GEMINI_API_KEY ?? "";
+  const key = raw.trim().replace(/^["']|["']$/g, "");
+  if (!key) throw new Error("GEMINI_API_KEY 未設定");
+  return key;
+}
+
 export function getGemini() {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY 未設定");
-  }
   if (!client) {
-    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    client = new GoogleGenAI({ apiKey: readApiKey() });
   }
   return client;
 }

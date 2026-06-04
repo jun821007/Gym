@@ -15,6 +15,25 @@ const HOST = process.env.HOST || "0.0.0.0";
 app.get("/health", (_req, res) => {
   res.status(200).type("json").send('{"ok":true}');
 });
+
+app.get("/health/ai", async (_req, res) => {
+  try {
+    const { generateJsonContent } = await import("./lib/gemini-generate.js");
+    const { INBODY_RESPONSE_SCHEMA } = await import("./lib/gemini.js");
+    const { parsed, model } = await generateJsonContent({
+      contents: [{ role: "user", parts: [{ text: "體重70 體脂20" }] }],
+      systemInstruction: "你是體態助手，從文字提取數據。",
+      responseSchema: INBODY_RESPONSE_SCHEMA,
+    });
+    res.json({ ok: true, model, sample: parsed });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err?.message ?? "AI check failed",
+      hint: "檢查 Railway GEMINI_API_KEY",
+    });
+  }
+});
 app.head("/health", (_req, res) => {
   res.sendStatus(200);
 });
