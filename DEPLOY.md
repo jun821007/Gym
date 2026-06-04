@@ -9,6 +9,7 @@
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_water_intake.sql`
 3. `supabase/migrations/003_app_data_sync.sql` ← **新增，必跑**
+4. `supabase/migrations/005_nutrition_goals_inbody_sync.sql` ← 依 InBody 自動更新每日熱量／蛋白目標
 
 ### 2. 啟用 Email 登入
 

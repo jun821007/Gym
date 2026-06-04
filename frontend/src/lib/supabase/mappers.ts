@@ -30,6 +30,7 @@ export type ProfileRow = {
   target_weight_kg: number | null;
   target_body_fat_pct: number | null;
   target_muscle_kg: number | null;
+  nutrition_goals_inbody_date: string | null;
 };
 
 export function rowToProfile(row: ProfileRow): UserProfile {
@@ -50,6 +51,7 @@ export function rowToProfile(row: ProfileRow): UserProfile {
     dailyCarbsGoal: row.daily_carbs_goal ?? 250,
     dailyFatGoal: row.daily_fat_goal ?? 70,
     dailyWaterGoalMl: row.daily_water_goal_ml ?? 2000,
+    nutritionGoalsInbodyDate: row.nutrition_goals_inbody_date ?? undefined,
   };
 }
 

@@ -25,6 +25,8 @@ export interface UserProfile {
   dailyCarbsGoal: number;
   dailyFatGoal: number;
   dailyWaterGoalMl?: number;
+  /** 營養目標最後依據的 InBody 日期 YYYY-MM-DD */
+  nutritionGoalsInbodyDate?: string;
 }
 
 export interface InbodyRecord {

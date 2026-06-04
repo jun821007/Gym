@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MobileChat } from "@/components/chat/MobileChat";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
@@ -11,6 +11,10 @@ import { buildLoggedAtIso, shouldPromptDayRollover } from "@/lib/day-rollover";
 import { resolveMealType } from "@/lib/meal-type";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
+import {
+  computeNutritionGoalsFromInbody,
+  getLatestInbodyRecord,
+} from "@/lib/nutrition-goals";
 import { getSupabase } from "@/lib/supabase/client";
 import {
   appendInbodyRecord,
@@ -25,6 +29,8 @@ import {
   insertWaterLog,
   insertWorkout,
   saveBodyGoals,
+  syncNutritionGoalsFromInbody,
+  syncNutritionGoalsIfStale,
   updateProfile,
   updateWaterGoal,
   upsertDietSettlement,
@@ -118,6 +124,9 @@ export function Dashboard({
   const [pendingDiet, setPendingDiet] = useState<Omit<DietLog, "id"> | null>(
     null,
   );
+  const [nutritionRationale, setNutritionRationale] = useState<string | null>(
+    null,
+  );
 
   const refreshData = useCallback(async () => {
     const [w, d, water, ws, ds, wg] = await Promise.all([
@@ -137,8 +146,20 @@ export function Dashboard({
   }, [supabase, userId]);
 
   useEffect(() => {
-    refreshData().finally(() => setDataLoading(false));
-  }, [refreshData]);
+    (async () => {
+      try {
+        const stale = await syncNutritionGoalsIfStale(supabase, userId);
+        if (stale) {
+          setProfile(stale.profile);
+          onProfilePersist?.(stale.profile);
+          setNutritionRationale(stale.rationale);
+        }
+      } catch {
+        /* 欄位未 migration 時略過 */
+      }
+      await refreshData();
+    })().finally(() => setDataLoading(false));
+  }, [refreshData, supabase, userId, onProfilePersist]);
 
   const persistProfile = useCallback(
     async (next: UserProfile) => {
@@ -178,7 +199,26 @@ export function Dashboard({
     setBodyGoals(goals);
     onGoalsPersist?.(goals);
     await saveBodyGoals(supabase, userId, goals);
+    if (profile.inbodyHistory.length > 0) {
+      try {
+        const synced = await syncNutritionGoalsFromInbody(supabase, userId);
+        if (synced) {
+          setProfile(synced.profile);
+          onProfilePersist?.(synced.profile);
+          setNutritionRationale(synced.rationale);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
+
+  const nutritionHint = useMemo(() => {
+    if (nutritionRationale) return nutritionRationale;
+    const latest = getLatestInbodyRecord(profile.inbodyHistory);
+    if (!latest) return null;
+    return computeNutritionGoalsFromInbody(latest, bodyGoals).rationale;
+  }, [nutritionRationale, profile.inbodyHistory, bodyGoals]);
 
   const chat = CHAT_CONFIG[tab];
 
@@ -211,6 +251,16 @@ export function Dashboard({
           setProfile(refreshed.profile);
           setBodyGoals(refreshed.goals);
           onProfilePersist?.(refreshed.profile);
+        }
+        try {
+          const synced = await syncNutritionGoalsFromInbody(supabase, userId);
+          if (synced) {
+            setProfile(synced.profile);
+            onProfilePersist?.(synced.profile);
+            setNutritionRationale(synced.rationale);
+          }
+        } catch {
+          /* ignore */
         }
       }
       if (payload?.profileUpdate?.xpGained) {
@@ -348,6 +398,7 @@ export function Dashboard({
         {tab === "tavern" && (
           <TavernTab
             profile={profile}
+            nutritionRationale={nutritionHint}
             diets={diets}
             waterLogs={waterLogs}
             settlementHistory={dietSettlements}

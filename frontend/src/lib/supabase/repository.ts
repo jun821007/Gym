@@ -11,6 +11,10 @@ import type {
 } from "@/lib/types";
 import type { WaterLogEntry } from "@/lib/water-intake";
 import {
+  computeNutritionGoalsFromInbody,
+  getLatestInbodyRecord,
+} from "@/lib/nutrition-goals";
+import {
   rowToBodyGoals,
   rowToDiet,
   rowToDietSettlement,
@@ -74,6 +78,7 @@ export async function updateProfile(
       daily_carbs_goal: profile.dailyCarbsGoal,
       daily_fat_goal: profile.dailyFatGoal,
       daily_water_goal_ml: profile.dailyWaterGoalMl ?? 2000,
+      nutrition_goals_inbody_date: profile.nutritionGoalsInbodyDate ?? null,
     })
     .eq("id", profile.id);
   if (error) throw error;
@@ -89,6 +94,70 @@ export async function appendInbodyRecord(
     p_record: record,
   });
   if (error) throw error;
+}
+
+/** 依最新 InBody + 體態目標更新每日熱量／蛋白等建議 */
+export async function syncNutritionGoalsFromInbody(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ profile: UserProfile; goals: BodyGoals; rationale: string } | null> {
+  const bundle = await fetchProfile(supabase, userId);
+  if (!bundle) return null;
+
+  const latest = getLatestInbodyRecord(bundle.profile.inbodyHistory);
+  if (!latest) return null;
+
+  const computed = computeNutritionGoalsFromInbody(latest, bundle.goals);
+  const inbodyDate = latest.recorded_at.slice(0, 10);
+
+  const nextProfile: UserProfile = {
+    ...bundle.profile,
+    dailyCalorieGoal: computed.calories,
+    dailyProteinGoal: computed.proteinG,
+    dailyCarbsGoal: computed.carbsG,
+    dailyFatGoal: computed.fatG,
+    nutritionGoalsInbodyDate: inbodyDate,
+  };
+
+  const { error } = await supabase
+    .from("users_profile")
+    .update({
+      daily_calorie_goal: computed.calories,
+      daily_protein_goal: computed.proteinG,
+      daily_carbs_goal: computed.carbsG,
+      daily_fat_goal: computed.fatG,
+      nutrition_goals_inbody_date: inbodyDate,
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+
+  return {
+    profile: nextProfile,
+    goals: bundle.goals,
+    rationale: computed.rationale,
+  };
+}
+
+/** 若已有新 InBody 尚未同步營養目標，則重算 */
+export async function syncNutritionGoalsIfStale(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ profile: UserProfile; rationale: string } | null> {
+  const bundle = await fetchProfile(supabase, userId);
+  if (!bundle) return null;
+
+  const latest = getLatestInbodyRecord(bundle.profile.inbodyHistory);
+  if (!latest) return null;
+
+  const latestDate = latest.recorded_at.slice(0, 10);
+  if (bundle.profile.nutritionGoalsInbodyDate === latestDate) {
+    return null;
+  }
+
+  const result = await syncNutritionGoalsFromInbody(supabase, userId);
+  if (!result) return null;
+  return { profile: result.profile, rationale: result.rationale };
 }
 
 export async function saveBodyGoals(

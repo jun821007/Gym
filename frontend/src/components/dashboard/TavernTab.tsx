@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 
 interface TavernTabProps {
   profile: UserProfile;
+  /** 依 InBody 自動建議的說明 */
+  nutritionRationale?: string | null;
   diets: DietLog[];
   waterLogs: WaterLogEntry[];
   settlementHistory: DailyDietSettlement[];
@@ -71,6 +73,7 @@ const GRADE_BADGE: Record<DailyDietSettlement["grade"], string> = {
 
 export function TavernTab({
   profile,
+  nutritionRationale,
   diets,
   waterLogs,
   settlementHistory,
@@ -282,6 +285,11 @@ export function TavernTab({
   return (
     <div className="space-y-4 pb-2">
       <Card title="今日攝取">
+        {nutritionRationale && (
+          <p className="mb-3 text-xs leading-relaxed text-text-muted">
+            {nutritionRationale}
+          </p>
+        )}
         <div className="space-y-4">
           <NutrientBar
             label="熱量"
