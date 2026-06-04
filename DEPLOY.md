@@ -62,24 +62,38 @@ cd frontend && npm run dev
 4. **Variables**：`GEMINI_API_KEY`、`CORS_ORIGINS=...`
 5. **Redeploy**
 
-### Netlify（前端）— Publish 不能等於 Base
+### Netlify（前端）— Publish 刪不掉時這樣填
 
-錯誤 `publish directory cannot be the same as the base directory` = **Publish 設錯了**。
+錯誤 `publish directory cannot be the same as the base directory` = Publish 不能和 Base 一樣。
 
-**做法 A（建議，用 repo 根目錄的 `netlify.toml`）：**
+**做法 A（UI 的 Publish 鎖在 `frontend` 改不了）：**
 
-| Netlify UI 欄位 | 填什麼 |
-|-----------------|--------|
-| Base directory | **留空** 或 `.` |
-| Publish directory | **留空**（刪掉 `frontend`） |
-| Build command | 留空（由 netlify.toml 決定） |
+不用改 UI，已寫在 `frontend/netlify.toml`：`publish = ".next"` 會覆寫 UI。
 
-**做法 B：**
-
-| 欄位 | 值 |
-|------|-----|
+| 欄位 | 填什麼 |
+|------|--------|
 | Base directory | `frontend` |
-| Publish directory | **留空**（千萬不要填 `frontend`） |
+| Package directory | **留空** |
+| Publish directory | UI 顯示 `frontend` **沒關係**，交給 toml |
+| Build command | 留空 |
+
+改完 push 或 Netlify **Clear cache and deploy**。
+
+**做法 B（改從 repo 根目錄建置，用根目錄 `netlify.toml`）：**
+
+| 欄位 | 填什麼 |
+|------|--------|
+| Base directory | **留空** |
+| Package directory | **留空** |
+| Publish directory | **留空** 或 `.` |
+| Build command | 留空 |
+
+### Railway 502 Application failed to respond
+
+1. **Settings → Root Directory** 必須是 `backend`（不是空白）
+2. **Variables** 要有 `GEMINI_API_KEY`
+3. **Deployments → View logs** 看是否有 `API http://0.0.0.0:xxxx`；若沒有代表程序沒起來
+4. 打開 `https://你的網址/health` 應為 `{"ok":true}`
 
 環境變數：
 

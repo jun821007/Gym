@@ -1,5 +1,7 @@
+# Base directory = frontend 時用此檔（UI 的 Publish 鎖住 frontend 時，由此覆寫）
 [build]
   command = "npm run build"
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
