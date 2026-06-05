@@ -85,12 +85,13 @@ export function getTodayWaterEntries(entries: WaterLogEntry[]): WaterLogEntry[] 
   return getWaterEntriesForDate(entries, toDateKey());
 }
 
+/** 僅依 log_date 歸屬（勿用 loggedAt 本地日，否則跨日會重複出現在不同日期） */
 export function getWaterEntriesForDate(
   entries: WaterLogEntry[],
   dateKey: string,
 ): WaterLogEntry[] {
   return entries
-    .filter((e) => e.logDate === dateKey || toDateKey(new Date(e.loggedAt)) === dateKey)
+    .filter((e) => e.logDate === dateKey)
     .sort(
       (a, b) =>
         new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),

@@ -35,14 +35,15 @@ function calorieScore(current: number, goal: number): number {
   return 15;
 }
 
-/** 蛋白：達標或略超佳 */
+/** 蛋白：達標或略超佳（增肌常略超，勿與「不足」混為一談） */
 function proteinScore(current: number, goal: number): number {
   if (goal <= 0) return 50;
   const r = current / goal;
-  if (r >= 0.95 && r <= 1.25) return 100;
-  if (r >= 0.85 && r <= 1.35) return 85;
-  if (r >= 0.7 && r <= 1.5) return 70;
-  if (r >= 0.5) return 50;
+  if (r >= 0.95 && r <= 1.35) return 100;
+  if (r >= 0.85 && r <= 1.55) return 90;
+  if (r >= 0.7 && r <= 1.75) return 75;
+  if (r >= 0.5 && r < 0.7) return 45;
+  if (r > 1.75) return 65;
   if (r > 0) return 35;
   return 15;
 }
@@ -82,6 +83,7 @@ function buildSummary(
   grade: RankGrade,
   totals: { calories: number; proteinG: number },
   calorieGoal: number,
+  proteinGoal: number,
   waterMl: number,
   waterGoalMl: number,
   mealCount: number,
@@ -90,21 +92,28 @@ function buildSummary(
   const calPct = calorieGoal
     ? Math.round((totals.calories / calorieGoal) * 100)
     : 0;
+  const proteinPct = proteinGoal
+    ? Math.round((totals.proteinG / proteinGoal) * 100)
+    : 0;
   const waterPct = waterGoalMl
     ? Math.round((waterMl / waterGoalMl) * 100)
     : 0;
+  const calRatio = calorieGoal > 0 ? totals.calories / calorieGoal : 1;
+  const proteinRatio = proteinGoal > 0 ? totals.proteinG / proteinGoal : 1;
 
   const parts: string[] = [];
   parts.push(
     `今日 ${mealCount} 餐 · 熱量 ${totals.calories}kcal（${calPct}%）`,
   );
   parts.push(
-    `蛋白 ${Math.round(totals.proteinG)}g · 水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
+    `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
   );
 
   if (scores.water < 70) parts.push("飲水未達標");
-  if (scores.protein < 70) parts.push("蛋白質偏低");
-  if (scores.calories < 70) parts.push("熱量偏離目標");
+  if (proteinRatio < 0.7) parts.push("蛋白質偏低");
+  else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
+  if (calRatio < 0.65) parts.push("熱量不足");
+  else if (calRatio > 1.3) parts.push("熱量偏多");
 
   const tail =
     grade === "S"
@@ -188,6 +197,7 @@ export function computeDietSettlement(
       grade,
       totals,
       profile.dailyCalorieGoal,
+      profile.dailyProteinGoal,
       waterMl,
       waterGoalMl,
       todayMeals.length,

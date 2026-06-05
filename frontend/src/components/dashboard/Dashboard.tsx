@@ -8,6 +8,7 @@ import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
+import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
 import { getSupabase } from "@/lib/supabase/client";
 import {
@@ -313,7 +314,14 @@ export function Dashboard({
   }
 
   async function handleWaterAdd(amountMl: number, logDate: string) {
-    const entry = await insertWaterLog(supabase, userId, amountMl, logDate);
+    const loggedAt = combineDateAndTime(logDate, nowTimeStr());
+    const entry = await insertWaterLog(
+      supabase,
+      userId,
+      amountMl,
+      logDate,
+      loggedAt,
+    );
     setWaterLogs((prev) => [entry, ...prev]);
   }
 
