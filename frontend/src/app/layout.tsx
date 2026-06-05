@@ -62,6 +62,7 @@ export default function RootLayout({
           src={`${PAINPOINT_API}/feedback-plugin.js?v=7`}
           data-api={PAINPOINT_API}
         />
+        <script src="/painpoint-fab-fix.js?v=1" />
       </body>
     </html>
   );
