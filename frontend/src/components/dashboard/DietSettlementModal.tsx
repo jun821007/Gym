@@ -75,7 +75,7 @@ export function DietSettlementModal({
           {data.mealCount} 餐 · 飲水 {data.waterMl} / {data.waterGoalMl} ml
         </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+        <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
           <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center">
             <p className="text-xs text-text-muted">熱量</p>
             <p className="font-bold tabular-nums text-accent-light">
@@ -98,12 +98,27 @@ export function DietSettlementModal({
             <p className="text-xs text-text-muted">碳水</p>
             <p className="font-bold tabular-nums">
               {Math.round(data.totals.carbsG)}g
+              <span className="text-xs font-normal text-text-muted">
+                /{data.goals.carbsG}g
+              </span>
             </p>
           </div>
           <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center">
+            <p className="text-xs text-text-muted">脂肪</p>
+            <p className="font-bold tabular-nums text-[#e85d75]">
+              {Math.round(data.totals.fatG)}g
+              <span className="text-xs font-normal text-text-muted">
+                /{data.goals.fatG}g
+              </span>
+            </p>
+          </div>
+          <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center sm:col-span-2">
             <p className="text-xs text-sky-400">飲水</p>
             <p className="font-bold tabular-nums text-sky-300">
-              {data.waterPct}%
+              {data.waterMl}
+              <span className="text-xs font-normal text-text-muted">
+                /{data.waterGoalMl}ml（{data.waterPct}%）
+              </span>
             </p>
           </div>
         </div>
@@ -114,7 +129,8 @@ export function DietSettlementModal({
             <ul className="mt-1 max-h-24 overflow-y-auto text-xs text-text-muted">
               {data.meals.map((m, i) => (
                 <li key={i}>
-                  {m.foodName} · {m.calories} kcal
+                  {m.foodName} · {m.calories} kcal · P{Math.round(m.proteinG)}g
+                  · 脂肪{Math.round(m.fatG)}g
                 </li>
               ))}
             </ul>

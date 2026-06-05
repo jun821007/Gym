@@ -58,6 +58,8 @@ function buildSummary(
   totals,
   calorieGoal,
   proteinGoal,
+  carbsGoal,
+  fatGoal,
   waterMl,
   waterGoalMl,
   mealCount,
@@ -69,18 +71,29 @@ function buildSummary(
   const proteinPct = proteinGoal
     ? Math.round((totals.proteinG / proteinGoal) * 100)
     : 0;
+  const carbsPct = carbsGoal
+    ? Math.round((totals.carbsG / carbsGoal) * 100)
+    : 0;
+  const fatPct = fatGoal ? Math.round((totals.fatG / fatGoal) * 100) : 0;
   const waterPct = waterGoalMl
     ? Math.round((waterMl / waterGoalMl) * 100)
     : 0;
   const calRatio = calorieGoal > 0 ? totals.calories / calorieGoal : 1;
   const proteinRatio = proteinGoal > 0 ? totals.proteinG / proteinGoal : 1;
+  const carbsRatio = carbsGoal > 0 ? totals.carbsG / carbsGoal : 1;
+  const fatRatio = fatGoal > 0 ? totals.fatG / fatGoal : 1;
   const parts = [
     `今日 ${mealCount} 餐 · 熱量 ${totals.calories}kcal（${calPct}%）`,
-    `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
+    `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 碳水 ${Math.round(totals.carbsG)}g（${carbsPct}%）· 脂肪 ${Math.round(totals.fatG)}g（${fatPct}%）`,
+    `飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
   ];
   if (scores.water < 70) parts.push("飲水未達標");
   if (proteinRatio < 0.7) parts.push("蛋白質偏低");
   else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
+  if (carbsRatio < 0.6) parts.push("碳水偏低");
+  else if (carbsRatio > 1.4) parts.push("碳水偏多");
+  if (fatRatio < 0.6) parts.push("脂肪偏低");
+  else if (fatRatio > 1.4) parts.push("脂肪偏多");
   if (calRatio < 0.65) parts.push("熱量不足");
   else if (calRatio > 1.3) parts.push("熱量偏多");
   const tail =
@@ -144,6 +157,8 @@ export function computeDietSettlement(input) {
       totals,
       goals.calories,
       goals.proteinG,
+      goals.carbsG,
+      goals.fatG,
       waterMl,
       waterGoalMl,
       meals.length,
