@@ -16,9 +16,10 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-push-extra: 2cm;
   --tab-h: 3.5rem;
   --safe-bottom-effective: max(var(--safe-bottom), var(--vv-bottom-gap, 0px));
-  --tab-pad-bottom: var(--safe-bottom-effective);
+  --tab-pad-bottom: calc(var(--safe-bottom-effective) + var(--nav-push-extra));
   --tab-total-h: calc(var(--tab-h) + var(--tab-pad-bottom) + 6px);
   --fab-offset: calc(var(--tab-total-h) + 8px);
   --pixel-xs: 11px;
@@ -207,7 +208,7 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(-1 * var(--vv-bottom-gap, 0px));
+  bottom: calc(-1 * (var(--vv-bottom-gap, 0px) + var(--nav-push-extra)));
   width: 100%;
   z-index: 50;
   display: grid;
@@ -225,10 +226,16 @@ body {
 
 @media (hover: none) and (pointer: coarse) {
   .bottom-nav {
-    bottom: calc(-1 * max(var(--vv-bottom-gap, 0px), env(safe-area-inset-bottom, 34px)));
-    padding-bottom: max(
-      var(--tab-pad-bottom),
-      env(safe-area-inset-bottom, 34px)
+    bottom: calc(
+      -1 *
+        (
+          max(var(--vv-bottom-gap, 0px), env(safe-area-inset-bottom, 34px)) +
+            var(--nav-push-extra)
+        )
+    );
+    padding-bottom: calc(
+      max(var(--tab-pad-bottom), env(safe-area-inset-bottom, 34px)) +
+        var(--nav-push-extra)
     );
   }
 }

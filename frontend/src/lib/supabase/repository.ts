@@ -294,13 +294,12 @@ export async function insertFavoriteWorkout(
   userId: string,
   fav: Omit<FavoriteWorkout, "id">,
 ): Promise<FavoriteWorkout> {
-  const full = {
+  const base = {
     user_id: userId,
     name: fav.name,
-    category: fav.category,
     exercises: fav.exercises,
   };
-  const { category, ...base } = full;
+  const full = fav.category ? { ...base, category: fav.category } : base;
 
   let { data, error } = await supabase
     .from("favorite_workouts")

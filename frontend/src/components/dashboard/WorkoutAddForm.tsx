@@ -90,8 +90,9 @@ export function WorkoutAddForm({
   const [assistKg, setAssistKg] = useState("");
   const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
   const [addFavorite, setAddFavorite] = useState(false);
-  const [favoriteCategory, setFavoriteCategory] =
-    useState<WorkoutCategory>("chest");
+  const [favoriteCategory, setFavoriteCategory] = useState<
+    WorkoutCategory | ""
+  >("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -182,10 +183,14 @@ export function WorkoutAddForm({
     e.preventDefault();
     const log = buildLog();
     if (!log) return;
+    if (addFavorite && onSaveFavorite && !favoriteCategory) {
+      alert("請選擇常用訓練分類");
+      return;
+    }
     setSaving(true);
     try {
       await onSave(log);
-      if (addFavorite && onSaveFavorite) {
+      if (addFavorite && onSaveFavorite && favoriteCategory) {
         await onSaveFavorite({
           name: log.exerciseName,
           category: favoriteCategory,
@@ -209,7 +214,7 @@ export function WorkoutAddForm({
       setAssistKg("");
       setSetRows([emptySet()]);
       setAddFavorite(false);
-      setFavoriteCategory("chest");
+      setFavoriteCategory("");
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -392,10 +397,12 @@ export function WorkoutAddForm({
                 <select
                   value={favoriteCategory}
                   onChange={(e) =>
-                    setFavoriteCategory(e.target.value as WorkoutCategory)
+                    setFavoriteCategory(e.target.value as WorkoutCategory | "")
                   }
                   className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm"
+                  required
                 >
+                  <option value="">請選擇分類</option>
                   {WORKOUT_CATEGORY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}

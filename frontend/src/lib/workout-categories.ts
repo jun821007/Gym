@@ -21,7 +21,7 @@ export const WORKOUT_CATEGORY_OPTIONS = WORKOUT_CATEGORY_ORDER.map((value) => ({
 
 export function normalizeWorkoutCategory(
   value: string | null | undefined,
-): WorkoutCategory {
+): WorkoutCategory | null {
   if (
     value === "back" ||
     value === "legs" ||
@@ -30,5 +30,11 @@ export function normalizeWorkoutCategory(
   ) {
     return value;
   }
-  return "chest";
+  return null;
+}
+
+export function isWorkoutCategory(
+  value: string | null | undefined,
+): value is WorkoutCategory {
+  return normalizeWorkoutCategory(value) != null;
 }

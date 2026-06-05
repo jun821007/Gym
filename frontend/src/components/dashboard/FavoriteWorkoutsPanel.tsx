@@ -32,6 +32,7 @@ export function FavoriteWorkoutsPanel({
       shoulders: [],
     };
     for (const fav of favorites) {
+      if (!fav.category) continue;
       map[fav.category].push(fav);
     }
     return map;

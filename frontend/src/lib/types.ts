@@ -83,7 +83,7 @@ export interface FavoriteWorkoutExercise {
 export interface FavoriteWorkout {
   id: string;
   name: string;
-  category: WorkoutCategory;
+  category?: WorkoutCategory | null;
   exercises: FavoriteWorkoutExercise[];
 }
 
