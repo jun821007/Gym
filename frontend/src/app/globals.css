@@ -194,48 +194,6 @@ body {
   transition: width 0.35s ease;
 }
 
-.swipe-tab-indicator {
-  pointer-events: none;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: max(12px, var(--safe-bottom));
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.swipe-tab-indicator__label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--accent-light);
-}
-
-.swipe-tab-indicator__dots {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.swipe-tab-indicator__dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  background: var(--border);
-}
-
-.swipe-tab-indicator__dot--active {
-  width: 1.1rem;
-  background: var(--accent);
-}
-
-.swipe-tab-indicator__hint {
-  font-size: 0.625rem;
-  color: var(--text-muted);
-  opacity: 0.85;
-}
-
 html.keyboard-open .chat-fab {
   bottom: calc(var(--safe-bottom) + 0.5rem);
 }

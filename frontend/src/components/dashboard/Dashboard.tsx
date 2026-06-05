@@ -6,7 +6,6 @@ import { MobileChat } from "@/components/chat/MobileChat";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
-import { SwipeTabIndicator } from "@/components/layout/SwipeTabIndicator";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import { useSwipeTabs } from "@/lib/use-swipe-tabs";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
@@ -88,7 +87,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--safe-bottom) + 4.5rem)";
+const SCROLL_PAD = "calc(var(--safe-bottom) + 1rem)";
 
 interface DashboardProps {
   session: Session;
@@ -494,7 +493,6 @@ export function Dashboard({
         />
       )}
 
-      <SwipeTabIndicator active={tab} />
     </div>
   );
 }
