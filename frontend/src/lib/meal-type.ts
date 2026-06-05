@@ -27,3 +27,21 @@ export function resolveMealType(
 ): DietLog["mealType"] {
   return parseMealTypeFromText(userMessage) ?? mealTypeFromHour(date);
 }
+
+/** 新增餐點不選時間時，依餐別給預設時刻（僅供排序／儲存） */
+export function defaultTimeForMealType(
+  mealType: DietLog["mealType"] = "lunch",
+): string {
+  switch (mealType) {
+    case "breakfast":
+      return "08:00";
+    case "lunch":
+      return "12:00";
+    case "dinner":
+      return "18:00";
+    case "snack":
+      return "15:00";
+    default:
+      return "12:00";
+  }
+}

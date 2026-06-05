@@ -4,11 +4,8 @@ import { useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { estimateDietNutrition } from "@/lib/diet-api";
 import { toDateKey } from "@/lib/datetime";
-import {
-  combineDateAndTime,
-  nowTimeStr,
-} from "@/lib/logged-at";
-import { mealTypeFromHour } from "@/lib/meal-type";
+import { combineDateAndTime } from "@/lib/logged-at";
+import { defaultTimeForMealType, mealTypeFromHour } from "@/lib/meal-type";
 import type { DietLog } from "@/lib/types";
 
 const MEAL_OPTIONS: { value: NonNullable<DietLog["mealType"]>; label: string }[] = [
@@ -31,7 +28,6 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
   const [text, setText] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [dateKey, setDateKey] = useState(defaultDate ?? toDateKey());
-  const [timeStr, setTimeStr] = useState(nowTimeStr());
   const [mealType, setMealType] = useState<DietLog["mealType"]>(
     mealTypeFromHour(),
   );
@@ -92,7 +88,10 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
           proteinG: Number(preview.proteinG) || 0,
           carbsG: Number(preview.carbsG) || 0,
           fatG: Number(preview.fatG) || 0,
-          loggedAt: combineDateAndTime(dateKey, timeStr),
+          loggedAt: combineDateAndTime(
+            dateKey,
+            defaultTimeForMealType(mealType),
+          ),
           mealType,
         },
         { addToFavorites: addFavorite },
@@ -157,22 +156,13 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <label className="text-xs text-text-muted">
             日期
             <input
               type="date"
               value={dateKey}
               onChange={(e) => setDateKey(e.target.value)}
-              className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
-            />
-          </label>
-          <label className="text-xs text-text-muted">
-            時間
-            <input
-              type="time"
-              value={timeStr}
-              onChange={(e) => setTimeStr(e.target.value)}
               className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
             />
           </label>

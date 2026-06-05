@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
-import { mealTypeFromHour } from "@/lib/meal-type";
+import { combineDateAndTime } from "@/lib/logged-at";
+import { defaultTimeForMealType, mealTypeFromHour } from "@/lib/meal-type";
 import type { DietLog, FavoriteMeal } from "@/lib/types";
 
 interface FavoriteMealsPanelProps {
@@ -32,7 +32,10 @@ export function FavoriteMealsPanel({
       carbsG: fav.carbsG,
       fatG: fav.fatG,
       mealType: fav.defaultMealType ?? mealTypeFromHour(),
-      loggedAt: combineDateAndTime(recordDate, nowTimeStr()),
+      loggedAt: combineDateAndTime(
+        recordDate,
+        defaultTimeForMealType(fav.defaultMealType ?? mealTypeFromHour()),
+      ),
     });
   }
 
