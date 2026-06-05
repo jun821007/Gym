@@ -5,6 +5,7 @@ import type {
   DailyWorkoutSettlement,
   DietLog,
   FavoriteMeal,
+  FavoriteWorkout,
   InbodyRecord,
   UserProfile,
   WeeklyGrade,
@@ -20,6 +21,7 @@ import {
   rowToBodyGoals,
   rowToDiet,
   rowToFavoriteMeal,
+  rowToFavoriteWorkout,
   rowToDietSettlement,
   rowToProfile,
   rowToWater,
@@ -198,25 +200,124 @@ export async function fetchWorkouts(
   return (data ?? []).map(rowToWorkout);
 }
 
+function workoutInsertPayload(userId: string, log: Omit<WorkoutLog, "id">) {
+  const sets = log.setDetails?.length
+    ? log.setDetails
+    : Array.from({ length: log.sets }, () => ({
+        reps: log.reps,
+        weightKg:
+          log.loadType === "bilateral" || log.loadType === "unilateral"
+            ? log.weightKg
+            : undefined,
+        gear: undefined,
+      }));
+  const avgReps = sets.length
+    ? Math.round(sets.reduce((s, x) => s + x.reps, 0) / sets.length)
+    : log.reps;
+
+  return {
+    user_id: userId,
+    log_date: log.logDate,
+    exercise_name: log.exerciseName,
+    weight_kg: log.weightKg,
+    reps: avgReps,
+    sets: sets.length || log.sets,
+    load_type: log.loadType,
+    extra_weight_kg: log.extraWeightKg ?? 0,
+    assist_kg: log.assistKg ?? 0,
+    set_details: sets,
+  };
+}
+
 export async function insertWorkout(
   supabase: SupabaseClient,
   userId: string,
   log: Omit<WorkoutLog, "id">,
 ): Promise<WorkoutLog> {
-  const { data, error } = await supabase
+  const full = workoutInsertPayload(userId, log);
+  const { load_type, extra_weight_kg, assist_kg, set_details, ...base } = full;
+
+  let { data, error } = await supabase
     .from("workout_logs")
+    .insert(full)
+    .select()
+    .single();
+
+  if (
+    error?.message?.includes("load_type") ||
+    error?.message?.includes("set_details")
+  ) {
+    const retry = await supabase
+      .from("workout_logs")
+      .insert(base)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) throw error;
+  return rowToWorkout(data);
+}
+
+export async function deleteWorkout(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("workout_logs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function fetchFavoriteWorkouts(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<FavoriteWorkout[]> {
+  const { data, error } = await supabase
+    .from("favorite_workouts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (error.message?.includes("favorite_workouts")) return [];
+    throw error;
+  }
+  return (data ?? []).map(rowToFavoriteWorkout);
+}
+
+export async function insertFavoriteWorkout(
+  supabase: SupabaseClient,
+  userId: string,
+  fav: Omit<FavoriteWorkout, "id">,
+): Promise<FavoriteWorkout> {
+  const { data, error } = await supabase
+    .from("favorite_workouts")
     .insert({
       user_id: userId,
-      log_date: log.logDate,
-      exercise_name: log.exerciseName,
-      weight_kg: log.weightKg,
-      reps: log.reps,
-      sets: log.sets,
+      name: fav.name,
+      exercises: fav.exercises,
     })
     .select()
     .single();
   if (error) throw error;
-  return rowToWorkout(data);
+  return rowToFavoriteWorkout(data);
+}
+
+export async function deleteFavoriteWorkout(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("favorite_workouts")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
 }
 
 export async function fetchDiets(

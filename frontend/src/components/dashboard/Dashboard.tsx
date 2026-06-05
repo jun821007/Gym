@@ -15,10 +15,13 @@ import {
   appendInbodyRecord,
   deleteDiet,
   deleteFavoriteMeal,
+  deleteFavoriteWorkout,
   deleteWaterLog,
+  deleteWorkout,
   fetchDietSettlements,
   fetchDiets,
   fetchFavoriteMeals,
+  fetchFavoriteWorkouts,
   fetchProfile,
   fetchWaterLogs,
   fetchWeeklyGrades,
@@ -26,6 +29,7 @@ import {
   fetchWorkouts,
   insertDiet,
   insertFavoriteMeal,
+  insertFavoriteWorkout,
   insertWaterLog,
   insertWorkout,
   saveBodyGoals,
@@ -45,6 +49,7 @@ import type {
   DailyWorkoutSettlement,
   DietLog,
   FavoriteMeal,
+  FavoriteWorkout,
   InbodyRecord,
   ProfileUpdatePayload,
   TabId,
@@ -118,12 +123,15 @@ export function Dashboard({
   const [xpPop, setXpPop] = useState<number | null>(null);
   const [levelPulse, setLevelPulse] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteMeal[]>([]);
+  const [workoutFavorites, setWorkoutFavorites] = useState<FavoriteWorkout[]>(
+    [],
+  );
   const [nutritionRationale, setNutritionRationale] = useState<string | null>(
     null,
   );
 
   const refreshData = useCallback(async () => {
-    const [w, d, water, ws, ds, wg, fav] = await Promise.all([
+    const [w, d, water, ws, ds, wg, fav, wfav] = await Promise.all([
       fetchWorkouts(supabase, userId),
       fetchDiets(supabase, userId),
       fetchWaterLogs(supabase, userId),
@@ -131,6 +139,7 @@ export function Dashboard({
       fetchDietSettlements(supabase, userId),
       fetchWeeklyGrades(supabase, userId),
       fetchFavoriteMeals(supabase, userId),
+      fetchFavoriteWorkouts(supabase, userId),
     ]);
     setWorkouts(w);
     setDiets(d);
@@ -139,6 +148,7 @@ export function Dashboard({
     setDietSettlements(ds);
     setWeeklyGrades(wg);
     setFavorites(fav);
+    setWorkoutFavorites(wfav);
   }, [supabase, userId]);
 
   useEffect(() => {
@@ -313,6 +323,24 @@ export function Dashboard({
     setWorkouts((prev) => [inserted, ...prev]);
   }
 
+  async function handleWorkoutDelete(id: string) {
+    await deleteWorkout(supabase, userId, id);
+    setWorkouts((prev) => prev.filter((w) => w.id !== id));
+  }
+
+  async function handleWorkoutFavoriteSave(fav: {
+    name: string;
+    exercises: FavoriteWorkout["exercises"];
+  }) {
+    const inserted = await insertFavoriteWorkout(supabase, userId, fav);
+    setWorkoutFavorites((prev) => [inserted, ...prev]);
+  }
+
+  async function handleWorkoutFavoriteDelete(id: string) {
+    await deleteFavoriteWorkout(supabase, userId, id);
+    setWorkoutFavorites((prev) => prev.filter((f) => f.id !== id));
+  }
+
   async function handleWaterAdd(amountMl: number, logDate: string) {
     const loggedAt = combineDateAndTime(logDate, nowTimeStr());
     const entry = await insertWaterLog(
@@ -410,8 +438,12 @@ export function Dashboard({
           <DungeonTab
             profile={profile}
             workouts={workouts}
+            favoriteWorkouts={workoutFavorites}
             settlementHistory={workoutSettlements}
             onAddWorkout={addWorkout}
+            onDeleteWorkout={handleWorkoutDelete}
+            onSaveFavoriteWorkout={handleWorkoutFavoriteSave}
+            onDeleteFavoriteWorkout={handleWorkoutFavoriteDelete}
             onSettlementSaved={handleWorkoutSettlementSaved}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />

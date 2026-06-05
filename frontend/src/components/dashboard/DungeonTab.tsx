@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FavoriteWorkoutsPanel } from "@/components/dashboard/FavoriteWorkoutsPanel";
+import {
+  WorkoutAddForm,
+  type WorkoutFormPrefill,
+} from "@/components/dashboard/WorkoutAddForm";
 import { WorkoutGradeHistory } from "@/components/dashboard/WorkoutGradeHistory";
 import { WorkoutSettlementModal } from "@/components/dashboard/WorkoutSettlementModal";
 import { Card } from "@/components/ui/Card";
@@ -9,7 +14,6 @@ import {
   formatTime,
   groupByDateKey,
   isToday,
-  toDateKey,
 } from "@/lib/datetime";
 import { fileToCompressedBase64 } from "@/lib/image-compress";
 import {
@@ -18,15 +22,31 @@ import {
   formatLogsForApi,
   toSettlementLogs,
 } from "@/lib/workout-grading";
-import type { UserProfile } from "@/lib/types";
-import type { DailyWorkoutSettlement, WorkoutLog } from "@/lib/types";
+import type {
+  DailyWorkoutSettlement,
+  FavoriteWorkout,
+  UserProfile,
+  WorkoutLog,
+} from "@/lib/types";
+import {
+  formatWorkoutSummary,
+  getLatestBodyWeightKg,
+  normalizeSetDetails,
+} from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
 
 interface DungeonTabProps {
   profile: UserProfile;
   workouts: WorkoutLog[];
+  favoriteWorkouts: FavoriteWorkout[];
   settlementHistory: DailyWorkoutSettlement[];
   onAddWorkout: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
+  onDeleteWorkout?: (id: string) => void | Promise<void>;
+  onSaveFavoriteWorkout?: (fav: {
+    name: string;
+    exercises: FavoriteWorkout["exercises"];
+  }) => void | Promise<void>;
+  onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onSettlement?: (data: {
     settlement: DailyWorkoutSettlement;
@@ -42,10 +62,33 @@ const GRADE_BADGE: Record<DailyWorkoutSettlement["grade"], string> = {
   D: "bg-danger/15 text-danger border-danger",
 };
 
-function WorkoutRow({ w }: { w: WorkoutLog }) {
+function WorkoutRow({
+  w,
+  bodyWeightKg,
+  onSelect,
+  onDelete,
+}: {
+  w: WorkoutLog;
+  bodyWeightKg: number | null;
+  onSelect?: () => void;
+  onDelete?: () => void;
+}) {
+  const sets = normalizeSetDetails(w);
+  const repSummary = sets
+    .map((s) => s.reps)
+    .join("/");
+
   return (
     <li className="flex items-start justify-between gap-2 py-2.5 text-sm">
-      <div className="min-w-0">
+      <button
+        type="button"
+        onClick={onSelect}
+        disabled={!onSelect}
+        className={cn(
+          "min-w-0 flex-1 text-left",
+          onSelect && "active:opacity-70",
+        )}
+      >
         <span className="font-medium">{w.exerciseName}</span>
         <time
           className="ml-2 text-xs tabular-nums text-text-muted"
@@ -53,11 +96,19 @@ function WorkoutRow({ w }: { w: WorkoutLog }) {
         >
           {formatTime(w.loggedAt)}
         </time>
-      </div>
-      <span className="shrink-0 tabular-nums text-text-muted">
-        {w.weightKg > 0 ? `${w.weightKg}kg · ` : ""}
-        {w.reps}×{w.sets}
-      </span>
+        <p className="mt-0.5 text-xs text-text-muted">
+          {formatWorkoutSummary(w, bodyWeightKg)} · {repSummary}次
+        </p>
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs text-text-muted"
+        >
+          刪除
+        </button>
+      )}
     </li>
   );
 }
@@ -65,17 +116,17 @@ function WorkoutRow({ w }: { w: WorkoutLog }) {
 export function DungeonTab({
   profile,
   workouts,
+  favoriteWorkouts,
   settlementHistory,
   onAddWorkout,
+  onDeleteWorkout,
+  onSaveFavoriteWorkout,
+  onDeleteFavoriteWorkout,
   onSettlementSaved,
   onSettlement,
 }: DungeonTabProps) {
-  const [form, setForm] = useState({
-    exerciseName: "",
-    weightKg: "",
-    reps: "",
-    sets: "",
-  });
+  const bodyWeightKg = getLatestBodyWeightKg(profile);
+  const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
   const [logsHistoryOpen, setLogsHistoryOpen] = useState(true);
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
   const [settlement, setSettlement] = useState<DailyWorkoutSettlement | null>(
@@ -114,8 +165,8 @@ export function DungeonTab({
   );
 
   const todayVolume = useMemo(
-    () => calcTotalVolumeKg(toSettlementLogs(todayWorkouts)),
-    [todayWorkouts],
+    () => calcTotalVolumeKg(todayWorkouts, bodyWeightKg),
+    [todayWorkouts, bodyWeightKg],
   );
 
   const bodyMetrics = useMemo(
@@ -136,6 +187,17 @@ export function DungeonTab({
     }));
   }, [workouts]);
 
+  function historyToPrefill(w: WorkoutLog): WorkoutFormPrefill {
+    const { id: _id, logDate: _d, loggedAt: _t, ...rest } = w;
+    return rest;
+  }
+
+  async function quickAddFromFavorite(logs: Omit<WorkoutLog, "id">[]) {
+    for (const log of logs) {
+      await onAddWorkout(log);
+    }
+  }
+
   const submitSettlement = useCallback(
     async (file: File) => {
       setUploading(true);
@@ -152,7 +214,7 @@ export function DungeonTab({
             message: "綜合今日重訓清單與健身截圖進行評分",
             imageBase64: base64,
             mimeType: compressedMime,
-            todayLogs: formatLogsForApi(todayWorkouts),
+            todayLogs: formatLogsForApi(todayWorkouts, bodyWeightKg),
             bodyMetrics,
           }),
         });
@@ -164,7 +226,7 @@ export function DungeonTab({
           ...(data.settlement as DailyWorkoutSettlement),
           manualLogs:
             data.settlement.manualLogs ??
-            toSettlementLogs(todayWorkouts),
+            toSettlementLogs(todayWorkouts, bodyWeightKg),
           totalVolumeKg:
             data.settlement.totalVolumeKg ?? todayVolume,
         };
@@ -181,7 +243,14 @@ export function DungeonTab({
         setUploading(false);
       }
     },
-    [todayWorkouts, todayVolume, bodyMetrics, onSettlement, onSettlementSaved],
+    [
+      todayWorkouts,
+      todayVolume,
+      bodyWeightKg,
+      bodyMetrics,
+      onSettlement,
+      onSettlementSaved,
+    ],
   );
 
   useEffect(() => {
@@ -205,68 +274,23 @@ export function DungeonTab({
     return () => el.removeEventListener("paste", onPaste);
   }, [submitSettlement, uploading]);
 
-  function addWorkout(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.exerciseName || !form.reps || !form.sets) return;
-
-    const now = new Date();
-    onAddWorkout({
-      exerciseName: form.exerciseName,
-      weightKg: Number(form.weightKg) || 0,
-      reps: Number(form.reps),
-      sets: Number(form.sets),
-      logDate: toDateKey(now),
-      loggedAt: now.toISOString(),
-    });
-    setForm({ exerciseName: "", weightKg: "", reps: "", sets: "" });
-  }
-
   return (
     <div className="space-y-4 pb-2">
-      <Card title="新增重訓紀錄">
-        <form onSubmit={addWorkout} className="space-y-3">
-          <label className="block">
-            <span className="text-sm text-text-muted">動作</span>
-            <input
-              type="text"
-              value={form.exerciseName}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, exerciseName: e.target.value }))
-              }
-              className="mt-1 min-h-[48px] w-full rounded-xl border border-border bg-bg-app px-3 text-base outline-none focus:border-accent"
-              placeholder="例如：深蹲"
-            />
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(
-              [
-                ["weightKg", "kg"],
-                ["reps", "次"],
-                ["sets", "組"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="block">
-                <span className="text-sm text-text-muted">{label}</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={form[key]}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, [key]: e.target.value }))
-                  }
-                  className="mt-1 min-h-[48px] w-full rounded-xl border border-border bg-bg-app px-3 text-base tabular-nums outline-none focus:border-accent"
-                />
-              </label>
-            ))}
-          </div>
-          <button
-            type="submit"
-            className="min-h-[48px] w-full rounded-xl border border-border bg-bg-elevated text-base font-semibold text-text active:scale-[0.98]"
-          >
-            打卡入庫
-          </button>
-        </form>
-      </Card>
+      <WorkoutAddForm
+        profile={profile}
+        prefill={prefill}
+        onPrefillConsumed={() => setPrefill(null)}
+        onSave={onAddWorkout}
+        onSaveFavorite={onSaveFavoriteWorkout}
+      />
+
+      {favoriteWorkouts.length > 0 && onDeleteFavoriteWorkout && (
+        <FavoriteWorkoutsPanel
+          favorites={favoriteWorkouts}
+          onQuickAdd={quickAddFromFavorite}
+          onDelete={onDeleteFavoriteWorkout}
+        />
+      )}
 
       <Card title={`今日清單 · ${todayWorkouts.length} 項`}>
         {todayWorkouts.length === 0 ? (
@@ -282,7 +306,16 @@ export function DungeonTab({
             </p>
             <ul className="divide-y divide-border">
               {todayWorkouts.map((w) => (
-                <WorkoutRow key={w.id} w={w} />
+                <WorkoutRow
+                  key={w.id}
+                  w={w}
+                  bodyWeightKg={bodyWeightKg}
+                  onDelete={
+                    onDeleteWorkout
+                      ? () => void onDeleteWorkout(w.id)
+                      : undefined
+                  }
+                />
               ))}
             </ul>
           </>
@@ -445,12 +478,20 @@ export function DungeonTab({
                   </p>
                   <ul className="divide-y divide-border rounded-xl bg-bg-elevated px-3">
                     {group.items.map((w) => (
-                      <WorkoutRow key={w.id} w={w} />
+                      <WorkoutRow
+                        key={w.id}
+                        w={w}
+                        bodyWeightKg={bodyWeightKg}
+                        onSelect={() => setPrefill(historyToPrefill(w))}
+                      />
                     ))}
                   </ul>
                 </div>
               ))
             )}
+            <p className="text-center text-xs text-text-muted">
+              點選歷史紀錄可帶入表單，儲存後會新增一筆
+            </p>
           </div>
         )}
       </Card>

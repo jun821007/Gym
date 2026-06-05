@@ -1,27 +1,64 @@
 import { bodyTypeFromRecord } from "@/lib/body-type";
+import {
+  calcLogVolume,
+  getLatestBodyWeightKg,
+  normalizeSetDetails,
+  toSettlementWeight,
+} from "@/lib/workout-volume";
 import type { InbodyRecord, SettlementManualLog, UserProfile, WorkoutLog } from "./types";
 
-export function toSettlementLogs(logs: WorkoutLog[]): SettlementManualLog[] {
-  return logs.map((w) => ({
-    exerciseName: w.exerciseName,
-    weightKg: w.weightKg,
-    reps: w.reps,
-    sets: w.sets,
-  }));
+export function toSettlementLogs(
+  logs: WorkoutLog[],
+  bodyWeightKg: number | null = null,
+): SettlementManualLog[] {
+  return logs.map((w) => {
+    const sets = normalizeSetDetails(w);
+    const reps = sets.length
+      ? Math.round(sets.reduce((s, x) => s + x.reps, 0) / sets.length)
+      : w.reps;
+    return {
+      exerciseName: w.exerciseName,
+      weightKg: toSettlementWeight(w, bodyWeightKg),
+      reps,
+      sets: sets.length || w.sets,
+    };
+  });
 }
 
-export function calcTotalVolumeKg(logs: SettlementManualLog[]): number {
-  return logs.reduce((sum, w) => sum + w.weightKg * w.reps * w.sets, 0);
+export function calcTotalVolumeKg(
+  logs: SettlementManualLog[] | WorkoutLog[],
+  bodyWeightKg: number | null = null,
+): number {
+  if (logs.length === 0) return 0;
+  const first = logs[0] as WorkoutLog;
+  if ("loadType" in first) {
+    return (logs as WorkoutLog[]).reduce(
+      (sum, w) => sum + calcLogVolume(w, bodyWeightKg),
+      0,
+    );
+  }
+  return (logs as SettlementManualLog[]).reduce(
+    (sum, w) => sum + w.weightKg * w.reps * w.sets,
+    0,
+  );
 }
 
-export function formatLogsForApi(logs: WorkoutLog[]) {
-  return logs.map((w) => ({
-    name: w.exerciseName,
-    weight: w.weightKg,
-    reps: w.reps,
-    sets: w.sets,
-    volume: w.weightKg * w.reps * w.sets,
-  }));
+export function formatLogsForApi(logs: WorkoutLog[], bodyWeightKg: number | null = null) {
+  return logs.map((w) => {
+    const sets = normalizeSetDetails(w);
+    const weight = toSettlementWeight(w, bodyWeightKg);
+    const reps = sets.length
+      ? Math.round(sets.reduce((s, x) => s + x.reps, 0) / sets.length)
+      : w.reps;
+    return {
+      name: w.exerciseName,
+      weight,
+      reps,
+      sets: sets.length || w.sets,
+      volume: calcLogVolume(w, bodyWeightKg),
+      load_type: w.loadType,
+    };
+  });
 }
 
 /** 從 profile 取出最新體態，供訓練評分用 */

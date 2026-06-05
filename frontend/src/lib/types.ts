@@ -38,16 +38,50 @@ export interface InbodyRecord {
   source?: string;
 }
 
+export type WorkoutLoadType =
+  | "bilateral"
+  | "unilateral"
+  | "bodyweight"
+  | "weighted_bw"
+  | "assisted_bw";
+
+export interface WorkoutSetDetail {
+  reps: number;
+  weightKg?: number;
+  gear?: ("strap" | "belt" | "knee")[];
+}
+
 export interface WorkoutLog {
   id: string;
   exerciseName: string;
+  loadType: WorkoutLoadType;
   weightKg: number;
+  extraWeightKg?: number;
+  assistKg?: number;
   reps: number;
   sets: number;
+  setDetails?: WorkoutSetDetail[];
   /** YYYY-MM-DD */
   logDate: string;
   /** ISO 8601，打卡當下時間 */
   loggedAt: string;
+}
+
+export interface FavoriteWorkoutExercise {
+  exerciseName: string;
+  loadType: WorkoutLoadType;
+  weightKg?: number;
+  extraWeightKg?: number;
+  assistKg?: number;
+  setDetails?: WorkoutSetDetail[];
+  reps?: number;
+  sets?: number;
+}
+
+export interface FavoriteWorkout {
+  id: string;
+  name: string;
+  exercises: FavoriteWorkoutExercise[];
 }
 
 export interface DietLog {

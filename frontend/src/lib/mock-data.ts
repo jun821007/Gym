@@ -60,6 +60,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w1",
     exerciseName: "深蹲",
+    loadType: "bilateral",
     weightKg: 80,
     reps: 8,
     sets: 4,
@@ -69,6 +70,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w2",
     exerciseName: "臥推",
+    loadType: "bilateral",
     weightKg: 60,
     reps: 8,
     sets: 3,
@@ -78,6 +80,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w3",
     exerciseName: "硬舉",
+    loadType: "bilateral",
     weightKg: 100,
     reps: 5,
     sets: 3,
@@ -87,6 +90,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w4",
     exerciseName: "肩推",
+    loadType: "bilateral",
     weightKg: 40,
     reps: 10,
     sets: 3,
@@ -96,6 +100,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w5",
     exerciseName: "深蹲",
+    loadType: "bilateral",
     weightKg: 77.5,
     reps: 8,
     sets: 4,
@@ -105,6 +110,7 @@ export const MOCK_WORKOUTS: WorkoutLog[] = [
   {
     id: "w6",
     exerciseName: "引體向上",
+    loadType: "bodyweight",
     weightKg: 0,
     reps: 8,
     sets: 4,

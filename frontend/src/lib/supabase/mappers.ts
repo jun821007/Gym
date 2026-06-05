@@ -5,6 +5,7 @@ import type {
   DailyWorkoutSettlement,
   DietLog,
   FavoriteMeal,
+  FavoriteWorkout,
   InbodyRecord,
   UserProfile,
   WeeklyGrade,
@@ -73,15 +74,38 @@ export function rowToWorkout(row: {
   sets: number;
   log_date: string;
   created_at: string;
+  load_type?: string | null;
+  extra_weight_kg?: number | null;
+  assist_kg?: number | null;
+  set_details?: WorkoutLog["setDetails"] | null;
 }): WorkoutLog {
+  const setDetails = Array.isArray(row.set_details)
+    ? row.set_details
+    : undefined;
   return {
     id: row.id,
     exerciseName: row.exercise_name,
+    loadType: (row.load_type as WorkoutLog["loadType"]) ?? "bilateral",
     weightKg: Number(row.weight_kg) || 0,
+    extraWeightKg: row.extra_weight_kg != null ? Number(row.extra_weight_kg) : undefined,
+    assistKg: row.assist_kg != null ? Number(row.assist_kg) : undefined,
     reps: row.reps,
     sets: row.sets,
+    setDetails,
     logDate: row.log_date,
     loggedAt: row.created_at,
+  };
+}
+
+export function rowToFavoriteWorkout(row: {
+  id: string;
+  name: string;
+  exercises: FavoriteWorkout["exercises"];
+}): FavoriteWorkout {
+  return {
+    id: row.id,
+    name: row.name,
+    exercises: Array.isArray(row.exercises) ? row.exercises : [],
   };
 }
 

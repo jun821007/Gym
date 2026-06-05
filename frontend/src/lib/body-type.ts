@@ -39,7 +39,8 @@ export function calcBodyType(
 
   let code: BodyTypeCode;
 
-  if (smmPct >= 42 && bodyFatPct < 22) {
+  /** D 需肌佔比高、體脂低，且絕對骨骼肌量達標（避免輕體重誤判肌肉型） */
+  if (smmPct >= 42 && bodyFatPct < 22 && smm >= 26) {
     code = "D";
   } else if (bodyFatPct >= 24 || (bodyFatPct >= 20 && smmPct < 37)) {
     code = "C";
