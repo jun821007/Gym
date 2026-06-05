@@ -81,7 +81,7 @@ export function WorkoutAddForm({
   const [weightKg, setWeightKg] = useState("");
   const [extraWeightKg, setExtraWeightKg] = useState("");
   const [assistKg, setAssistKg] = useState("");
-  const [setRows, setSetRows] = useState<SetRow[]>([emptySet(), emptySet(), emptySet()]);
+  const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
   const [addFavorite, setAddFavorite] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -191,7 +191,7 @@ export function WorkoutAddForm({
       setWeightKg("");
       setExtraWeightKg("");
       setAssistKg("");
-      setSetRows([emptySet(), emptySet(), emptySet()]);
+      setSetRows([emptySet()]);
       setAddFavorite(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
@@ -268,9 +268,22 @@ export function WorkoutAddForm({
               key={i}
               className="rounded-xl border border-border bg-bg-elevated p-2.5"
             >
-              <p className="mb-2 text-xs font-bold text-accent-light">
-                第 {i + 1} 組
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-accent-light">
+                  第 {i + 1} 組
+                </p>
+                {setRows.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSetRows((rows) => rows.filter((_, j) => j !== i))
+                    }
+                    className="rounded-lg border border-border px-2 py-0.5 text-xs text-text-muted"
+                  >
+                    刪除
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {needsWeight(loadType) && (
                   <label className="text-xs text-text-muted">
