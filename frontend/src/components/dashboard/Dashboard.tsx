@@ -86,7 +86,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--tab-h) + var(--safe-bottom) + 12px)";
+const SCROLL_PAD = "calc(var(--tab-total-h) + 12px)";
 
 interface DashboardProps {
   session: Session;
