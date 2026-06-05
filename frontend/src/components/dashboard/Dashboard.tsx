@@ -4,32 +4,36 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MobileChat } from "@/components/chat/MobileChat";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
-import { DayRolloverModal } from "@/components/dashboard/DayRolloverModal";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
-import { buildLoggedAtIso, shouldPromptDayRollover } from "@/lib/day-rollover";
-import { resolveMealType } from "@/lib/meal-type";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
 import { getSupabase } from "@/lib/supabase/client";
 import {
   appendInbodyRecord,
+  deleteDiet,
+  deleteFavoriteMeal,
+  deleteWaterLog,
   fetchDietSettlements,
   fetchDiets,
+  fetchFavoriteMeals,
   fetchProfile,
   fetchWaterLogs,
   fetchWeeklyGrades,
   fetchWorkoutSettlements,
   fetchWorkouts,
   insertDiet,
+  insertFavoriteMeal,
   insertWaterLog,
   insertWorkout,
   saveBodyGoals,
   syncNutritionGoalsFromInbody,
   syncNutritionGoalsIfStale,
+  updateDiet,
   updateProfile,
   updateWaterGoal,
+  updateWaterLog,
   upsertDietSettlement,
   upsertWeeklyGrade,
   upsertWorkoutSettlement,
@@ -39,6 +43,7 @@ import type {
   DailyDietSettlement,
   DailyWorkoutSettlement,
   DietLog,
+  FavoriteMeal,
   InbodyRecord,
   ProfileUpdatePayload,
   TabId,
@@ -49,7 +54,7 @@ import type {
 import type { WaterLogEntry } from "@/lib/water-intake";
 
 const CHAT_CONFIG: Record<
-  TabId,
+  Exclude<TabId, "tavern">,
   {
     endpoint: string;
     placeholder: string;
@@ -72,13 +77,6 @@ const CHAT_CONFIG: Record<
     welcome: "今日評分請用頁面上方「上傳健身截圖」。",
     image: true,
     imageHint: "健身",
-  },
-  tavern: {
-    endpoint: "/api/chat/diet",
-    placeholder: "吃了什麼？或拍食物照片…",
-    welcome: "描述餐點或拍照；整日評分請用「結算今日飲食」。",
-    image: true,
-    imageHint: "食物",
   },
 };
 
@@ -118,21 +116,20 @@ export function Dashboard({
   const [dataLoading, setDataLoading] = useState(true);
   const [xpPop, setXpPop] = useState<number | null>(null);
   const [levelPulse, setLevelPulse] = useState(false);
-  const [pendingDiet, setPendingDiet] = useState<Omit<DietLog, "id"> | null>(
-    null,
-  );
+  const [favorites, setFavorites] = useState<FavoriteMeal[]>([]);
   const [nutritionRationale, setNutritionRationale] = useState<string | null>(
     null,
   );
 
   const refreshData = useCallback(async () => {
-    const [w, d, water, ws, ds, wg] = await Promise.all([
+    const [w, d, water, ws, ds, wg, fav] = await Promise.all([
       fetchWorkouts(supabase, userId),
       fetchDiets(supabase, userId),
       fetchWaterLogs(supabase, userId),
       fetchWorkoutSettlements(supabase, userId),
       fetchDietSettlements(supabase, userId),
       fetchWeeklyGrades(supabase, userId),
+      fetchFavoriteMeals(supabase, userId),
     ]);
     setWorkouts(w);
     setDiets(d);
@@ -140,6 +137,7 @@ export function Dashboard({
     setWorkoutSettlements(ws);
     setDietSettlements(ds);
     setWeeklyGrades(wg);
+    setFavorites(fav);
   }, [supabase, userId]);
 
   useEffect(() => {
@@ -218,19 +216,45 @@ export function Dashboard({
   const nutritionHint =
     nutritionRationale ?? (nutritionDisplay.rationale || null);
 
-  const chat = CHAT_CONFIG[tab];
+  const chat =
+    tab === "tavern" ? null : CHAT_CONFIG[tab];
 
-  async function saveDietLog(log: Omit<DietLog, "id">) {
+  async function handleDietAdd(
+    log: Omit<DietLog, "id">,
+    options?: { addToFavorites?: boolean },
+  ) {
     const inserted = await insertDiet(supabase, userId, log);
     setDiets((prev) => [inserted, ...prev]);
+    if (options?.addToFavorites) {
+      try {
+        const fav = await insertFavoriteMeal(supabase, userId, {
+          name: log.foodName,
+          calories: log.calories,
+          proteinG: log.proteinG,
+          carbsG: log.carbsG,
+          fatG: log.fatG,
+          defaultMealType: log.mealType,
+        });
+        setFavorites((prev) => [fav, ...prev]);
+      } catch (e) {
+        console.warn("[favorites] save failed", e);
+      }
+    }
   }
 
-  function handleDayRolloverChoice(choice: "today" | "yesterday") {
-    if (!pendingDiet) return;
-    const loggedAt = buildLoggedAtIso(choice);
-    const log = { ...pendingDiet, loggedAt };
-    setPendingDiet(null);
-    void saveDietLog(log);
+  async function handleDietUpdate(id: string, log: Omit<DietLog, "id">) {
+    const updated = await updateDiet(supabase, userId, id, log);
+    setDiets((prev) => prev.map((d) => (d.id === id ? updated : d)));
+  }
+
+  async function handleDietDelete(id: string) {
+    await deleteDiet(supabase, userId, id);
+    setDiets((prev) => prev.filter((d) => d.id !== id));
+  }
+
+  async function handleFavoriteDelete(id: string) {
+    await deleteFavoriteMeal(supabase, userId, id);
+    setFavorites((prev) => prev.filter((f) => f.id !== id));
   }
 
   async function handleChatUpdate(
@@ -281,37 +305,6 @@ export function Dashboard({
       return;
     }
 
-    if (tab === "tavern") {
-      const payload = data as {
-        food_name?: string;
-        calories?: number;
-        protein?: number;
-        carbs?: number;
-        fat?: number;
-      };
-      const calories = payload?.calories;
-      if (calories == null || calories <= 0) return;
-      const now = new Date();
-      const userMessage = context?.userMessage ?? "";
-      const mealType = resolveMealType(userMessage, now);
-
-      const draft: Omit<DietLog, "id"> = {
-        foodName: payload.food_name ?? "未知食物",
-        calories,
-        proteinG: payload.protein ?? 0,
-        carbsG: payload.carbs ?? 0,
-        fatG: payload.fat ?? 0,
-        loggedAt: now.toISOString(),
-        mealType,
-      };
-
-      if (shouldPromptDayRollover(now)) {
-        setPendingDiet(draft);
-        return;
-      }
-
-      await saveDietLog(draft);
-    }
   }
 
   async function addWorkout(log: Omit<WorkoutLog, "id">) {
@@ -319,14 +312,22 @@ export function Dashboard({
     setWorkouts((prev) => [inserted, ...prev]);
   }
 
-  async function handleWaterAdd(amountMl: number) {
-    const entry = await insertWaterLog(
-      supabase,
-      userId,
-      amountMl,
-      new Date().toISOString().slice(0, 10),
-    );
+  async function handleWaterAdd(amountMl: number, logDate: string) {
+    const entry = await insertWaterLog(supabase, userId, amountMl, logDate);
     setWaterLogs((prev) => [entry, ...prev]);
+  }
+
+  async function handleWaterUpdate(
+    id: string,
+    patch: { amountMl: number; logDate: string; loggedAt: string },
+  ) {
+    const updated = await updateWaterLog(supabase, userId, id, patch);
+    setWaterLogs((prev) => prev.map((w) => (w.id === id ? updated : w)));
+  }
+
+  async function handleWaterDelete(id: string) {
+    await deleteWaterLog(supabase, userId, id);
+    setWaterLogs((prev) => prev.filter((w) => w.id !== id));
   }
 
   async function handleWaterGoalChange(goalMl: number) {
@@ -414,10 +415,17 @@ export function Dashboard({
             nutritionGoals={nutritionDisplay}
             diets={diets}
             waterLogs={waterLogs}
+            favorites={favorites}
             settlementHistory={dietSettlements}
             workoutSettlements={workoutSettlements}
             weeklyGrades={weeklyGrades}
+            onDietAdd={handleDietAdd}
+            onDietUpdate={handleDietUpdate}
+            onDietDelete={handleDietDelete}
+            onFavoriteDelete={handleFavoriteDelete}
             onWaterAdd={handleWaterAdd}
+            onWaterUpdate={handleWaterUpdate}
+            onWaterDelete={handleWaterDelete}
             onWaterGoalChange={handleWaterGoalChange}
             onSettlementSaved={handleDietSettlementSaved}
             onWeeklyGradeGenerated={handleWeeklyGradeGenerated}
@@ -426,20 +434,15 @@ export function Dashboard({
         )}
       </div>
 
-      <MobileChat
-        key={tab}
-        apiEndpoint={chat.endpoint}
-        placeholder={chat.placeholder}
-        welcomeMessage={chat.welcome}
-        allowImageUpload={chat.image}
-        imageHint={chat.imageHint}
-        onProfileUpdate={handleChatUpdate}
-      />
-
-      {pendingDiet && (
-        <DayRolloverModal
-          foodLabel={pendingDiet.foodName}
-          onChoose={handleDayRolloverChoice}
+      {chat && (
+        <MobileChat
+          key={tab}
+          apiEndpoint={chat.endpoint}
+          placeholder={chat.placeholder}
+          welcomeMessage={chat.welcome}
+          allowImageUpload={chat.image}
+          imageHint={chat.imageHint}
+          onProfileUpdate={handleChatUpdate}
         />
       )}
 

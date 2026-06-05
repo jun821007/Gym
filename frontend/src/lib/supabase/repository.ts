@@ -4,6 +4,7 @@ import type {
   DailyDietSettlement,
   DailyWorkoutSettlement,
   DietLog,
+  FavoriteMeal,
   InbodyRecord,
   UserProfile,
   WeeklyGrade,
@@ -18,6 +19,7 @@ import {
 import {
   rowToBodyGoals,
   rowToDiet,
+  rowToFavoriteMeal,
   rowToDietSettlement,
   rowToProfile,
   rowToWater,
@@ -235,22 +237,84 @@ export async function insertDiet(
   userId: string,
   log: Omit<DietLog, "id">,
 ): Promise<DietLog> {
-  const { data, error } = await supabase
+  const base = {
+    user_id: userId,
+    log_date: log.loggedAt.slice(0, 10),
+    food_name: log.foodName,
+    calories: log.calories,
+    protein_g: log.proteinG,
+    carbs_g: log.carbsG,
+    fat_g: log.fatG,
+    meal_type: log.mealType ?? null,
+  };
+
+  let { data, error } = await supabase
     .from("diet_logs")
-    .insert({
-      user_id: userId,
-      log_date: log.loggedAt.slice(0, 10),
-      food_name: log.foodName,
-      calories: log.calories,
-      protein_g: log.proteinG,
-      carbs_g: log.carbsG,
-      fat_g: log.fatG,
-      meal_type: log.mealType ?? null,
-    })
+    .insert({ ...base, logged_at: log.loggedAt })
     .select()
     .single();
+
+  if (error?.message?.includes("logged_at")) {
+    const retry = await supabase.from("diet_logs").insert(base).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw error;
   return rowToDiet(data);
+}
+
+export async function updateDiet(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  log: Omit<DietLog, "id">,
+): Promise<DietLog> {
+  const base = {
+    log_date: log.loggedAt.slice(0, 10),
+    food_name: log.foodName,
+    calories: log.calories,
+    protein_g: log.proteinG,
+    carbs_g: log.carbsG,
+    fat_g: log.fatG,
+    meal_type: log.mealType ?? null,
+  };
+
+  let { data, error } = await supabase
+    .from("diet_logs")
+    .update({ ...base, logged_at: log.loggedAt })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  if (error?.message?.includes("logged_at")) {
+    const retry = await supabase
+      .from("diet_logs")
+      .update(base)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) throw error;
+  return rowToDiet(data);
+}
+
+export async function deleteDiet(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("diet_logs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
 }
 
 export async function fetchWaterLogs(
@@ -271,18 +335,128 @@ export async function insertWaterLog(
   userId: string,
   amountMl: number,
   logDate: string,
+  loggedAt?: string,
 ): Promise<WaterLogEntry> {
-  const { data, error } = await supabase
+  const at = loggedAt ?? new Date().toISOString();
+  const base = {
+    user_id: userId,
+    log_date: logDate,
+    amount_ml: amountMl,
+  };
+
+  let { data, error } = await supabase
     .from("water_logs")
+    .insert({ ...base, logged_at: at })
+    .select()
+    .single();
+
+  if (error?.message?.includes("logged_at")) {
+    const retry = await supabase.from("water_logs").insert(base).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) throw error;
+  return rowToWater(data);
+}
+
+export async function updateWaterLog(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  patch: { amountMl: number; logDate: string; loggedAt: string },
+): Promise<WaterLogEntry> {
+  const base = {
+    amount_ml: patch.amountMl,
+    log_date: patch.logDate,
+  };
+
+  let { data, error } = await supabase
+    .from("water_logs")
+    .update({ ...base, logged_at: patch.loggedAt })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  if (error?.message?.includes("logged_at")) {
+    const retry = await supabase
+      .from("water_logs")
+      .update(base)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) throw error;
+  return rowToWater(data);
+}
+
+export async function deleteWaterLog(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("water_logs")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+export async function fetchFavoriteMeals(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<FavoriteMeal[]> {
+  const { data, error } = await supabase
+    .from("favorite_meals")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (error.message?.includes("favorite_meals")) return [];
+    throw error;
+  }
+  return (data ?? []).map(rowToFavoriteMeal);
+}
+
+export async function insertFavoriteMeal(
+  supabase: SupabaseClient,
+  userId: string,
+  meal: Omit<FavoriteMeal, "id">,
+): Promise<FavoriteMeal> {
+  const { data, error } = await supabase
+    .from("favorite_meals")
     .insert({
       user_id: userId,
-      log_date: logDate,
-      amount_ml: amountMl,
+      name: meal.name,
+      calories: meal.calories,
+      protein_g: meal.proteinG,
+      carbs_g: meal.carbsG,
+      fat_g: meal.fatG,
+      default_meal_type: meal.defaultMealType ?? null,
     })
     .select()
     .single();
   if (error) throw error;
-  return rowToWater(data);
+  return rowToFavoriteMeal(data);
+}
+
+export async function deleteFavoriteMeal(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("favorite_meals")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
 }
 
 export async function updateWaterGoal(

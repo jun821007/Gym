@@ -4,6 +4,7 @@ import type {
   DailyDietSettlement,
   DailyWorkoutSettlement,
   DietLog,
+  FavoriteMeal,
   InbodyRecord,
   UserProfile,
   WeeklyGrade,
@@ -92,6 +93,7 @@ export function rowToDiet(row: {
   carbs_g: number;
   fat_g: number;
   created_at: string;
+  logged_at?: string | null;
   meal_type: string | null;
 }): DietLog {
   return {
@@ -101,8 +103,29 @@ export function rowToDiet(row: {
     proteinG: Number(row.protein_g),
     carbsG: Number(row.carbs_g),
     fatG: Number(row.fat_g),
-    loggedAt: row.created_at,
+    loggedAt: row.logged_at ?? row.created_at,
     mealType: (row.meal_type as DietLog["mealType"]) ?? undefined,
+  };
+}
+
+export function rowToFavoriteMeal(row: {
+  id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  default_meal_type: string | null;
+}): FavoriteMeal {
+  return {
+    id: row.id,
+    name: row.name,
+    calories: row.calories,
+    proteinG: Number(row.protein_g),
+    carbsG: Number(row.carbs_g),
+    fatG: Number(row.fat_g),
+    defaultMealType:
+      (row.default_meal_type as FavoriteMeal["defaultMealType"]) ?? undefined,
   };
 }
 
@@ -111,12 +134,13 @@ export function rowToWater(row: {
   amount_ml: number;
   log_date: string;
   created_at: string;
+  logged_at?: string | null;
 }): WaterLogEntry {
   return {
     id: row.id,
     amountMl: row.amount_ml,
     logDate: row.log_date,
-    loggedAt: row.created_at,
+    loggedAt: row.logged_at ?? row.created_at,
   };
 }
 

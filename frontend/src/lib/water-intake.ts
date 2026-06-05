@@ -82,8 +82,15 @@ export function addWaterEntry(amountMl: number): {
 }
 
 export function getTodayWaterEntries(entries: WaterLogEntry[]): WaterLogEntry[] {
+  return getWaterEntriesForDate(entries, toDateKey());
+}
+
+export function getWaterEntriesForDate(
+  entries: WaterLogEntry[],
+  dateKey: string,
+): WaterLogEntry[] {
   return entries
-    .filter((e) => isToday(e.loggedAt))
+    .filter((e) => e.logDate === dateKey || toDateKey(new Date(e.loggedAt)) === dateKey)
     .sort(
       (a, b) =>
         new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),

@@ -63,6 +63,16 @@ export interface DietLog {
   imageUrl?: string;
 }
 
+export interface FavoriteMeal {
+  id: string;
+  name: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  defaultMealType?: DietLog["mealType"];
+}
+
 export interface DietSettlementMeal {
   foodName: string;
   calories: number;

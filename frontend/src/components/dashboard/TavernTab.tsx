@@ -1,30 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DietAddForm } from "@/components/dashboard/DietAddForm";
 import { DietGradeHistory } from "@/components/dashboard/DietGradeHistory";
+import { DietRecordSection } from "@/components/dashboard/DietRecordSection";
 import { DietSettlementModal } from "@/components/dashboard/DietSettlementModal";
-import { WaterTrackerPanel } from "@/components/dashboard/WaterTrackerPanel";
+import { FavoriteMealsPanel } from "@/components/dashboard/FavoriteMealsPanel";
 import { Card } from "@/components/ui/Card";
 import { NutrientBar } from "@/components/ui/NutrientBar";
-import {
-  formatTime,
-  isToday,
-  sortByLoggedAtDesc,
-} from "@/lib/datetime";
+import { formatDateLabel, isToday, toDateKey } from "@/lib/datetime";
 import {
   computeDietSettlement,
   xpForDietGrade,
 } from "@/lib/diet-grading";
+import { isSameDateKey } from "@/lib/logged-at";
 import { getIsoWeek } from "@/lib/supabase/repository";
 import type {
   DailyDietSettlement,
   DailyWorkoutSettlement,
   DietLog,
+  FavoriteMeal,
   UserProfile,
   WeeklyGrade,
 } from "@/lib/types";
 import {
-  getTodayWaterEntries,
+  getWaterEntriesForDate,
   sumWaterMl,
 } from "@/lib/water-intake";
 import type { WaterLogEntry } from "@/lib/water-intake";
@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 
 interface TavernTabProps {
   profile: UserProfile;
-  /** 依 InBody 自動建議的說明 */
   nutritionRationale?: string | null;
   nutritionGoals: {
     calories: number;
@@ -42,10 +41,23 @@ interface TavernTabProps {
   };
   diets: DietLog[];
   waterLogs: WaterLogEntry[];
+  favorites: FavoriteMeal[];
   settlementHistory: DailyDietSettlement[];
   workoutSettlements: DailyWorkoutSettlement[];
   weeklyGrades: WeeklyGrade[];
-  onWaterAdd: (amountMl: number) => void | Promise<void>;
+  onDietAdd: (
+    log: Omit<DietLog, "id">,
+    options?: { addToFavorites?: boolean },
+  ) => void | Promise<void>;
+  onDietUpdate: (id: string, log: Omit<DietLog, "id">) => void | Promise<void>;
+  onDietDelete: (id: string) => void | Promise<void>;
+  onFavoriteDelete: (id: string) => void | Promise<void>;
+  onWaterAdd: (amountMl: number, logDate: string) => void | Promise<void>;
+  onWaterUpdate: (
+    id: string,
+    patch: { amountMl: number; logDate: string; loggedAt: string },
+  ) => void | Promise<void>;
+  onWaterDelete: (id: string) => void | Promise<void>;
   onWaterGoalChange: (goalMl: number) => void | Promise<void>;
   onSettlementSaved: (s: DailyDietSettlement) => void | Promise<void>;
   onWeeklyGradeGenerated: (g: WeeklyGrade) => void | Promise<void>;
@@ -54,13 +66,6 @@ interface TavernTabProps {
     xpGained?: number;
   }) => void;
 }
-
-const MEAL_LABEL: Record<NonNullable<DietLog["mealType"]>, string> = {
-  breakfast: "早餐",
-  lunch: "午餐",
-  dinner: "晚餐",
-  snack: "點心",
-};
 
 const GRADE_STYLE: Record<WeeklyGrade["grade"], string> = {
   S: "bg-accent/25 text-accent-light",
@@ -83,20 +88,43 @@ export function TavernTab({
   nutritionGoals,
   diets,
   waterLogs,
+  favorites,
   settlementHistory,
   workoutSettlements,
   weeklyGrades,
+  onDietAdd,
+  onDietUpdate,
+  onDietDelete,
+  onFavoriteDelete,
   onWaterAdd,
+  onWaterUpdate,
+  onWaterDelete,
   onWaterGoalChange,
   onSettlementSaved,
   onWeeklyGradeGenerated,
   onSettlement,
 }: TavernTabProps) {
-  const sorted = useMemo(() => sortByLoggedAtDesc(diets), [diets]);
+  const [recordDate, setRecordDate] = useState(toDateKey());
+  const [todaySettlement, setTodaySettlement] =
+    useState<DailyDietSettlement | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalSettlement, setModalSettlement] =
+    useState<DailyDietSettlement | null>(null);
+  const [coachReply, setCoachReply] = useState("");
+  const [settling, setSettling] = useState(false);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
+
+  const waterGoalMl = profile.dailyWaterGoalMl ?? 2000;
 
   const todayDiets = useMemo(
-    () => sorted.filter((d) => isToday(d.loggedAt)),
-    [sorted],
+    () => diets.filter((d) => isToday(d.loggedAt)),
+    [diets],
+  );
+
+  const todayWaterMl = useMemo(
+    () => sumWaterMl(getWaterEntriesForDate(waterLogs, toDateKey())),
+    [waterLogs],
   );
 
   const totals = useMemo(
@@ -113,27 +141,25 @@ export function TavernTab({
     [todayDiets],
   );
 
-  const [settlement, setSettlement] = useState<DailyDietSettlement | null>(
-    null,
+  const recordDateMeals = useMemo(
+    () => diets.filter((d) => isSameDateKey(d.loggedAt, recordDate)),
+    [diets, recordDate],
   );
-  const [showModal, setShowModal] = useState(false);
-  const [modalSettlement, setModalSettlement] =
-    useState<DailyDietSettlement | null>(null);
-  const [coachReply, setCoachReply] = useState("");
-  const [settling, setSettling] = useState(false);
-  const [weeklyLoading, setWeeklyLoading] = useState(false);
-  const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
 
-  const waterGoalMl = profile.dailyWaterGoalMl ?? 2000;
-  const todayWater = useMemo(
-    () => sumWaterMl(getTodayWaterEntries(waterLogs)),
-    [waterLogs],
+  const recordDateWaterMl = useMemo(
+    () => sumWaterMl(getWaterEntriesForDate(waterLogs, recordDate)),
+    [waterLogs, recordDate],
+  );
+
+  const recordDateSettlement = useMemo(
+    () => settlementHistory.find((s) => s.logDate === recordDate) ?? null,
+    [settlementHistory, recordDate],
   );
 
   useEffect(() => {
     const today =
       settlementHistory.find((s) => isToday(s.logDate)) ?? null;
-    setSettlement(today);
+    setTodaySettlement(today);
   }, [settlementHistory]);
 
   function openSettlementModal(s: DailyDietSettlement, reply = "") {
@@ -142,96 +168,123 @@ export function TavernTab({
     setShowModal(true);
   }
 
-  const submitSettlement = useCallback(async () => {
-    if (todayDiets.length === 0 && todayWater <= 0) {
-      alert("請先記錄今日餐點或飲水打卡，再進行結算");
-      return;
-    }
+  const submitSettlement = useCallback(
+    async (targetDate: string) => {
+      const meals = diets.filter((d) => isSameDateKey(d.loggedAt, targetDate));
+      const waterMl = sumWaterMl(
+        getWaterEntriesForDate(waterLogs, targetDate),
+      );
 
-    setSettling(true);
-    try {
-      const payload = {
-        goals: {
-          calories: nutritionGoals.calories,
-          proteinG: nutritionGoals.proteinG,
-          carbsG: profile.dailyCarbsGoal,
-          fatG: profile.dailyFatGoal,
-          waterMl: waterGoalMl,
-        },
-        totals: {
-          calories: totals.calories,
-          proteinG: totals.protein,
-          carbsG: totals.carbs,
-          fatG: totals.fat,
-        },
-        meals: todayDiets.map((d) => ({
-          foodName: d.foodName,
-          calories: d.calories,
-          proteinG: d.proteinG,
-          carbsG: d.carbsG,
-          fatG: d.fatG,
-          loggedAt: d.loggedAt,
-        })),
-        waterMl: todayWater,
-      };
-
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-      let s: DailyDietSettlement;
-      let reply = "";
-
-      if (apiBase) {
-        try {
-          const res = await fetch(`${apiBase}/api/diet/settle`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          if (res.ok && data.settlement) {
-            s = data.settlement as DailyDietSettlement;
-            reply = data.reply ?? "";
-          } else {
-            throw new Error(data.reply ?? data.error ?? "結算失敗");
-          }
-        } catch {
-          s = computeDietSettlement({
-            profile,
-            todayMeals: todayDiets,
-            waterMl: todayWater,
-            waterGoalMl,
-          });
-          reply = s.summary;
-        }
-      } else {
-        s = computeDietSettlement({
-          profile,
-          todayMeals: todayDiets,
-          waterMl: todayWater,
-          waterGoalMl,
-        });
-        reply = s.summary;
+      if (meals.length === 0 && waterMl <= 0) {
+        alert("請先記錄該日餐點或飲水，再進行結算");
+        return;
       }
 
-      setSettlement(s);
-      await onSettlementSaved(s);
-      openSettlementModal(s, reply);
+      setSettling(true);
+      try {
+        const mealTotals = meals.reduce(
+          (acc, d) => ({
+            calories: acc.calories + d.calories,
+            protein: acc.protein + d.proteinG,
+            carbs: acc.carbs + d.carbsG,
+            fat: acc.fat + d.fatG,
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        );
 
-      const xpGained = xpForDietGrade(s.grade);
-      onSettlement?.({ settlement: s, xpGained });
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "結算失敗");
-    } finally {
-      setSettling(false);
-    }
-  }, [
-    profile,
-    todayDiets,
-    totals,
-    todayWater,
-    waterGoalMl,
-    onSettlement,
-    onSettlementSaved,
-  ]);
+        const payload = {
+          goals: {
+            calories: nutritionGoals.calories,
+            proteinG: nutritionGoals.proteinG,
+            carbsG: nutritionGoals.carbsG,
+            fatG: nutritionGoals.fatG,
+            waterMl: waterGoalMl,
+          },
+          totals: {
+            calories: mealTotals.calories,
+            proteinG: mealTotals.protein,
+            carbsG: mealTotals.carbs,
+            fatG: mealTotals.fat,
+          },
+          meals: meals.map((d) => ({
+            foodName: d.foodName,
+            calories: d.calories,
+            proteinG: d.proteinG,
+            carbsG: d.carbsG,
+            fatG: d.fatG,
+            loggedAt: d.loggedAt,
+          })),
+          waterMl,
+        };
+
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+        let s: DailyDietSettlement;
+        let reply = "";
+
+        if (apiBase) {
+          try {
+            const res = await fetch(`${apiBase}/api/diet/settle`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (res.ok && data.settlement) {
+              s = {
+                ...(data.settlement as DailyDietSettlement),
+                logDate: targetDate,
+              };
+              reply = data.reply ?? "";
+            } else {
+              throw new Error(data.reply ?? data.error ?? "結算失敗");
+            }
+          } catch {
+            s = {
+              ...computeDietSettlement({
+                profile,
+                todayMeals: meals,
+                waterMl,
+                waterGoalMl,
+              }),
+              logDate: targetDate,
+            };
+            reply = s.summary;
+          }
+        } else {
+          s = {
+            ...computeDietSettlement({
+              profile,
+              todayMeals: meals,
+              waterMl,
+              waterGoalMl,
+            }),
+            logDate: targetDate,
+          };
+          reply = s.summary;
+        }
+
+        if (isToday(targetDate)) setTodaySettlement(s);
+        await onSettlementSaved(s);
+        openSettlementModal(s, reply);
+
+        const xpGained = xpForDietGrade(s.grade);
+        onSettlement?.({ settlement: s, xpGained });
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "結算失敗");
+      } finally {
+        setSettling(false);
+      }
+    },
+    [
+      diets,
+      waterLogs,
+      profile,
+      nutritionGoals,
+      waterGoalMl,
+      onSettlement,
+      onSettlementSaved,
+    ],
+  );
 
   const submitWeeklyEval = useCallback(async () => {
     setWeeklyLoading(true);
@@ -284,10 +337,19 @@ export function TavernTab({
     settlementHistory,
     workoutSettlements,
     waterLogs,
-    profile,
+    nutritionGoals,
     waterGoalMl,
     onWeeklyGradeGenerated,
   ]);
+
+  const settleLabel =
+    recordDate === toDateKey()
+      ? todaySettlement
+        ? "重新結算今日"
+        : "結算今日飲食"
+      : recordDateSettlement
+        ? `重新結算 ${formatDateLabel(recordDate)}`
+        : `結算 ${formatDateLabel(recordDate)}`;
 
   return (
     <div className="space-y-4 pb-2">
@@ -329,31 +391,55 @@ export function TavernTab({
         </div>
       </Card>
 
-      <WaterTrackerPanel
+      <DietAddForm defaultDate={recordDate} onSave={onDietAdd} />
+
+      <FavoriteMealsPanel
+        favorites={favorites}
+        recordDate={recordDate}
+        onQuickAdd={onDietAdd}
+        onDelete={onFavoriteDelete}
+      />
+
+      <DietRecordSection
+        diets={diets}
+        waterLogs={waterLogs}
         waterGoalMl={waterGoalMl}
-        entries={waterLogs}
-        onAdd={onWaterAdd}
-        onGoalChange={onWaterGoalChange}
+        recordDate={recordDate}
+        onRecordDateChange={setRecordDate}
+        onWaterAdd={onWaterAdd}
+        onWaterGoalChange={onWaterGoalChange}
+        onDietUpdate={onDietUpdate}
+        onDietDelete={onDietDelete}
+        onWaterUpdate={onWaterUpdate}
+        onWaterDelete={onWaterDelete}
       />
 
       <div className="pixel-card pixel-card--hero">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-pixel-sm font-bold text-accent-light">
-              ▶ 今日飲食結算
+              ▶ {formatDateLabel(recordDate)}結算
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              綜合餐點、宏量與飲水達成率評分
+              {recordDateMeals.length} 餐 · 飲水 {recordDateWaterMl} ml
             </p>
           </div>
-          {settlement && (
+          {(recordDate === toDateKey()
+            ? todaySettlement
+            : recordDateSettlement) && (
             <span
               className={cn(
                 "flex h-14 w-14 shrink-0 items-center justify-center border-[4px] border-solid font-pixel text-3xl",
-                GRADE_BADGE[settlement.grade],
+                GRADE_BADGE[
+                  (recordDate === toDateKey()
+                    ? todaySettlement
+                    : recordDateSettlement)!.grade
+                ],
               )}
             >
-              {settlement.grade}
+              {(recordDate === toDateKey()
+                ? todaySettlement
+                : recordDateSettlement)!.grade}
             </span>
           )}
         </div>
@@ -361,16 +447,16 @@ export function TavernTab({
         <button
           type="button"
           disabled={settling}
-          onClick={() => submitSettlement()}
+          onClick={() => void submitSettlement(recordDate)}
           className="mt-4 min-h-[48px] w-full border-[3px] border-solid border-border-pixel bg-accent text-base font-bold text-bg-app disabled:opacity-50 active:scale-[0.98]"
         >
-          {settling ? "結算中…" : "結算今日飲食"}
+          {settling ? "結算中…" : settleLabel}
         </button>
 
-        {settlement && !showModal && (
+        {recordDate === toDateKey() && todaySettlement && !showModal && (
           <button
             type="button"
-            onClick={() => openSettlementModal(settlement)}
+            onClick={() => openSettlementModal(todaySettlement)}
             className="mt-3 w-full text-center text-sm text-accent-light underline"
           >
             再看一次今日結算
@@ -406,45 +492,6 @@ export function TavernTab({
         )}
       </Card>
 
-      <Card title="餐點紀錄">
-        {sorted.length === 0 ? (
-          <p className="py-6 text-center text-sm text-text-muted">
-            用助手記錄吃了什麼，會自動帶入時間
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {sorted.map((d) => (
-              <li key={d.id} className="flex gap-3 py-3">
-                <time
-                  className="w-12 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-accent"
-                  dateTime={d.loggedAt}
-                >
-                  {formatTime(d.loggedAt)}
-                </time>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{d.foodName}</p>
-                    {d.mealType && (
-                      <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-xs text-text-muted">
-                        {MEAL_LABEL[d.mealType]}
-                      </span>
-                    )}
-                    {!isToday(d.loggedAt) && (
-                      <span className="text-xs text-text-muted">
-                        {d.loggedAt.slice(0, 10)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-sm text-text-muted tabular-nums">
-                    {d.calories} kcal · P{d.proteinG} C{d.carbsG} F{d.fatG}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
       <Card title="週評">
         <button
           type="button"
@@ -459,27 +506,27 @@ export function TavernTab({
             尚無週評，點上方按鈕依本週紀錄產生
           </p>
         ) : (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {weeklyGrades.map((g) => (
-            <div
-              key={`${g.year ?? ""}-${g.weekNumber ?? g.weekLabel}`}
-              className="min-w-[88px] shrink-0 rounded-xl bg-bg-elevated p-3"
-            >
-              <p className="text-xs text-text-muted">{g.weekLabel}</p>
-              <p
-                className={cn(
-                  "my-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold",
-                  GRADE_STYLE[g.grade],
-                )}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {weeklyGrades.map((g) => (
+              <div
+                key={`${g.year ?? ""}-${g.weekNumber ?? g.weekLabel}`}
+                className="min-w-[88px] shrink-0 rounded-xl bg-bg-elevated p-3"
               >
-                {g.grade}
-              </p>
-              <p className="line-clamp-2 text-xs leading-snug text-text-muted">
-                {g.summary}
-              </p>
-            </div>
-          ))}
-        </div>
+                <p className="text-xs text-text-muted">{g.weekLabel}</p>
+                <p
+                  className={cn(
+                    "my-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold",
+                    GRADE_STYLE[g.grade],
+                  )}
+                >
+                  {g.grade}
+                </p>
+                <p className="line-clamp-2 text-xs leading-snug text-text-muted">
+                  {g.summary}
+                </p>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 
