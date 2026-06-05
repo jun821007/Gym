@@ -17,7 +17,7 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --tab-h: 3.5rem;
-  --tab-pad-bottom: var(--safe-bottom);
+  --tab-pad-bottom: max(12px, var(--safe-bottom));
   --tab-total-h: calc(var(--tab-h) + var(--tab-pad-bottom) + 6px);
   --fab-offset: calc(var(--tab-total-h) + 8px);
   --pixel-xs: 11px;
@@ -62,16 +62,18 @@
   line-height: 1.45;
 }
 
-html,
+html {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
 body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-}
-
-body {
   background: var(--bg-app);
   color: var(--text);
   font-family: var(--font-sans), system-ui, sans-serif;
@@ -80,13 +82,11 @@ body {
 }
 
 .app-shell {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  height: -webkit-fill-available;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
-  max-height: 100dvh;
+  width: 100%;
   padding-top: var(--safe-top);
   overflow: hidden;
   background: var(--bg-app);
@@ -202,7 +202,9 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
-  padding: 2px 6px var(--safe-bottom);
+  margin-top: auto;
+  padding: 2px 6px 0;
+  padding-bottom: max(12px, var(--safe-bottom));
   background: var(--bg-card);
   border-top: 4px solid var(--border-pixel);
   box-sizing: border-box;
