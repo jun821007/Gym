@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import {
   WORKOUT_CATEGORY_LABELS,
@@ -9,10 +9,87 @@ import {
 import type { FavoriteWorkout, WorkoutCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const LONG_PRESS_MS = 480;
+const MOVE_CANCEL_PX = 10;
+
 interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
   onApplyName: (name: string) => void;
   onDelete: (id: string) => void | Promise<void>;
+}
+
+function FavoriteChip({
+  fav,
+  onApplyName,
+  onRequestDelete,
+}: {
+  fav: FavoriteWorkout;
+  onApplyName: (name: string) => void;
+  onRequestDelete: () => void;
+}) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressRef = useRef(false);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+
+  function clearTimer() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  function movedTooFar(clientX: number, clientY: number) {
+    const s = startRef.current;
+    if (!s) return false;
+    return (
+      Math.abs(clientX - s.x) > MOVE_CANCEL_PX ||
+      Math.abs(clientY - s.y) > MOVE_CANCEL_PX
+    );
+  }
+
+  function onPressStart(clientX: number, clientY: number) {
+    longPressRef.current = false;
+    startRef.current = { x: clientX, y: clientY };
+    clearTimer();
+    timerRef.current = setTimeout(() => {
+      longPressRef.current = true;
+      onRequestDelete();
+    }, LONG_PRESS_MS);
+  }
+
+  function onPressMove(clientX: number, clientY: number) {
+    if (movedTooFar(clientX, clientY)) clearTimer();
+  }
+
+  function onPressEnd(clientX: number, clientY: number) {
+    clearTimer();
+    if (longPressRef.current || movedTooFar(clientX, clientY)) return;
+    onApplyName(fav.name);
+  }
+
+  return (
+    <button
+      type="button"
+      title={fav.name}
+      className={cn(
+        "max-w-[7.5rem] shrink-0 truncate rounded-lg border border-border bg-bg-elevated",
+        "px-2.5 py-1.5 text-xs font-semibold text-accent-light",
+        "select-none touch-manipulation active:bg-accent/20",
+      )}
+      style={{ WebkitTouchCallout: "none" }}
+      onContextMenu={(e) => e.preventDefault()}
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        onPressStart(e.clientX, e.clientY);
+      }}
+      onPointerMove={(e) => onPressMove(e.clientX, e.clientY)}
+      onPointerUp={(e) => onPressEnd(e.clientX, e.clientY)}
+      onPointerLeave={clearTimer}
+      onPointerCancel={clearTimer}
+    >
+      {fav.name}
+    </button>
+  );
 }
 
 export function FavoriteWorkoutsPanel({
@@ -45,7 +122,7 @@ export function FavoriteWorkoutsPanel({
   return (
     <>
       <Card title="常用訓練">
-        <div className="mb-3 flex gap-1.5">
+        <div className="mb-2 flex gap-1.5">
           {WORKOUT_CATEGORY_ORDER.map((cat) => {
             const count = grouped[cat].length;
             return (
@@ -54,7 +131,7 @@ export function FavoriteWorkoutsPanel({
                 type="button"
                 onClick={() => setActiveCategory(cat)}
                 className={cn(
-                  "min-h-[36px] flex-1 rounded-lg border text-sm font-semibold",
+                  "min-h-[32px] flex-1 rounded-lg border text-xs font-semibold",
                   activeCategory === cat
                     ? "border-accent bg-accent/20 text-accent-light"
                     : "border-border bg-bg-elevated text-text-muted",
@@ -62,7 +139,7 @@ export function FavoriteWorkoutsPanel({
               >
                 {WORKOUT_CATEGORY_LABELS[cat]}
                 {count > 0 && (
-                  <span className="ml-1 text-xs opacity-80">({count})</span>
+                  <span className="ml-0.5 opacity-80">({count})</span>
                 )}
               </button>
             );
@@ -70,34 +147,18 @@ export function FavoriteWorkoutsPanel({
         </div>
 
         {activeItems.length === 0 ? (
-          <p className="py-3 text-center text-sm text-text-muted">
+          <p className="py-2 text-center text-xs text-text-muted">
             尚無{WORKOUT_CATEGORY_LABELS[activeCategory]}常用動作
           </p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-1.5">
             {activeItems.map((fav) => (
-              <div
+              <FavoriteChip
                 key={fav.id}
-                className="min-w-[150px] shrink-0 rounded-xl border border-border bg-bg-elevated p-3"
-              >
-                <p className="line-clamp-2 text-sm font-semibold">{fav.name}</p>
-                <div className="mt-2 flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onApplyName(fav.name)}
-                    className="min-h-[32px] flex-1 rounded-lg bg-accent/20 text-xs font-bold text-accent-light"
-                  >
-                    帶入
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeleteId(fav.id)}
-                    className="min-h-[32px] rounded-lg border border-border px-2.5 text-xs text-text-muted"
-                  >
-                    刪除
-                  </button>
-                </div>
-              </div>
+                fav={fav}
+                onApplyName={onApplyName}
+                onRequestDelete={() => setPendingDeleteId(fav.id)}
+              />
             ))}
           </div>
         )}
