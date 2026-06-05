@@ -64,10 +64,7 @@
 
 html,
 body {
-  height: var(--app-height, 100dvh);
-  min-height: var(--app-height, 100dvh);
-  min-height: 100lvh;
-  min-height: -webkit-fill-available;
+  height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
@@ -85,22 +82,22 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: var(--app-height, 100dvh);
-  min-height: var(--app-height, 100dvh);
-  min-height: 100lvh;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
+  max-height: 100dvh;
   padding-top: var(--safe-top);
-  padding-bottom: 0;
+  overflow: hidden;
   background: var(--bg-app);
 }
 
-/* 固定底欄不佔 flex 高度，避免底部多出一段空白 */
-.bottom-nav-anchor {
-  flex: 0 0 0;
-  height: 0;
-  width: 100%;
-  overflow: visible;
-  pointer-events: none;
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .app-scroll {
@@ -198,25 +195,25 @@ body {
   transition: width 0.35s ease;
 }
 
-.bottom-nav-anchor .bottom-nav {
-  pointer-events: auto;
-}
-
 .bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex-shrink: 0;
   width: 100%;
   z-index: 50;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
-  margin: 0;
   padding: 2px 6px var(--safe-bottom);
   background: var(--bg-card);
   border-top: 4px solid var(--border-pixel);
   box-sizing: border-box;
+}
+
+.bottom-nav--hidden {
+  display: none;
+}
+
+html.keyboard-open .chat-fab {
+  bottom: calc(var(--safe-bottom) + 0.5rem);
 }
 
 /* 痛點回報 FAB：確保可點擊、可拖曳，預設在底欄上方 */

@@ -7,6 +7,7 @@ import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
 import { BottomTabNav } from "@/components/layout/BottomTabNav";
+import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
@@ -86,7 +87,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--tab-total-h) + 12px)";
+const SCROLL_PAD = "12px";
 
 interface DashboardProps {
   session: Session;
@@ -107,6 +108,7 @@ export function Dashboard({
   const supabase = getSupabase();
 
   const [tab, setTab] = useState<TabId>("control");
+  const keyboardOpen = useKeyboardOpen();
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [bodyGoals, setBodyGoals] = useState<BodyGoals>(initialGoals);
   const [diets, setDiets] = useState<DietLog[]>([]);
@@ -409,19 +411,17 @@ export function Dashboard({
 
   return (
     <div className="app-shell">
-      <div className="flex items-center justify-end px-4 pt-2">
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="text-xs text-text-muted underline"
-        >
-          登出
-        </button>
-      </div>
-      <div
-        className="app-scroll px-4 pt-2"
-        style={{ paddingBottom: SCROLL_PAD }}
-      >
+      <div className="app-main">
+        <div className="flex shrink-0 items-center justify-end px-4 pt-2">
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="text-xs text-text-muted underline"
+          >
+            登出
+          </button>
+        </div>
+        <div className="app-scroll px-4 pt-2" style={{ paddingBottom: SCROLL_PAD }}>
         {tab === "control" && (
           <ControlRoomTab
             profile={profile}
@@ -469,6 +469,7 @@ export function Dashboard({
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />
         )}
+        </div>
       </div>
 
       {chat && (
@@ -483,9 +484,11 @@ export function Dashboard({
         />
       )}
 
-      <div className="bottom-nav-anchor">
-        <BottomTabNav active={tab} onChange={setTab} />
-      </div>
+      <BottomTabNav
+        active={tab}
+        onChange={setTab}
+        hidden={keyboardOpen}
+      />
     </div>
   );
 }

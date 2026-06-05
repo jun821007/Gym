@@ -12,11 +12,16 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 interface BottomTabNavProps {
   active: TabId;
   onChange: (tab: TabId) => void;
+  hidden?: boolean;
 }
 
-export function BottomTabNav({ active, onChange }: BottomTabNavProps) {
+export function BottomTabNav({ active, onChange, hidden }: BottomTabNavProps) {
   return (
-    <nav className="bottom-nav" aria-label="主選單">
+    <nav
+      className={cn("bottom-nav", hidden && "bottom-nav--hidden")}
+      aria-label="主選單"
+      aria-hidden={hidden}
+    >
       {TABS.map((tab) => {
         const isActive = active === tab.id;
         return (
