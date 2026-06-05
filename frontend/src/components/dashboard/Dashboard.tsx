@@ -6,9 +6,10 @@ import { MobileChat } from "@/components/chat/MobileChat";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
-import { BottomTabNav } from "@/components/layout/BottomTabNav";
-import { useKeyboardOpen } from "@/lib/use-keyboard-open";
+import { SwipeTabIndicator } from "@/components/layout/SwipeTabIndicator";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
+import { useSwipeTabs } from "@/lib/use-swipe-tabs";
+import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
 import { getSupabase } from "@/lib/supabase/client";
@@ -87,7 +88,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "12px";
+const SCROLL_PAD = "calc(var(--safe-bottom) + 4.5rem)";
 
 interface DashboardProps {
   session: Session;
@@ -108,7 +109,11 @@ export function Dashboard({
   const supabase = getSupabase();
 
   const [tab, setTab] = useState<TabId>("control");
-  const keyboardOpen = useKeyboardOpen();
+  useKeyboardOpen();
+  const swipeTabs = useSwipeTabs(tab, (next) => {
+    setTab(next);
+    document.querySelector(".app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+  });
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [bodyGoals, setBodyGoals] = useState<BodyGoals>(initialGoals);
   const [diets, setDiets] = useState<DietLog[]>([]);
@@ -421,7 +426,12 @@ export function Dashboard({
             登出
           </button>
         </div>
-        <div className="app-scroll px-4 pt-2" style={{ paddingBottom: SCROLL_PAD }}>
+        <div
+          className="app-scroll px-4 pt-2"
+          style={{ paddingBottom: SCROLL_PAD }}
+          onTouchStart={swipeTabs.onTouchStart}
+          onTouchEnd={swipeTabs.onTouchEnd}
+        >
         {tab === "control" && (
           <ControlRoomTab
             profile={profile}
@@ -484,11 +494,7 @@ export function Dashboard({
         />
       )}
 
-      <BottomTabNav
-        active={tab}
-        onChange={setTab}
-        hidden={keyboardOpen}
-      />
+      <SwipeTabIndicator active={tab} />
     </div>
   );
 }
