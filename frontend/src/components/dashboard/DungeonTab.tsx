@@ -127,6 +127,9 @@ export function DungeonTab({
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
+  const [exerciseNamePrefill, setExerciseNamePrefill] = useState<string | null>(
+    null,
+  );
   const [logsHistoryOpen, setLogsHistoryOpen] = useState(true);
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
   const [settlement, setSettlement] = useState<DailyWorkoutSettlement | null>(
@@ -192,10 +195,11 @@ export function DungeonTab({
     return rest;
   }
 
-  async function quickAddFromFavorite(logs: Omit<WorkoutLog, "id">[]) {
-    for (const log of logs) {
-      await onAddWorkout(log);
-    }
+  function applyFavoriteName(name: string) {
+    setExerciseNamePrefill(name);
+    document
+      .getElementById("workout-add-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const submitSettlement = useCallback(
@@ -276,21 +280,25 @@ export function DungeonTab({
 
   return (
     <div className="space-y-4 pb-2">
-      <WorkoutAddForm
-        profile={profile}
-        prefill={prefill}
-        onPrefillConsumed={() => setPrefill(null)}
-        onSave={onAddWorkout}
-        onSaveFavorite={onSaveFavoriteWorkout}
-      />
-
       {favoriteWorkouts.length > 0 && onDeleteFavoriteWorkout && (
         <FavoriteWorkoutsPanel
           favorites={favoriteWorkouts}
-          onQuickAdd={quickAddFromFavorite}
+          onApplyName={applyFavoriteName}
           onDelete={onDeleteFavoriteWorkout}
         />
       )}
+
+      <div id="workout-add-form">
+        <WorkoutAddForm
+          profile={profile}
+          prefill={prefill}
+          exerciseNamePrefill={exerciseNamePrefill}
+          onPrefillConsumed={() => setPrefill(null)}
+          onExerciseNamePrefillConsumed={() => setExerciseNamePrefill(null)}
+          onSave={onAddWorkout}
+          onSaveFavorite={onSaveFavoriteWorkout}
+        />
+      </div>
 
       <Card title={`今日清單 · ${todayWorkouts.length} 項`}>
         {todayWorkouts.length === 0 ? (

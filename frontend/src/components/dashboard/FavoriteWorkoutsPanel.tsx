@@ -2,43 +2,23 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
-import type { FavoriteWorkout, WorkoutLog } from "@/lib/types";
-import { toDateKey } from "@/lib/datetime";
+import type { FavoriteWorkout } from "@/lib/types";
 
 interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
-  onQuickAdd: (logs: Omit<WorkoutLog, "id">[]) => void | Promise<void>;
+  onApplyName: (name: string) => void;
   onDelete: (id: string) => void | Promise<void>;
 }
 
 export function FavoriteWorkoutsPanel({
   favorites,
-  onQuickAdd,
+  onApplyName,
   onDelete,
 }: FavoriteWorkoutsPanelProps) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pending = favorites.find((f) => f.id === pendingDeleteId);
 
   if (favorites.length === 0) return null;
-
-  async function addTemplate(fav: FavoriteWorkout) {
-    const now = new Date();
-    const logDate = toDateKey(now);
-    const loggedAt = now.toISOString();
-    const logs: Omit<WorkoutLog, "id">[] = fav.exercises.map((ex) => ({
-      exerciseName: ex.exerciseName,
-      loadType: ex.loadType ?? "bilateral",
-      weightKg: ex.weightKg ?? 0,
-      extraWeightKg: ex.extraWeightKg,
-      assistKg: ex.assistKg,
-      reps: ex.reps ?? ex.setDetails?.[0]?.reps ?? 0,
-      sets: ex.sets ?? ex.setDetails?.length ?? 1,
-      setDetails: ex.setDetails,
-      logDate,
-      loggedAt,
-    }));
-    await onQuickAdd(logs);
-  }
 
   return (
     <>
@@ -56,7 +36,7 @@ export function FavoriteWorkoutsPanel({
               <div className="mt-2 flex gap-1">
                 <button
                   type="button"
-                  onClick={() => void addTemplate(fav)}
+                  onClick={() => onApplyName(fav.name)}
                   className="min-h-[32px] flex-1 rounded-lg bg-accent/20 text-xs font-bold text-accent-light"
                 >
                   帶入

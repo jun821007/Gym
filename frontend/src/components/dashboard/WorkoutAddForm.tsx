@@ -55,7 +55,9 @@ export type WorkoutFormPrefill = Omit<WorkoutLog, "id" | "logDate" | "loggedAt">
 export interface WorkoutAddFormProps {
   profile: UserProfile;
   prefill?: WorkoutFormPrefill | null;
+  exerciseNamePrefill?: string | null;
   onPrefillConsumed?: () => void;
+  onExerciseNamePrefillConsumed?: () => void;
   onSave: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
   onSaveFavorite?: (fav: {
     name: string;
@@ -66,7 +68,9 @@ export interface WorkoutAddFormProps {
 export function WorkoutAddForm({
   profile,
   prefill,
+  exerciseNamePrefill,
   onPrefillConsumed,
+  onExerciseNamePrefillConsumed,
   onSave,
   onSaveFavorite,
 }: WorkoutAddFormProps) {
@@ -84,6 +88,12 @@ export function WorkoutAddForm({
   const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
   const [addFavorite, setAddFavorite] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!exerciseNamePrefill) return;
+    setExerciseName(exerciseNamePrefill);
+    onExerciseNamePrefillConsumed?.();
+  }, [exerciseNamePrefill, onExerciseNamePrefillConsumed]);
 
   useEffect(() => {
     if (!prefill) return;
