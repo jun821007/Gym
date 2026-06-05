@@ -42,10 +42,7 @@ interface DungeonTabProps {
   settlementHistory: DailyWorkoutSettlement[];
   onAddWorkout: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
   onDeleteWorkout?: (id: string) => void | Promise<void>;
-  onSaveFavoriteWorkout?: (fav: {
-    name: string;
-    exercises: FavoriteWorkout["exercises"];
-  }) => void | Promise<void>;
+  onSaveFavoriteWorkout?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onSettlement?: (data: {

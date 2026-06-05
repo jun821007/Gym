@@ -294,15 +294,30 @@ export async function insertFavoriteWorkout(
   userId: string,
   fav: Omit<FavoriteWorkout, "id">,
 ): Promise<FavoriteWorkout> {
-  const { data, error } = await supabase
+  const full = {
+    user_id: userId,
+    name: fav.name,
+    category: fav.category,
+    exercises: fav.exercises,
+  };
+  const { category, ...base } = full;
+
+  let { data, error } = await supabase
     .from("favorite_workouts")
-    .insert({
-      user_id: userId,
-      name: fav.name,
-      exercises: fav.exercises,
-    })
+    .insert(full)
     .select()
     .single();
+
+  if (error?.message?.includes("category")) {
+    const retry = await supabase
+      .from("favorite_workouts")
+      .insert(base)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw error;
   return rowToFavoriteWorkout(data);
 }

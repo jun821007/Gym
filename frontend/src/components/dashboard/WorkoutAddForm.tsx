@@ -6,10 +6,12 @@ import { toDateKey } from "@/lib/datetime";
 import type {
   FavoriteWorkoutExercise,
   UserProfile,
+  WorkoutCategory,
   WorkoutLoadType,
   WorkoutLog,
   WorkoutSetDetail,
 } from "@/lib/types";
+import { WORKOUT_CATEGORY_OPTIONS } from "@/lib/workout-categories";
 import {
   BODYWEIGHT_FACTOR,
   LOAD_TYPE_OPTIONS,
@@ -61,6 +63,7 @@ export interface WorkoutAddFormProps {
   onSave: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
   onSaveFavorite?: (fav: {
     name: string;
+    category: WorkoutCategory;
     exercises: FavoriteWorkoutExercise[];
   }) => void | Promise<void>;
 }
@@ -87,6 +90,8 @@ export function WorkoutAddForm({
   const [assistKg, setAssistKg] = useState("");
   const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
   const [addFavorite, setAddFavorite] = useState(false);
+  const [favoriteCategory, setFavoriteCategory] =
+    useState<WorkoutCategory>("chest");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -183,6 +188,7 @@ export function WorkoutAddForm({
       if (addFavorite && onSaveFavorite) {
         await onSaveFavorite({
           name: log.exerciseName,
+          category: favoriteCategory,
           exercises: [
             {
               exerciseName: log.exerciseName,
@@ -203,6 +209,7 @@ export function WorkoutAddForm({
       setAssistKg("");
       setSetRows([emptySet()]);
       setAddFavorite(false);
+      setFavoriteCategory("chest");
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -370,14 +377,34 @@ export function WorkoutAddForm({
         </div>
 
         {onSaveFavorite && (
-          <label className="flex items-center gap-2 text-sm text-text-muted">
-            <input
-              type="checkbox"
-              checked={addFavorite}
-              onChange={(e) => setAddFavorite(e.target.checked)}
-            />
-            加入常用訓練
-          </label>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-text-muted">
+              <input
+                type="checkbox"
+                checked={addFavorite}
+                onChange={(e) => setAddFavorite(e.target.checked)}
+              />
+              加入常用訓練
+            </label>
+            {addFavorite && (
+              <label className="block text-sm text-text-muted">
+                分類
+                <select
+                  value={favoriteCategory}
+                  onChange={(e) =>
+                    setFavoriteCategory(e.target.value as WorkoutCategory)
+                  }
+                  className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm"
+                >
+                  {WORKOUT_CATEGORY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
         )}
 
         <button

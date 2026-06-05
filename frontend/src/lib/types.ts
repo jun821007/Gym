@@ -67,6 +67,8 @@ export interface WorkoutLog {
   loggedAt: string;
 }
 
+export type WorkoutCategory = "back" | "legs" | "chest" | "shoulders";
+
 export interface FavoriteWorkoutExercise {
   exerciseName: string;
   loadType: WorkoutLoadType;
@@ -81,6 +83,7 @@ export interface FavoriteWorkoutExercise {
 export interface FavoriteWorkout {
   id: string;
   name: string;
+  category: WorkoutCategory;
   exercises: FavoriteWorkoutExercise[];
 }
 

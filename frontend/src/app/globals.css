@@ -17,7 +17,8 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --tab-h: 3.5rem;
-  --tab-pad-bottom: calc(var(--safe-bottom) + var(--vv-bottom-gap, 0px));
+  --safe-bottom-effective: max(var(--safe-bottom), var(--vv-bottom-gap, 0px));
+  --tab-pad-bottom: var(--safe-bottom-effective);
   --tab-total-h: calc(var(--tab-h) + var(--tab-pad-bottom) + 6px);
   --fab-offset: calc(var(--tab-total-h) + 8px);
   --pixel-xs: 11px;
@@ -64,9 +65,9 @@
 
 html,
 body {
-  height: 100%;
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   min-height: 100lvh;
-  min-height: 100dvh;
   min-height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
@@ -85,9 +86,9 @@ body {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   min-height: 100lvh;
-  min-height: 100dvh;
   min-height: -webkit-fill-available;
   padding-top: var(--safe-top);
   padding-bottom: 0;
@@ -219,6 +220,17 @@ body {
   border-top: 4px solid var(--border-pixel);
   box-sizing: border-box;
   transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .bottom-nav {
+    bottom: calc(-1 * max(var(--vv-bottom-gap, 0px), env(safe-area-inset-bottom, 34px)));
+    padding-bottom: max(
+      var(--tab-pad-bottom),
+      env(safe-area-inset-bottom, 34px)
+    );
+  }
 }
 
 /* 痛點回報 FAB：確保可點擊、可拖曳，預設在底欄上方 */

@@ -328,10 +328,7 @@ export function Dashboard({
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
   }
 
-  async function handleWorkoutFavoriteSave(fav: {
-    name: string;
-    exercises: FavoriteWorkout["exercises"];
-  }) {
+  async function handleWorkoutFavoriteSave(fav: Omit<FavoriteWorkout, "id">) {
     const inserted = await insertFavoriteWorkout(supabase, userId, fav);
     setWorkoutFavorites((prev) => [inserted, ...prev]);
   }

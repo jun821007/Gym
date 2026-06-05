@@ -58,7 +58,7 @@ export default function RootLayout({
       <body className="h-full overflow-hidden antialiased">
         {children}
         {/* 原生 script：next/script 非同步載入時 document.currentScript 為 null，外掛會直接退出 */}
-        <script src="/viewport-bottom-fix.js?v=1" />
+        <script src="/viewport-bottom-fix.js?v=2" />
         <script
           src={`${PAINPOINT_API}/feedback-plugin.js?v=7`}
           data-api={PAINPOINT_API}

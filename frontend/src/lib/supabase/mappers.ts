@@ -1,4 +1,5 @@
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
+import { normalizeWorkoutCategory } from "@/lib/workout-categories";
 import type {
   BodyGoals,
   DailyDietSettlement,
@@ -100,11 +101,13 @@ export function rowToWorkout(row: {
 export function rowToFavoriteWorkout(row: {
   id: string;
   name: string;
+  category?: string | null;
   exercises: FavoriteWorkout["exercises"];
 }): FavoriteWorkout {
   return {
     id: row.id,
     name: row.name,
+    category: normalizeWorkoutCategory(row.category),
     exercises: Array.isArray(row.exercises) ? row.exercises : [],
   };
 }
