@@ -16,10 +16,8 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --nav-push-extra: 2cm;
   --tab-h: 3.5rem;
-  --safe-bottom-effective: max(var(--safe-bottom), var(--vv-bottom-gap, 0px));
-  --tab-pad-bottom: calc(var(--safe-bottom-effective) + var(--nav-push-extra));
+  --tab-pad-bottom: var(--safe-bottom);
   --tab-total-h: calc(var(--tab-h) + var(--tab-pad-bottom) + 6px);
   --fab-offset: calc(var(--tab-total-h) + 8px);
   --pixel-xs: 11px;
@@ -208,36 +206,17 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(-1 * (var(--vv-bottom-gap, 0px) + var(--nav-push-extra)));
+  bottom: 0;
   width: 100%;
   z-index: 50;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
   margin: 0;
-  padding: 2px 6px 0;
-  padding-bottom: var(--tab-pad-bottom);
+  padding: 2px 6px var(--safe-bottom);
   background: var(--bg-card);
   border-top: 4px solid var(--border-pixel);
   box-sizing: border-box;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .bottom-nav {
-    bottom: calc(
-      -1 *
-        (
-          max(var(--vv-bottom-gap, 0px), env(safe-area-inset-bottom, 34px)) +
-            var(--nav-push-extra)
-        )
-    );
-    padding-bottom: calc(
-      max(var(--tab-pad-bottom), env(safe-area-inset-bottom, 34px)) +
-        var(--nav-push-extra)
-    );
-  }
 }
 
 /* 痛點回報 FAB：確保可點擊、可拖曳，預設在底欄上方 */
