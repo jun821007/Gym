@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_TC, Press_Start_2P } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
+
+const PAINPOINT_API = "https://painpoint-hub-production.up.railway.app";
 
 const noto = Noto_Sans_TC({
   weight: ["400", "500", "700"],
@@ -56,10 +57,10 @@ export default function RootLayout({
     <html lang="zh-TW" className={`${noto.variable} ${pressStart.variable} h-full`}>
       <body className="h-full overflow-hidden antialiased">
         {children}
-        <Script
-          src="https://painpoint-hub-production.up.railway.app/feedback-plugin.js?v=6"
-          strategy="afterInteractive"
-          data-api="https://painpoint-hub-production.up.railway.app"
+        {/* 原生 script：next/script 非同步載入時 document.currentScript 為 null，外掛會直接退出 */}
+        <script
+          src={`${PAINPOINT_API}/feedback-plugin.js?v=7`}
+          data-api={PAINPOINT_API}
         />
       </body>
     </html>

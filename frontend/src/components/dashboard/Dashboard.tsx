@@ -216,7 +216,7 @@ export function Dashboard({
   );
 
   const nutritionHint =
-    nutritionRationale ?? nutritionDisplay.rationale || null;
+    nutritionRationale ?? (nutritionDisplay.rationale || null);
 
   const chat = CHAT_CONFIG[tab];
 
