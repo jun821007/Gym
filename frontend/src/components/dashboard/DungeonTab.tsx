@@ -124,9 +124,6 @@ export function DungeonTab({
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
-  const [exerciseNamePrefill, setExerciseNamePrefill] = useState<string | null>(
-    null,
-  );
   const [logsHistoryOpen, setLogsHistoryOpen] = useState(true);
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
   const [settlement, setSettlement] = useState<DailyWorkoutSettlement | null>(
@@ -192,8 +189,31 @@ export function DungeonTab({
     return rest;
   }
 
-  function applyFavoriteName(name: string) {
-    setExerciseNamePrefill(name);
+  function favoriteToPrefill(fav: FavoriteWorkout): WorkoutFormPrefill {
+    const ex = fav.exercises[0];
+    if (!ex) {
+      return {
+        exerciseName: fav.name,
+        loadType: "bilateral",
+        weightKg: 0,
+        reps: 0,
+        sets: 1,
+      };
+    }
+    return {
+      exerciseName: fav.name,
+      loadType: ex.loadType ?? "bilateral",
+      weightKg: ex.weightKg ?? 0,
+      extraWeightKg: ex.extraWeightKg,
+      assistKg: ex.assistKg,
+      reps: ex.reps ?? ex.setDetails?.[0]?.reps ?? 0,
+      sets: ex.sets ?? ex.setDetails?.length ?? 1,
+      setDetails: ex.setDetails,
+    };
+  }
+
+  function applyFavorite(fav: FavoriteWorkout) {
+    setPrefill(favoriteToPrefill(fav));
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -280,7 +300,7 @@ export function DungeonTab({
       {favoriteWorkouts.length > 0 && onDeleteFavoriteWorkout && (
         <FavoriteWorkoutsPanel
           favorites={favoriteWorkouts}
-          onApplyName={applyFavoriteName}
+          onApply={applyFavorite}
           onDelete={onDeleteFavoriteWorkout}
         />
       )}
@@ -289,9 +309,7 @@ export function DungeonTab({
         <WorkoutAddForm
           profile={profile}
           prefill={prefill}
-          exerciseNamePrefill={exerciseNamePrefill}
           onPrefillConsumed={() => setPrefill(null)}
-          onExerciseNamePrefillConsumed={() => setExerciseNamePrefill(null)}
           onSave={onAddWorkout}
           onSaveFavorite={onSaveFavoriteWorkout}
         />

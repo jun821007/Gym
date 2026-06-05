@@ -14,17 +14,17 @@ const MOVE_CANCEL_PX = 10;
 
 interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
-  onApplyName: (name: string) => void;
+  onApply: (fav: FavoriteWorkout) => void;
   onDelete: (id: string) => void | Promise<void>;
 }
 
 function FavoriteChip({
   fav,
-  onApplyName,
+  onApply,
   onRequestDelete,
 }: {
   fav: FavoriteWorkout;
-  onApplyName: (name: string) => void;
+  onApply: (fav: FavoriteWorkout) => void;
   onRequestDelete: () => void;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +64,7 @@ function FavoriteChip({
   function onPressEnd(clientX: number, clientY: number) {
     clearTimer();
     if (longPressRef.current || movedTooFar(clientX, clientY)) return;
-    onApplyName(fav.name);
+    onApply(fav);
   }
 
   return (
@@ -94,7 +94,7 @@ function FavoriteChip({
 
 export function FavoriteWorkoutsPanel({
   favorites,
-  onApplyName,
+  onApply,
   onDelete,
 }: FavoriteWorkoutsPanelProps) {
   const [activeCategory, setActiveCategory] = useState<WorkoutCategory>("back");
@@ -156,7 +156,7 @@ export function FavoriteWorkoutsPanel({
               <FavoriteChip
                 key={fav.id}
                 fav={fav}
-                onApplyName={onApplyName}
+                onApply={onApply}
                 onRequestDelete={() => setPendingDeleteId(fav.id)}
               />
             ))}
