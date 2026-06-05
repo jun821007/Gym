@@ -16,8 +16,6 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tab-h: 3.5rem;
-  --tab-pad-bottom: max(12px, var(--safe-bottom));
   --fab-offset: calc(max(12px, var(--safe-bottom)) + 0.75rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;

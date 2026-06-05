@@ -2,7 +2,7 @@
   "name": "身體管理",
   "short_name": "身體管理",
   "description": "像素風健康管理 — 訓練、飲食、體態一站記錄",
-  "start_url": "/",
+  "start_url": "/?v=3",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
