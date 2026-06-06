@@ -1,4 +1,10 @@
-import type { UserProfile, WorkoutLoadType, WorkoutLog, WorkoutSetDetail } from "@/lib/types";
+import type {
+  SettlementSetLine,
+  UserProfile,
+  WorkoutLoadType,
+  WorkoutLog,
+  WorkoutSetDetail,
+} from "@/lib/types";
 
 export const BODYWEIGHT_FACTOR = 0.95;
 
@@ -70,6 +76,40 @@ export function calcLogVolume(log: WorkoutLog, bodyWeightKg: number | null): num
     (sum, s) => sum + calcSetVolume(log, s, bodyWeightKg),
     0,
   );
+}
+
+/** 將逐組明細壓成可讀字串，連續相同組會合併（例：60×10×3 + 50×10） */
+export function formatSettlementSetLines(setLines: SettlementSetLine[]): string {
+  if (!setLines.length) return "";
+
+  const groups: { weightKg: number; reps: number; count: number }[] = [];
+  for (const line of setLines) {
+    const last = groups[groups.length - 1];
+    if (last && last.weightKg === line.weightKg && last.reps === line.reps) {
+      last.count += 1;
+    } else {
+      groups.push({ weightKg: line.weightKg, reps: line.reps, count: 1 });
+    }
+  }
+
+  return groups
+    .map((g) =>
+      g.count > 1
+        ? `${g.weightKg}kg×${g.reps}×${g.count}`
+        : `${g.weightKg}kg×${g.reps}`,
+    )
+    .join(" + ");
+}
+
+export function buildSettlementSetLines(
+  log: WorkoutLog,
+  bodyWeightKg: number | null,
+): SettlementSetLine[] {
+  return normalizeSetDetails(log).map((set) => ({
+    weightKg:
+      Math.round(effectiveSetWeightKg(log, set, bodyWeightKg) * 10) / 10,
+    reps: set.reps,
+  }));
 }
 
 /** 結算沿用：等效 weight × reps × sets */

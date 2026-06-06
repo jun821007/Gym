@@ -3,6 +3,8 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import type { DailyWorkoutSettlement, RankGrade } from "@/lib/types";
+import { settlementLogVolume } from "@/lib/workout-grading";
+import { formatSettlementSetLines } from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
 
 const GRADE_STYLE: Record<
@@ -96,10 +98,17 @@ export function WorkoutSettlementModal({
               {data.bodyWeightKg != null &&
                 `（÷${data.bodyWeightKg}kg）`}
             </p>
-            <ul className="mt-1 max-h-24 overflow-y-auto text-xs text-text-muted">
+            <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto text-xs text-text-muted">
               {data.manualLogs.map((l, i) => (
                 <li key={i}>
-                  {l.exerciseName} {l.weightKg}kg×{l.reps}×{l.sets}
+                  <span className="font-semibold text-text">{l.exerciseName}</span>
+                  {" · "}
+                  {l.setLines?.length
+                    ? formatSettlementSetLines(l.setLines)
+                    : `${l.weightKg}kg×${l.reps}×${l.sets}`}
+                  <span className="ml-1 tabular-nums opacity-80">
+                    （{Math.round(settlementLogVolume(l))}）
+                  </span>
                 </li>
               ))}
             </ul>

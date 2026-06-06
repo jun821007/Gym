@@ -3,17 +3,64 @@ export function formatTodayLogsPrompt(todayLogs) {
     return "【今日重訓清單】無手動打卡。評級須主要依截圖，並對照體態數據調整預期。";
   }
 
+  function formatSetLines(l) {
+    if (!Array.isArray(l.set_lines) || l.set_lines.length === 0) {
+      return `${l.weight}kg × ${l.reps}次 × ${l.sets}組`;
+    }
+
+    const groups = [];
+    for (const sl of l.set_lines) {
+      const w = Number(sl.weight) || 0;
+      const r = Number(sl.reps) || 0;
+      const last = groups[groups.length - 1];
+      if (last && last.weight === w && last.reps === r) {
+        last.count += 1;
+      } else {
+        groups.push({ weight: w, reps: r, count: 1 });
+      }
+    }
+
+    return groups
+      .map((g) =>
+        g.count > 1
+          ? `${g.weight}kg×${g.reps}×${g.count}`
+          : `${g.weight}kg×${g.reps}`,
+      )
+      .join(" + ");
+  }
+
   const lines = todayLogs.map((l, i) => {
     const vol =
-      (Number(l.weight) || 0) * (Number(l.reps) || 0) * (Number(l.sets) || 0);
-    return `${i + 1}. ${l.name} — ${l.weight}kg × ${l.reps}次 × ${l.sets}組（訓練量 ${vol}）`;
+      Number(l.volume) ||
+      (Array.isArray(l.set_lines) && l.set_lines.length
+        ? l.set_lines.reduce(
+            (s, sl) =>
+              s + (Number(sl.weight) || 0) * (Number(sl.reps) || 0),
+            0,
+          )
+        : (Number(l.weight) || 0) *
+          (Number(l.reps) || 0) *
+          (Number(l.sets) || 0));
+    return `${i + 1}. ${l.name} — ${formatSetLines(l)}（訓練量 ${Math.round(vol)}）`;
   });
 
-  const totalVol = todayLogs.reduce(
-    (s, l) =>
-      s + (Number(l.weight) || 0) * (Number(l.reps) || 0) * (Number(l.sets) || 0),
-    0,
-  );
+  const totalVol = todayLogs.reduce((s, l) => {
+    if (Number(l.volume)) return s + Number(l.volume);
+    if (Array.isArray(l.set_lines) && l.set_lines.length) {
+      return (
+        s +
+        l.set_lines.reduce(
+          (sum, sl) =>
+            sum + (Number(sl.weight) || 0) * (Number(sl.reps) || 0),
+          0,
+        )
+      );
+    }
+    return (
+      s +
+      (Number(l.weight) || 0) * (Number(l.reps) || 0) * (Number(l.sets) || 0)
+    );
+  }, 0);
 
   return `【今日重訓清單】共 ${todayLogs.length} 項，總訓練量 ${totalVol}：
 ${lines.join("\n")}`;

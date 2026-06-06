@@ -1,28 +1,49 @@
 import { bodyTypeFromRecord } from "@/lib/body-type";
 import {
+  buildSettlementSetLines,
   calcLogVolume,
+  effectiveSetWeightKg,
   getLatestBodyWeightKg,
   normalizeSetDetails,
   toSettlementWeight,
 } from "@/lib/workout-volume";
-import type { InbodyRecord, SettlementManualLog, UserProfile, WorkoutLog } from "./types";
+import type { SettlementManualLog, UserProfile, WorkoutLog } from "./types";
+
+function workoutToSettlementLog(
+  w: WorkoutLog,
+  bodyWeightKg: number | null,
+): SettlementManualLog {
+  const sets = normalizeSetDetails(w);
+  const setLines = buildSettlementSetLines(w, bodyWeightKg);
+  const volumeKg = calcLogVolume(w, bodyWeightKg);
+  const totalReps = sets.reduce((s, x) => s + x.reps, 0);
+
+  return {
+    exerciseName: w.exerciseName,
+    weightKg: toSettlementWeight(w, bodyWeightKg),
+    reps: sets.length
+      ? Math.round(totalReps / sets.length)
+      : w.reps,
+    sets: sets.length || w.sets,
+    setLines,
+    volumeKg: Math.round(volumeKg * 10) / 10,
+    loadType: w.loadType,
+  };
+}
 
 export function toSettlementLogs(
   logs: WorkoutLog[],
   bodyWeightKg: number | null = null,
 ): SettlementManualLog[] {
-  return logs.map((w) => {
-    const sets = normalizeSetDetails(w);
-    const reps = sets.length
-      ? Math.round(sets.reduce((s, x) => s + x.reps, 0) / sets.length)
-      : w.reps;
-    return {
-      exerciseName: w.exerciseName,
-      weightKg: toSettlementWeight(w, bodyWeightKg),
-      reps,
-      sets: sets.length || w.sets,
-    };
-  });
+  return logs.map((w) => workoutToSettlementLog(w, bodyWeightKg));
+}
+
+export function settlementLogVolume(log: SettlementManualLog): number {
+  if (log.volumeKg != null) return log.volumeKg;
+  if (log.setLines?.length) {
+    return log.setLines.reduce((sum, s) => sum + s.weightKg * s.reps, 0);
+  }
+  return log.weightKg * log.reps * log.sets;
 }
 
 export function calcTotalVolumeKg(
@@ -38,25 +59,27 @@ export function calcTotalVolumeKg(
     );
   }
   return (logs as SettlementManualLog[]).reduce(
-    (sum, w) => sum + w.weightKg * w.reps * w.sets,
+    (sum, w) => sum + settlementLogVolume(w),
     0,
   );
 }
 
 export function formatLogsForApi(logs: WorkoutLog[], bodyWeightKg: number | null = null) {
   return logs.map((w) => {
+    const entry = workoutToSettlementLog(w, bodyWeightKg);
     const sets = normalizeSetDetails(w);
-    const weight = toSettlementWeight(w, bodyWeightKg);
-    const reps = sets.length
-      ? Math.round(sets.reduce((s, x) => s + x.reps, 0) / sets.length)
-      : w.reps;
     return {
       name: w.exerciseName,
-      weight,
-      reps,
-      sets: sets.length || w.sets,
-      volume: calcLogVolume(w, bodyWeightKg),
+      weight: entry.weightKg,
+      reps: entry.reps,
+      sets: entry.sets,
+      volume: entry.volumeKg,
       load_type: w.loadType,
+      set_lines: sets.map((s) => ({
+        weight:
+          Math.round(effectiveSetWeightKg(w, s, bodyWeightKg) * 10) / 10,
+        reps: s.reps,
+      })),
     };
   });
 }

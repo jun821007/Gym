@@ -163,12 +163,26 @@ export interface WeeklyGrade {
   weekNumber?: number;
 }
 
+/** 結算清單中的單組明細 */
+export interface SettlementSetLine {
+  weightKg: number;
+  reps: number;
+}
+
 /** 結算時納入的手動打卡項目 */
 export interface SettlementManualLog {
   exerciseName: string;
+  /** 向下相容：平均重量 */
   weightKg: number;
+  /** 向下相容：平均次數 */
   reps: number;
+  /** 向下相容：組數 */
   sets: number;
+  /** 逐組明細（結算畫面顯示用） */
+  setLines?: SettlementSetLine[];
+  /** 此動作總訓練量 */
+  volumeKg?: number;
+  loadType?: WorkoutLoadType;
 }
 
 /** 每日訓練結算（健身 App 截圖 + 今日清單綜合評分） */

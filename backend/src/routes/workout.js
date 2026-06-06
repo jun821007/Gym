@@ -69,16 +69,34 @@ router.post("/", async (req, res) => {
     const grade = normalizeGrade(parsed.grade);
 
     const manualLogs = Array.isArray(todayLogs)
-      ? todayLogs.map((l) => ({
-          exerciseName: l.name,
-          weightKg: Number(l.weight) || 0,
-          reps: Number(l.reps) || 0,
-          sets: Number(l.sets) || 0,
-        }))
+      ? todayLogs.map((l) => {
+          const setLines = Array.isArray(l.set_lines)
+            ? l.set_lines.map((sl) => ({
+                weightKg: Number(sl.weight) || 0,
+                reps: Number(sl.reps) || 0,
+              }))
+            : undefined;
+          const volumeKg =
+            Number(l.volume) ||
+            (setLines?.length
+              ? setLines.reduce((s, x) => s + x.weightKg * x.reps, 0)
+              : (Number(l.weight) || 0) *
+                (Number(l.reps) || 0) *
+                (Number(l.sets) || 0));
+          return {
+            exerciseName: l.name,
+            weightKg: Number(l.weight) || 0,
+            reps: Number(l.reps) || 0,
+            sets: Number(l.sets) || 0,
+            setLines,
+            volumeKg,
+            loadType: l.load_type ?? undefined,
+          };
+        })
       : [];
 
     const totalVolumeKg = manualLogs.reduce(
-      (s, l) => s + l.weightKg * l.reps * l.sets,
+      (s, l) => s + (l.volumeKg ?? l.weightKg * l.reps * l.sets),
       0,
     );
 
