@@ -25,6 +25,8 @@ export interface UserProfile {
   dailyCarbsGoal: number;
   dailyFatGoal: number;
   dailyWaterGoalMl?: number;
+  /** 每日鈉上限（毫克），預設 2300 */
+  dailySodiumGoalMg?: number;
   /** 營養目標最後依據的 InBody 日期 YYYY-MM-DD */
   nutritionGoalsInbodyDate?: string;
 }
@@ -94,6 +96,8 @@ export interface DietLog {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** 鈉含量（毫克） */
+  sodiumMg: number;
   /** ISO 8601，用餐時間 */
   loggedAt: string;
   mealType?: "breakfast" | "lunch" | "dinner" | "snack";
@@ -107,6 +111,8 @@ export interface FavoriteMeal {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** 鈉含量（毫克） */
+  sodiumMg: number;
   defaultMealType?: DietLog["mealType"];
 }
 
@@ -116,6 +122,8 @@ export interface DietSettlementMeal {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** 鈉含量（毫克） */
+  sodiumMg: number;
   loggedAt: string;
 }
 
@@ -132,12 +140,14 @@ export interface DailyDietSettlement {
     proteinG: number;
     carbsG: number;
     fatG: number;
+    sodiumMg: number;
   };
   goals: {
     calories: number;
     proteinG: number;
     carbsG: number;
     fatG: number;
+    sodiumMg: number;
     waterMl: number;
   };
   waterMl: number;
@@ -148,6 +158,7 @@ export interface DailyDietSettlement {
     protein: number;
     carbs: number;
     fat: number;
+    sodium: number;
     water: number;
     overall: number;
   };

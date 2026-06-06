@@ -360,6 +360,7 @@ export async function insertDiet(
     protein_g: log.proteinG,
     carbs_g: log.carbsG,
     fat_g: log.fatG,
+    sodium_mg: log.sodiumMg ?? 0,
     meal_type: log.mealType ?? null,
   };
 
@@ -373,6 +374,26 @@ export async function insertDiet(
     const retry = await supabase.from("diet_logs").insert(base).select().single();
     data = retry.data;
     error = retry.error;
+  }
+
+  if (error?.message?.includes("sodium_mg")) {
+    const { sodium_mg: _s, ...withoutSodium } = base;
+    const retry = await supabase
+      .from("diet_logs")
+      .insert({ ...withoutSodium, logged_at: log.loggedAt })
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+    if (error?.message?.includes("logged_at")) {
+      const retry2 = await supabase
+        .from("diet_logs")
+        .insert(withoutSodium)
+        .select()
+        .single();
+      data = retry2.data;
+      error = retry2.error;
+    }
   }
 
   if (error) throw error;
@@ -392,6 +413,7 @@ export async function updateDiet(
     protein_g: log.proteinG,
     carbs_g: log.carbsG,
     fat_g: log.fatG,
+    sodium_mg: log.sodiumMg ?? 0,
     meal_type: log.mealType ?? null,
   };
 
@@ -413,6 +435,30 @@ export async function updateDiet(
       .single();
     data = retry.data;
     error = retry.error;
+  }
+
+  if (error?.message?.includes("sodium_mg")) {
+    const { sodium_mg: _s, ...withoutSodium } = base;
+    const retry = await supabase
+      .from("diet_logs")
+      .update({ ...withoutSodium, logged_at: log.loggedAt })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+    if (error?.message?.includes("logged_at")) {
+      const retry2 = await supabase
+        .from("diet_logs")
+        .update(withoutSodium)
+        .eq("id", id)
+        .eq("user_id", userId)
+        .select()
+        .single();
+      data = retry2.data;
+      error = retry2.error;
+    }
   }
 
   if (error) throw error;
@@ -553,10 +599,28 @@ export async function insertFavoriteMeal(
       protein_g: meal.proteinG,
       carbs_g: meal.carbsG,
       fat_g: meal.fatG,
+      sodium_mg: meal.sodiumMg ?? 0,
       default_meal_type: meal.defaultMealType ?? null,
     })
     .select()
     .single();
+  if (error?.message?.includes("sodium_mg")) {
+    const retry = await supabase
+      .from("favorite_meals")
+      .insert({
+        user_id: userId,
+        name: meal.name,
+        calories: meal.calories,
+        protein_g: meal.proteinG,
+        carbs_g: meal.carbsG,
+        fat_g: meal.fatG,
+        default_meal_type: meal.defaultMealType ?? null,
+      })
+      .select()
+      .single();
+    if (retry.error) throw retry.error;
+    return rowToFavoriteMeal(retry.data);
+  }
   if (error) throw error;
   return rowToFavoriteMeal(data);
 }

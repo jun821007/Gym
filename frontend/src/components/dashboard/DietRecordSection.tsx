@@ -249,7 +249,7 @@ export function DietRecordSection({
                     </p>
                     <p className="text-xs tabular-nums text-text-muted">
                       {item.data.calories} kcal · 碳水 {item.data.carbsG}g · 脂肪{" "}
-                      {item.data.fatG}g
+                      {item.data.fatG}g · 鈉 {item.data.sodiumMg ?? 0}mg
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-1">

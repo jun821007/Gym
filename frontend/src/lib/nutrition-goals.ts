@@ -1,5 +1,7 @@
 import type { BodyGoals, InbodyRecord } from "@/lib/types";
 
+export const DEFAULT_SODIUM_GOAL_MG = 2300;
+
 export interface NutritionGoals {
   calories: number;
   proteinG: number;

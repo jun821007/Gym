@@ -112,6 +112,21 @@ export function DietSettlementModal({
               </span>
             </p>
           </div>
+          <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center">
+            <p className="text-xs text-text-muted">鈉</p>
+            <p
+              className={`font-bold tabular-nums ${
+                data.totals.sodiumMg > data.goals.sodiumMg
+                  ? "text-danger"
+                  : "text-[#f59e0b]"
+              }`}
+            >
+              {Math.round(data.totals.sodiumMg)}
+              <span className="text-xs font-normal text-text-muted">
+                /{data.goals.sodiumMg}mg
+              </span>
+            </p>
+          </div>
           <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center sm:col-span-2">
             <p className="text-xs text-sky-400">飲水</p>
             <p className="font-bold tabular-nums text-sky-300">
@@ -130,7 +145,7 @@ export function DietSettlementModal({
               {data.meals.map((m, i) => (
                 <li key={i}>
                   {m.foodName} · {m.calories} kcal · P{Math.round(m.proteinG)}g
-                  · 脂肪{Math.round(m.fatG)}g
+                  · 鈉{Math.round(m.sodiumMg ?? 0)}mg
                 </li>
               ))}
             </ul>

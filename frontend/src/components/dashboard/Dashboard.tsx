@@ -250,6 +250,7 @@ export function Dashboard({
           proteinG: log.proteinG,
           carbsG: log.carbsG,
           fatG: log.fatG,
+          sodiumMg: log.sodiumMg ?? 0,
           defaultMealType: log.mealType,
         });
         setFavorites((prev) => [fav, ...prev]);

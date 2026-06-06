@@ -8,6 +8,7 @@ export const DIET_RESPONSE_SCHEMA = {
     protein: { type: Type.NUMBER, description: "蛋白質 g" },
     carbs: { type: Type.NUMBER, description: "碳水 g" },
     fat: { type: Type.NUMBER, description: "脂肪 g" },
+    sodium: { type: Type.NUMBER, description: "鈉 mg" },
     reply: {
       type: Type.STRING,
       description: "繁體中文簡短回覆，確認已記錄",

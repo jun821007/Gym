@@ -31,6 +31,7 @@ export function FavoriteMealsPanel({
       proteinG: fav.proteinG,
       carbsG: fav.carbsG,
       fatG: fav.fatG,
+      sodiumMg: fav.sodiumMg ?? 0,
       mealType: fav.defaultMealType ?? mealTypeFromHour(),
       loggedAt: combineDateAndTime(
         recordDate,
@@ -53,7 +54,7 @@ export function FavoriteMealsPanel({
                 蛋白 {fav.proteinG}g · {fav.calories} kcal
               </p>
               <p className="text-xs tabular-nums text-text-muted">
-                碳水 {fav.carbsG}g · 脂肪 {fav.fatG}g
+                碳水 {fav.carbsG}g · 脂肪 {fav.fatG}g · 鈉 {fav.sodiumMg ?? 0}mg
               </p>
               <div className="mt-2 flex gap-1">
                 <button

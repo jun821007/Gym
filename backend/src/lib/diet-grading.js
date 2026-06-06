@@ -33,6 +33,17 @@ function macroScore(current, goal) {
   return 15;
 }
 
+function sodiumScore(current, limitMg) {
+  if (limitMg <= 0) return 50;
+  const r = current / limitMg;
+  if (r <= 0.85) return 100;
+  if (r <= 1.0) return 92;
+  if (r <= 1.15) return 75;
+  if (r <= 1.3) return 55;
+  if (r <= 1.5) return 40;
+  return 25;
+}
+
 function waterScore(current, goal) {
   if (goal <= 0) return 50;
   const r = current / goal;
@@ -60,6 +71,7 @@ function buildSummary(
   proteinGoal,
   carbsGoal,
   fatGoal,
+  sodiumGoalMg,
   waterMl,
   waterGoalMl,
   mealCount,
@@ -75,6 +87,9 @@ function buildSummary(
     ? Math.round((totals.carbsG / carbsGoal) * 100)
     : 0;
   const fatPct = fatGoal ? Math.round((totals.fatG / fatGoal) * 100) : 0;
+  const sodiumPct = sodiumGoalMg
+    ? Math.round((totals.sodiumMg / sodiumGoalMg) * 100)
+    : 0;
   const waterPct = waterGoalMl
     ? Math.round((waterMl / waterGoalMl) * 100)
     : 0;
@@ -82,12 +97,15 @@ function buildSummary(
   const proteinRatio = proteinGoal > 0 ? totals.proteinG / proteinGoal : 1;
   const carbsRatio = carbsGoal > 0 ? totals.carbsG / carbsGoal : 1;
   const fatRatio = fatGoal > 0 ? totals.fatG / fatGoal : 1;
+  const sodiumRatio = sodiumGoalMg > 0 ? totals.sodiumMg / sodiumGoalMg : 0;
   const parts = [
     `今日 ${mealCount} 餐 · 熱量 ${totals.calories}kcal（${calPct}%）`,
     `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 碳水 ${Math.round(totals.carbsG)}g（${carbsPct}%）· 脂肪 ${Math.round(totals.fatG)}g（${fatPct}%）`,
-    `飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
+    `鈉 ${Math.round(totals.sodiumMg)}mg（${sodiumPct}% 上限）· 飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
   ];
   if (scores.water < 70) parts.push("飲水未達標");
+  if (sodiumRatio > 1.15) parts.push("鈉攝取偏高");
+  else if (sodiumRatio > 1.0) parts.push("鈉略超標");
   if (proteinRatio < 0.7) parts.push("蛋白質偏低");
   else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
   if (carbsRatio < 0.6) parts.push("碳水偏低");
@@ -111,31 +129,35 @@ function buildSummary(
 
 /**
  * @param {{
- *   goals: { calories: number; proteinG: number; carbsG: number; fatG: number; waterMl: number };
- *   totals: { calories: number; proteinG: number; carbsG: number; fatG: number };
- *   meals: Array<{ foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; loggedAt: string }>;
+ *   goals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; waterMl: number };
+ *   totals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number };
+ *   meals: Array<{ foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; loggedAt: string }>;
  *   waterMl: number;
  * }} input
  */
 export function computeDietSettlement(input) {
   const { goals, totals, meals, waterMl } = input;
   const waterGoalMl = goals.waterMl || 2000;
+  const sodiumGoalMg = goals.sodiumMg || 2300;
+  const sodiumTotal = totals.sodiumMg ?? 0;
 
   const scores = {
     calories: calorieScore(totals.calories, goals.calories),
     protein: proteinScore(totals.proteinG, goals.proteinG),
     carbs: macroScore(totals.carbsG, goals.carbsG),
     fat: macroScore(totals.fatG, goals.fatG),
+    sodium: sodiumScore(sodiumTotal, sodiumGoalMg),
     water: waterScore(waterMl, waterGoalMl),
     overall: 0,
   };
 
   scores.overall = Math.round(
-    scores.calories * 0.22 +
-      scores.protein * 0.28 +
-      scores.carbs * 0.12 +
-      scores.fat * 0.13 +
-      scores.water * 0.25,
+    scores.calories * 0.2 +
+      scores.protein * 0.26 +
+      scores.carbs * 0.11 +
+      scores.fat * 0.12 +
+      scores.sodium * 0.08 +
+      scores.water * 0.23,
   );
 
   if (meals.length === 0) {
@@ -150,15 +172,21 @@ export function computeDietSettlement(input) {
   const waterPct =
     waterGoalMl > 0 ? Math.round((waterMl / waterGoalMl) * 100) : 0;
 
+  const normalizedTotals = {
+    ...totals,
+    sodiumMg: sodiumTotal,
+  };
+
   return {
     grade,
     summary: buildSummary(
       grade,
-      totals,
+      normalizedTotals,
       goals.calories,
       goals.proteinG,
       goals.carbsG,
       goals.fatG,
+      sodiumGoalMg,
       waterMl,
       waterGoalMl,
       meals.length,
@@ -168,8 +196,8 @@ export function computeDietSettlement(input) {
     loggedAt: now.toISOString(),
     mealCount: meals.length,
     meals,
-    totals,
-    goals: { ...goals, waterMl: waterGoalMl },
+    totals: normalizedTotals,
+    goals: { ...goals, sodiumMg: sodiumGoalMg, waterMl: waterGoalMl },
     waterMl,
     waterGoalMl,
     waterPct,

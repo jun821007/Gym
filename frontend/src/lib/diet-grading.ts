@@ -1,3 +1,4 @@
+import { DEFAULT_SODIUM_GOAL_MG } from "@/lib/nutrition-goals";
 import { toDateKey } from "./datetime";
 import type {
   DailyDietSettlement,
@@ -13,6 +14,7 @@ export interface DietSettleInput {
     | "dailyProteinGoal"
     | "dailyCarbsGoal"
     | "dailyFatGoal"
+    | "dailySodiumGoalMg"
   >;
   todayMeals: DietLog[];
   waterMl: number;
@@ -59,6 +61,18 @@ function macroScore(current: number, goal: number): number {
   return 15;
 }
 
+/** 鈉：goal 為每日上限，越低越好 */
+function sodiumScore(current: number, limitMg: number): number {
+  if (limitMg <= 0) return 50;
+  const r = current / limitMg;
+  if (r <= 0.85) return 100;
+  if (r <= 1.0) return 92;
+  if (r <= 1.15) return 75;
+  if (r <= 1.3) return 55;
+  if (r <= 1.5) return 40;
+  return 25;
+}
+
 function waterScore(current: number, goal: number): number {
   if (goal <= 0) return 50;
   const r = current / goal;
@@ -81,16 +95,12 @@ function overallToGrade(overall: number): RankGrade {
 
 function buildSummary(
   grade: RankGrade,
-  totals: {
-    calories: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-  },
+  totals: DailyDietSettlement["totals"],
   calorieGoal: number,
   proteinGoal: number,
   carbsGoal: number,
   fatGoal: number,
+  sodiumGoalMg: number,
   waterMl: number,
   waterGoalMl: number,
   mealCount: number,
@@ -106,6 +116,9 @@ function buildSummary(
     ? Math.round((totals.carbsG / carbsGoal) * 100)
     : 0;
   const fatPct = fatGoal ? Math.round((totals.fatG / fatGoal) * 100) : 0;
+  const sodiumPct = sodiumGoalMg
+    ? Math.round((totals.sodiumMg / sodiumGoalMg) * 100)
+    : 0;
   const waterPct = waterGoalMl
     ? Math.round((waterMl / waterGoalMl) * 100)
     : 0;
@@ -113,6 +126,7 @@ function buildSummary(
   const proteinRatio = proteinGoal > 0 ? totals.proteinG / proteinGoal : 1;
   const carbsRatio = carbsGoal > 0 ? totals.carbsG / carbsGoal : 1;
   const fatRatio = fatGoal > 0 ? totals.fatG / fatGoal : 1;
+  const sodiumRatio = sodiumGoalMg > 0 ? totals.sodiumMg / sodiumGoalMg : 0;
 
   const parts: string[] = [];
   parts.push(
@@ -121,9 +135,13 @@ function buildSummary(
   parts.push(
     `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 碳水 ${Math.round(totals.carbsG)}g（${carbsPct}%）· 脂肪 ${Math.round(totals.fatG)}g（${fatPct}%）`,
   );
-  parts.push(`飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`);
+  parts.push(
+    `鈉 ${Math.round(totals.sodiumMg)}mg（${sodiumPct}% 上限）· 飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
+  );
 
   if (scores.water < 70) parts.push("飲水未達標");
+  if (sodiumRatio > 1.15) parts.push("鈉攝取偏高");
+  else if (sodiumRatio > 1.0) parts.push("鈉略超標");
   if (proteinRatio < 0.7) parts.push("蛋白質偏低");
   else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
   if (carbsRatio < 0.6) parts.push("碳水偏低");
@@ -151,6 +169,8 @@ export function computeDietSettlement(
   input: DietSettleInput,
 ): DailyDietSettlement {
   const { profile, todayMeals, waterMl, waterGoalMl } = input;
+  const sodiumGoalMg =
+    profile.dailySodiumGoalMg ?? DEFAULT_SODIUM_GOAL_MG;
 
   const totals = todayMeals.reduce(
     (acc, d) => ({
@@ -158,8 +178,9 @@ export function computeDietSettlement(
       proteinG: acc.proteinG + d.proteinG,
       carbsG: acc.carbsG + d.carbsG,
       fatG: acc.fatG + d.fatG,
+      sodiumMg: acc.sodiumMg + (d.sodiumMg ?? 0),
     }),
-    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0, sodiumMg: 0 },
   );
 
   const scores = {
@@ -167,16 +188,18 @@ export function computeDietSettlement(
     protein: proteinScore(totals.proteinG, profile.dailyProteinGoal),
     carbs: macroScore(totals.carbsG, profile.dailyCarbsGoal),
     fat: macroScore(totals.fatG, profile.dailyFatGoal),
+    sodium: sodiumScore(totals.sodiumMg, sodiumGoalMg),
     water: waterScore(waterMl, waterGoalMl),
     overall: 0,
   };
 
   scores.overall = Math.round(
-    scores.calories * 0.22 +
-      scores.protein * 0.28 +
-      scores.carbs * 0.12 +
-      scores.fat * 0.13 +
-      scores.water * 0.25,
+    scores.calories * 0.2 +
+      scores.protein * 0.26 +
+      scores.carbs * 0.11 +
+      scores.fat * 0.12 +
+      scores.sodium * 0.08 +
+      scores.water * 0.23,
   );
 
   if (todayMeals.length === 0) {
@@ -194,6 +217,7 @@ export function computeDietSettlement(
     proteinG: profile.dailyProteinGoal,
     carbsG: profile.dailyCarbsGoal,
     fatG: profile.dailyFatGoal,
+    sodiumMg: sodiumGoalMg,
     waterMl: waterGoalMl,
   };
 
@@ -203,6 +227,7 @@ export function computeDietSettlement(
     proteinG: d.proteinG,
     carbsG: d.carbsG,
     fatG: d.fatG,
+    sodiumMg: d.sodiumMg ?? 0,
     loggedAt: d.loggedAt,
   }));
 
@@ -218,6 +243,7 @@ export function computeDietSettlement(
       profile.dailyProteinGoal,
       profile.dailyCarbsGoal,
       profile.dailyFatGoal,
+      sodiumGoalMg,
       waterMl,
       waterGoalMl,
       todayMeals.length,

@@ -9,6 +9,7 @@ import { FavoriteMealsPanel } from "@/components/dashboard/FavoriteMealsPanel";
 import { Card } from "@/components/ui/Card";
 import { NutrientBar } from "@/components/ui/NutrientBar";
 import { formatDateLabel, isToday, toDateKey } from "@/lib/datetime";
+import { DEFAULT_SODIUM_GOAL_MG } from "@/lib/nutrition-goals";
 import {
   computeDietSettlement,
   xpForDietGrade,
@@ -116,6 +117,7 @@ export function TavernTab({
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
 
   const waterGoalMl = profile.dailyWaterGoalMl ?? 2000;
+  const sodiumGoalMg = profile.dailySodiumGoalMg ?? DEFAULT_SODIUM_GOAL_MG;
 
   const todayDiets = useMemo(
     () => diets.filter((d) => isToday(d.loggedAt)),
@@ -135,8 +137,9 @@ export function TavernTab({
           protein: acc.protein + d.proteinG,
           carbs: acc.carbs + d.carbsG,
           fat: acc.fat + d.fatG,
+          sodium: acc.sodium + (d.sodiumMg ?? 0),
         }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
       ),
     [todayDiets],
   );
@@ -188,8 +191,9 @@ export function TavernTab({
             protein: acc.protein + d.proteinG,
             carbs: acc.carbs + d.carbsG,
             fat: acc.fat + d.fatG,
+            sodium: acc.sodium + (d.sodiumMg ?? 0),
           }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0 },
+          { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
         );
 
         const payload = {
@@ -198,6 +202,7 @@ export function TavernTab({
             proteinG: nutritionGoals.proteinG,
             carbsG: nutritionGoals.carbsG,
             fatG: nutritionGoals.fatG,
+            sodiumMg: sodiumGoalMg,
             waterMl: waterGoalMl,
           },
           totals: {
@@ -205,6 +210,7 @@ export function TavernTab({
             proteinG: mealTotals.protein,
             carbsG: mealTotals.carbs,
             fatG: mealTotals.fat,
+            sodiumMg: mealTotals.sodium,
           },
           meals: meals.map((d) => ({
             foodName: d.foodName,
@@ -212,6 +218,7 @@ export function TavernTab({
             proteinG: d.proteinG,
             carbsG: d.carbsG,
             fatG: d.fatG,
+            sodiumMg: d.sodiumMg ?? 0,
             loggedAt: d.loggedAt,
           })),
           waterMl,
@@ -281,6 +288,7 @@ export function TavernTab({
       profile,
       nutritionGoals,
       waterGoalMl,
+      sodiumGoalMg,
       onSettlement,
       onSettlementSaved,
     ],
@@ -387,6 +395,14 @@ export function TavernTab({
             goal={nutritionGoals.fatG}
             unit="g"
             color="#e85d75"
+          />
+          <NutrientBar
+            label="鈉"
+            current={Math.round(totals.sodium)}
+            goal={sodiumGoalMg}
+            unit="mg"
+            color="#f59e0b"
+            limit
           />
         </div>
       </Card>
