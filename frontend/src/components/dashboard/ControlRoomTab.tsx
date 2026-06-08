@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { BodyAnalysisSection } from "@/components/dashboard/BodyAnalysisSection";
 import { BodyGoalsPanel } from "@/components/dashboard/BodyGoalsPanel";
 import { BodyMetrics } from "@/components/ui/BodyMetrics";
 import { BodyTypeBadge } from "@/components/ui/BodyTypeBadge";
@@ -8,17 +8,6 @@ import { Card } from "@/components/ui/Card";
 import { XPBar } from "@/components/ui/XPBar";
 import { bodyTypeFromRecord } from "@/lib/body-type";
 import type { BodyGoals, UserProfile } from "@/lib/types";
-
-const InbodyChart = dynamic(
-  () =>
-    import("@/components/dashboard/InbodyChart").then((m) => m.InbodyChart),
-  {
-    ssr: false,
-    loading: () => (
-      <p className="py-8 text-center text-sm text-text-muted">載入圖表…</p>
-    ),
-  },
-);
 
 interface ControlRoomTabProps {
   profile: UserProfile;
@@ -84,11 +73,7 @@ export function ControlRoomTab({
         onSave={onGoalsChange}
       />
 
-      <Card title="體重體脂趨勢" pixel>
-        <div className="h-40 w-full min-w-0">
-          <InbodyChart history={profile.inbodyHistory} />
-        </div>
-      </Card>
+      <BodyAnalysisSection history={profile.inbodyHistory} />
     </div>
   );
 }

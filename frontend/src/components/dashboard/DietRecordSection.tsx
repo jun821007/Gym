@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { DietEditModal } from "@/components/dashboard/DietEditModal";
 import { Card } from "@/components/ui/Card";
-import { formatDateLabel, formatTime, toDateKey } from "@/lib/datetime";
+import { formatTime } from "@/lib/datetime";
 import { isSameDateKey } from "@/lib/logged-at";
 import {
   DEFAULT_WATER_GOAL_ML,
@@ -31,7 +31,6 @@ interface DietRecordSectionProps {
   waterLogs: WaterLogEntry[];
   waterGoalMl?: number;
   recordDate: string;
-  onRecordDateChange: (dateKey: string) => void;
   onWaterAdd: (amountMl: number, logDate: string) => void | Promise<void>;
   onWaterGoalChange: (goalMl: number) => void | Promise<void>;
   onDietUpdate: (id: string, log: Omit<DietLog, "id">) => void | Promise<void>;
@@ -48,7 +47,6 @@ export function DietRecordSection({
   waterLogs,
   waterGoalMl = DEFAULT_WATER_GOAL_ML,
   recordDate,
-  onRecordDateChange,
   onWaterAdd,
   onWaterGoalChange,
   onDietUpdate,
@@ -99,12 +97,6 @@ export function DietRecordSection({
   const dayWaterMl = useMemo(() => sumWaterMl(dayWater), [dayWater]);
   const waterPct = waterProgressPct(dayWaterMl, waterGoalMl);
 
-  function shiftDate(delta: number) {
-    const d = new Date(recordDate + "T12:00:00");
-    d.setDate(d.getDate() + delta);
-    onRecordDateChange(toDateKey(d));
-  }
-
   async function handleSaveGoal() {
     const n = Number(goalDraft);
     if (!Number.isFinite(n) || n < 500) {
@@ -118,34 +110,6 @@ export function DietRecordSection({
   return (
     <>
       <Card title="餐點紀錄">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => shiftDate(-1)}
-            className="min-h-[40px] rounded-lg border border-border px-3 text-sm"
-          >
-            ‹
-          </button>
-          <div className="text-center">
-            <input
-              type="date"
-              value={recordDate}
-              onChange={(e) => onRecordDateChange(e.target.value)}
-              className="rounded-lg border border-border bg-bg-app px-2 py-1 text-sm"
-            />
-            <p className="mt-0.5 text-xs text-text-muted">
-              {formatDateLabel(recordDate)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => shiftDate(1)}
-            className="min-h-[40px] rounded-lg border border-border px-3 text-sm"
-          >
-            ›
-          </button>
-        </div>
-
         <div className="mb-4 rounded-xl bg-bg-elevated p-3">
           <div className="flex items-end justify-between gap-2">
             <div>

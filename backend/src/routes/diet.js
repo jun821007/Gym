@@ -5,7 +5,7 @@ const router = Router();
 
 router.post("/settle", (req, res) => {
   try {
-    const { goals, totals, meals, waterMl } = req.body ?? {};
+    const { goals, totals, meals, waterMl, dietPhase } = req.body ?? {};
 
     if (!goals || !totals) {
       return res.status(400).json({
@@ -19,6 +19,7 @@ router.post("/settle", (req, res) => {
       totals,
       meals: Array.isArray(meals) ? meals : [],
       waterMl: Number(waterMl) || 0,
+      dietPhase: dietPhase ?? "maintain",
     });
 
     const grade = settlement.grade;

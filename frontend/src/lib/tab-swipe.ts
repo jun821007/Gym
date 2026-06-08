@@ -1,6 +1,6 @@
 import type { TabId } from "@/lib/types";
 
-export const TAB_SWIPE_ORDER: TabId[] = ["control", "dungeon", "tavern"];
+export const TAB_SWIPE_ORDER: TabId[] = ["dungeon", "control", "tavern"];
 
 export const TAB_SWIPE_LABELS: Record<TabId, string> = {
   control: "體態",

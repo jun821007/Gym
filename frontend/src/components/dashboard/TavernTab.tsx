@@ -7,9 +7,14 @@ import { DietRecordSection } from "@/components/dashboard/DietRecordSection";
 import { DietSettlementModal } from "@/components/dashboard/DietSettlementModal";
 import { FavoriteMealsPanel } from "@/components/dashboard/FavoriteMealsPanel";
 import { Card } from "@/components/ui/Card";
+import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { NutrientBar } from "@/components/ui/NutrientBar";
 import { formatDateLabel, isToday, toDateKey } from "@/lib/datetime";
-import { DEFAULT_SODIUM_GOAL_MG } from "@/lib/nutrition-goals";
+import {
+  DEFAULT_SODIUM_GOAL_MG,
+  getLatestInbodyRecord,
+  inferDietPhase,
+} from "@/lib/nutrition-goals";
 import {
   computeDietSettlement,
   xpForDietGrade,
@@ -17,6 +22,7 @@ import {
 import { isSameDateKey } from "@/lib/logged-at";
 import { getIsoWeek } from "@/lib/supabase/repository";
 import type {
+  BodyGoals,
   DailyDietSettlement,
   DailyWorkoutSettlement,
   DietLog,
@@ -33,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 interface TavernTabProps {
   profile: UserProfile;
+  bodyGoals: BodyGoals;
   nutritionRationale?: string | null;
   nutritionGoals: {
     calories: number;
@@ -85,6 +92,7 @@ const GRADE_BADGE: Record<DailyDietSettlement["grade"], string> = {
 
 export function TavernTab({
   profile,
+  bodyGoals,
   nutritionRationale,
   nutritionGoals,
   diets,
@@ -119,30 +127,11 @@ export function TavernTab({
   const waterGoalMl = profile.dailyWaterGoalMl ?? 2000;
   const sodiumGoalMg = profile.dailySodiumGoalMg ?? DEFAULT_SODIUM_GOAL_MG;
 
-  const todayDiets = useMemo(
-    () => diets.filter((d) => isToday(d.loggedAt)),
-    [diets],
-  );
-
-  const todayWaterMl = useMemo(
-    () => sumWaterMl(getWaterEntriesForDate(waterLogs, toDateKey())),
-    [waterLogs],
-  );
-
-  const totals = useMemo(
-    () =>
-      todayDiets.reduce(
-        (acc, d) => ({
-          calories: acc.calories + d.calories,
-          protein: acc.protein + d.proteinG,
-          carbs: acc.carbs + d.carbsG,
-          fat: acc.fat + d.fatG,
-          sodium: acc.sodium + (d.sodiumMg ?? 0),
-        }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
-      ),
-    [todayDiets],
-  );
+  const dietPhase = useMemo(() => {
+    const latest = getLatestInbodyRecord(profile.inbodyHistory);
+    if (!latest) return "maintain" as const;
+    return inferDietPhase(latest, bodyGoals);
+  }, [profile.inbodyHistory, bodyGoals]);
 
   const recordDateMeals = useMemo(
     () => diets.filter((d) => isSameDateKey(d.loggedAt, recordDate)),
@@ -157,6 +146,21 @@ export function TavernTab({
   const recordDateSettlement = useMemo(
     () => settlementHistory.find((s) => s.logDate === recordDate) ?? null,
     [settlementHistory, recordDate],
+  );
+
+  const totals = useMemo(
+    () =>
+      recordDateMeals.reduce(
+        (acc, d) => ({
+          calories: acc.calories + d.calories,
+          protein: acc.protein + d.proteinG,
+          carbs: acc.carbs + d.carbsG,
+          fat: acc.fat + d.fatG,
+          sodium: acc.sodium + (d.sodiumMg ?? 0),
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
+      ),
+    [recordDateMeals],
   );
 
   useEffect(() => {
@@ -222,6 +226,7 @@ export function TavernTab({
             loggedAt: d.loggedAt,
           })),
           waterMl,
+          dietPhase,
         };
 
         const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -252,6 +257,7 @@ export function TavernTab({
                 todayMeals: meals,
                 waterMl,
                 waterGoalMl,
+                dietPhase,
               }),
               logDate: targetDate,
             };
@@ -264,6 +270,7 @@ export function TavernTab({
               todayMeals: meals,
               waterMl,
               waterGoalMl,
+              dietPhase,
             }),
             logDate: targetDate,
           };
@@ -289,6 +296,7 @@ export function TavernTab({
       nutritionGoals,
       waterGoalMl,
       sodiumGoalMg,
+      dietPhase,
       onSettlement,
       onSettlementSaved,
     ],
@@ -361,7 +369,12 @@ export function TavernTab({
 
   return (
     <div className="space-y-4 pb-2">
-      <Card title="今日攝取">
+      <Card>
+        <DateShiftHeader
+          dateKey={recordDate}
+          onChange={setRecordDate}
+          title="攝取"
+        />
         {nutritionRationale && (
           <p className="mb-3 text-xs leading-relaxed text-text-muted">
             {nutritionRationale}
@@ -421,7 +434,6 @@ export function TavernTab({
         waterLogs={waterLogs}
         waterGoalMl={waterGoalMl}
         recordDate={recordDate}
-        onRecordDateChange={setRecordDate}
         onWaterAdd={onWaterAdd}
         onWaterGoalChange={onWaterGoalChange}
         onDietUpdate={onDietUpdate}

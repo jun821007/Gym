@@ -72,6 +72,9 @@ export function DietSettlementModal({
           ▶ 今日飲食結算
         </p>
         <p className="mt-1 text-center text-sm text-text-muted">
+          {data.dietPhaseLabel && (
+            <span className="text-accent-light">依{data.dietPhaseLabel}目標 · </span>
+          )}
           {data.mealCount} 餐 · 飲水 {data.waterMl} / {data.waterGoalMl} ml
         </p>
 

@@ -12,6 +12,7 @@ export interface DietEstimate {
 
 export async function estimateDietNutrition(input: {
   message?: string;
+  portion?: string;
   imageFile?: File;
 }): Promise<DietEstimate> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -25,7 +26,11 @@ export async function estimateDietNutrition(input: {
     mimeType = compressed.mimeType;
   }
 
-  const message = input.message?.trim() ?? "";
+  const base = input.message?.trim() ?? "";
+  const portion = input.portion?.trim() ?? "";
+  const message = portion
+    ? `${base}${base ? "\n" : ""}【份量】${portion}`
+    : base;
   if (!message && !imageBase64) {
     throw new Error("請輸入文字或上傳照片");
   }

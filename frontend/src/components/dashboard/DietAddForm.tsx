@@ -1,12 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { estimateDietNutrition } from "@/lib/diet-api";
 import { toDateKey } from "@/lib/datetime";
 import { combineDateAndTime } from "@/lib/logged-at";
 import { defaultTimeForMealType, mealTypeFromHour } from "@/lib/meal-type";
 import type { DietLog } from "@/lib/types";
+
+const PORTION_OPTIONS = [
+  { value: "", label: "未指定（AI 假設一般份量）" },
+  { value: "小份", label: "小份" },
+  { value: "一般份量", label: "一般份量" },
+  { value: "大份", label: "大份" },
+  { value: "半碗飯", label: "半碗飯" },
+  { value: "一碗飯", label: "一碗飯" },
+  { value: "自訂（見描述）", label: "自訂（見描述）" },
+];
 
 const MEAL_OPTIONS: { value: NonNullable<DietLog["mealType"]>; label: string }[] = [
   { value: "breakfast", label: "早餐" },
@@ -26,6 +36,7 @@ interface DietAddFormProps {
 export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
+  const [portion, setPortion] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [dateKey, setDateKey] = useState(defaultDate ?? toDateKey());
   const [mealType, setMealType] = useState<DietLog["mealType"]>(
@@ -35,6 +46,10 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
   const [saving, setSaving] = useState(false);
   const [addFavorite, setAddFavorite] = useState(false);
   const [aiReply, setAiReply] = useState("");
+  useEffect(() => {
+    if (defaultDate) setDateKey(defaultDate);
+  }, [defaultDate]);
+
   const [preview, setPreview] = useState<{
     foodName: string;
     calories: number;
@@ -54,6 +69,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
     try {
       const result = await estimateDietNutrition({
         message: text,
+        portion: portion || undefined,
         imageFile: imageFile ?? undefined,
       });
       if (result.calories <= 0) {
@@ -158,6 +174,21 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
             </button>
           )}
         </div>
+
+        <label className="block text-xs text-text-muted">
+          份量
+          <select
+            value={portion}
+            onChange={(e) => setPortion(e.target.value)}
+            className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+          >
+            {PORTION_OPTIONS.map((o) => (
+              <option key={o.value || "default"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs text-text-muted">

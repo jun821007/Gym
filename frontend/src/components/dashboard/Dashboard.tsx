@@ -458,6 +458,7 @@ export function Dashboard({
         {tab === "tavern" && (
           <TavernTab
             profile={profile}
+            bodyGoals={bodyGoals}
             nutritionRationale={nutritionHint}
             nutritionGoals={nutritionDisplay}
             diets={diets}

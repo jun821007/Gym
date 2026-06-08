@@ -1,4 +1,7 @@
-import { DEFAULT_SODIUM_GOAL_MG } from "@/lib/nutrition-goals";
+import {
+  DEFAULT_SODIUM_GOAL_MG,
+  type DietPhase,
+} from "@/lib/nutrition-goals";
 import { toDateKey } from "./datetime";
 import type {
   DailyDietSettlement,
@@ -19,16 +22,42 @@ export interface DietSettleInput {
   todayMeals: DietLog[];
   waterMl: number;
   waterGoalMl: number;
+  dietPhase?: DietPhase;
 }
+
+const PHASE_LABEL: Record<DietPhase, string> = {
+  cut: "減脂",
+  bulk: "增肌",
+  maintain: "維持",
+};
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** 熱量：接近目標最好，過多過少扣分 */
-function calorieScore(current: number, goal: number): number {
+function calorieScore(
+  current: number,
+  goal: number,
+  phase: DietPhase,
+): number {
   if (goal <= 0) return 50;
   const r = current / goal;
+  if (phase === "bulk") {
+    if (r >= 0.95 && r <= 1.12) return 100;
+    if (r >= 0.88 && r <= 1.2) return 88;
+    if (r >= 0.75 && r <= 1.3) return 72;
+    if (r < 0.75) return 40;
+    if (r > 1.3) return 55;
+    return 35;
+  }
+  if (phase === "cut") {
+    if (r >= 0.82 && r <= 1.02) return 100;
+    if (r >= 0.72 && r <= 1.1) return 85;
+    if (r >= 0.6 && r <= 1.2) return 68;
+    if (r > 1.2) return 45;
+    if (r > 0) return 38;
+    return 15;
+  }
   if (r >= 0.88 && r <= 1.08) return 100;
   if (r >= 0.78 && r <= 1.18) return 85;
   if (r >= 0.65 && r <= 1.3) return 70;
@@ -37,17 +66,33 @@ function calorieScore(current: number, goal: number): number {
   return 15;
 }
 
-/** 蛋白：達標或略超佳（增肌常略超，勿與「不足」混為一談） */
-function proteinScore(current: number, goal: number): number {
+function proteinScore(
+  current: number,
+  goal: number,
+  phase: DietPhase,
+): number {
   if (goal <= 0) return 50;
   const r = current / goal;
+  if (phase === "bulk") {
+    if (r >= 0.98 && r <= 1.4) return 100;
+    if (r >= 0.88 && r <= 1.55) return 90;
+    if (r >= 0.75 && r < 0.88) return 50;
+    if (r >= 0.75) return 78;
+    return 30;
+  }
+  if (phase === "cut") {
+    if (r >= 0.95 && r <= 1.25) return 100;
+    if (r >= 0.85 && r <= 1.4) return 88;
+    if (r >= 0.7 && r < 0.85) return 48;
+    if (r > 1.4) return 70;
+    return 25;
+  }
   if (r >= 0.95 && r <= 1.35) return 100;
   if (r >= 0.85 && r <= 1.55) return 90;
   if (r >= 0.7 && r <= 1.75) return 75;
   if (r >= 0.5 && r < 0.7) return 45;
   if (r > 1.75) return 65;
-  if (r > 0) return 35;
-  return 15;
+  return 35;
 }
 
 function macroScore(current: number, goal: number): number {
@@ -61,7 +106,14 @@ function macroScore(current: number, goal: number): number {
   return 15;
 }
 
-/** 鈉：goal 為每日上限，越低越好 */
+function fatScore(current: number, goal: number, phase: DietPhase): number {
+  const base = macroScore(current, goal);
+  if (phase === "cut" && goal > 0 && current / goal > 1.2) {
+    return Math.min(base, 55);
+  }
+  return base;
+}
+
 function sodiumScore(current: number, limitMg: number): number {
   if (limitMg <= 0) return 50;
   const r = current / limitMg;
@@ -85,6 +137,16 @@ function waterScore(current: number, goal: number): number {
   return 10;
 }
 
+function overallWeights(phase: DietPhase) {
+  if (phase === "bulk") {
+    return { cal: 0.22, pro: 0.32, carb: 0.12, fat: 0.08, sodium: 0.06, water: 0.2 };
+  }
+  if (phase === "cut") {
+    return { cal: 0.2, pro: 0.3, carb: 0.1, fat: 0.14, sodium: 0.1, water: 0.16 };
+  }
+  return { cal: 0.2, pro: 0.26, carb: 0.11, fat: 0.12, sodium: 0.08, water: 0.23 };
+}
+
 function overallToGrade(overall: number): RankGrade {
   if (overall >= 92) return "S";
   if (overall >= 82) return "A";
@@ -95,6 +157,7 @@ function overallToGrade(overall: number): RankGrade {
 
 function buildSummary(
   grade: RankGrade,
+  phase: DietPhase,
   totals: DailyDietSettlement["totals"],
   calorieGoal: number,
   proteinGoal: number,
@@ -128,36 +191,44 @@ function buildSummary(
   const fatRatio = fatGoal > 0 ? totals.fatG / fatGoal : 1;
   const sodiumRatio = sodiumGoalMg > 0 ? totals.sodiumMg / sodiumGoalMg : 0;
 
-  const parts: string[] = [];
-  parts.push(
+  const parts: string[] = [
+    `依${PHASE_LABEL[phase]}目標評分`,
     `今日 ${mealCount} 餐 · 熱量 ${totals.calories}kcal（${calPct}%）`,
-  );
-  parts.push(
     `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 碳水 ${Math.round(totals.carbsG)}g（${carbsPct}%）· 脂肪 ${Math.round(totals.fatG)}g（${fatPct}%）`,
-  );
-  parts.push(
     `鈉 ${Math.round(totals.sodiumMg)}mg（${sodiumPct}% 上限）· 飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
-  );
+  ];
 
   if (scores.water < 70) parts.push("飲水未達標");
   if (sodiumRatio > 1.15) parts.push("鈉攝取偏高");
   else if (sodiumRatio > 1.0) parts.push("鈉略超標");
-  if (proteinRatio < 0.7) parts.push("蛋白質偏低");
-  else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
-  if (carbsRatio < 0.6) parts.push("碳水偏低");
-  else if (carbsRatio > 1.4) parts.push("碳水偏多");
-  if (fatRatio < 0.6) parts.push("脂肪偏低");
-  else if (fatRatio > 1.4) parts.push("脂肪偏多");
-  if (calRatio < 0.65) parts.push("熱量不足");
-  else if (calRatio > 1.3) parts.push("熱量偏多");
+
+  if (phase === "bulk") {
+    if (proteinRatio < 0.85) parts.push("增肌期蛋白質未達標");
+    else if (calRatio < 0.88) parts.push("熱量略低，不利增肌");
+    else if (calRatio > 1.25) parts.push("熱量偏多，注意脂肪累積");
+  } else if (phase === "cut") {
+    if (proteinRatio < 0.85) parts.push("減脂期蛋白質偏低，恐掉肌肉");
+    if (fatRatio > 1.25) parts.push("脂肪偏高");
+    if (calRatio > 1.1) parts.push("熱量超標，減脂受阻");
+    else if (calRatio >= 0.82 && calRatio <= 1.02) parts.push("熱量控制良好");
+  } else {
+    if (proteinRatio < 0.7) parts.push("蛋白質偏低");
+    else if (proteinRatio > 1.6) parts.push("蛋白質偏多");
+    if (carbsRatio < 0.6) parts.push("碳水偏低");
+    else if (carbsRatio > 1.4) parts.push("碳水偏多");
+    if (fatRatio < 0.6) parts.push("脂肪偏低");
+    else if (fatRatio > 1.4) parts.push("脂肪偏多");
+    if (calRatio < 0.65) parts.push("熱量不足");
+    else if (calRatio > 1.3) parts.push("熱量偏多");
+  }
 
   const tail =
     grade === "S"
-      ? "營養與補水表現極佳。"
+      ? `${PHASE_LABEL[phase]}節奏極佳。`
       : grade === "A"
-        ? "整體均衡，維持即可。"
+        ? "整體符合目標，維持即可。"
         : grade === "B"
-          ? "尚可，微調宏量與水量。"
+          ? "尚可，依目標微調宏量與水量。"
           : grade === "C"
             ? "明日加強紀錄與達標。"
             : "請重新檢視餐點與飲水習慣。";
@@ -169,8 +240,10 @@ export function computeDietSettlement(
   input: DietSettleInput,
 ): DailyDietSettlement {
   const { profile, todayMeals, waterMl, waterGoalMl } = input;
+  const phase = input.dietPhase ?? "maintain";
   const sodiumGoalMg =
     profile.dailySodiumGoalMg ?? DEFAULT_SODIUM_GOAL_MG;
+  const weights = overallWeights(phase);
 
   const totals = todayMeals.reduce(
     (acc, d) => ({
@@ -184,22 +257,22 @@ export function computeDietSettlement(
   );
 
   const scores = {
-    calories: calorieScore(totals.calories, profile.dailyCalorieGoal),
-    protein: proteinScore(totals.proteinG, profile.dailyProteinGoal),
+    calories: calorieScore(totals.calories, profile.dailyCalorieGoal, phase),
+    protein: proteinScore(totals.proteinG, profile.dailyProteinGoal, phase),
     carbs: macroScore(totals.carbsG, profile.dailyCarbsGoal),
-    fat: macroScore(totals.fatG, profile.dailyFatGoal),
+    fat: fatScore(totals.fatG, profile.dailyFatGoal, phase),
     sodium: sodiumScore(totals.sodiumMg, sodiumGoalMg),
     water: waterScore(waterMl, waterGoalMl),
     overall: 0,
   };
 
   scores.overall = Math.round(
-    scores.calories * 0.2 +
-      scores.protein * 0.26 +
-      scores.carbs * 0.11 +
-      scores.fat * 0.12 +
-      scores.sodium * 0.08 +
-      scores.water * 0.23,
+    scores.calories * weights.cal +
+      scores.protein * weights.pro +
+      scores.carbs * weights.carb +
+      scores.fat * weights.fat +
+      scores.sodium * weights.sodium +
+      scores.water * weights.water,
   );
 
   if (todayMeals.length === 0) {
@@ -236,8 +309,11 @@ export function computeDietSettlement(
 
   return {
     grade,
+    dietPhase: phase,
+    dietPhaseLabel: PHASE_LABEL[phase],
     summary: buildSummary(
       grade,
+      phase,
       totals,
       profile.dailyCalorieGoal,
       profile.dailyProteinGoal,

@@ -130,6 +130,9 @@ export interface DietSettlementMeal {
 /** 每日飲食＋飲水綜合結算 */
 export interface DailyDietSettlement {
   grade: RankGrade;
+  /** 結算時依體態目標推算的飲食階段 */
+  dietPhase?: "cut" | "bulk" | "maintain";
+  dietPhaseLabel?: string;
   summary: string;
   logDate: string;
   loggedAt: string;
