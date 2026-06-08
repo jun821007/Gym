@@ -417,6 +417,13 @@ export function TavernTab({
             color="#f59e0b"
             limit
           />
+          <NutrientBar
+            label="水分"
+            current={recordDateWaterMl}
+            goal={waterGoalMl}
+            unit="ml"
+            color="#38bdf8"
+          />
         </div>
       </Card>
 
