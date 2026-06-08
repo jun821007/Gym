@@ -21,7 +21,9 @@ export function DateShiftHeader({
 
   const today = toDateKey();
   const label =
-    dateKey === today ? title : `${formatDateLabel(dateKey)} ${title}`;
+    dateKey === today
+      ? `今日${title}`
+      : `${formatDateLabel(dateKey)} ${title}`;
 
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
