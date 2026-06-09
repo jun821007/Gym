@@ -39,6 +39,7 @@ import {
   updateDiet,
   updateProfile,
   updateWaterGoal,
+  updateWorkoutVolumeGoal,
   updateWaterLog,
   upsertDietSettlement,
   upsertWeeklyGrade,
@@ -379,6 +380,11 @@ export function Dashboard({
     await persistProfile(next);
   }
 
+  async function handleWorkoutVolumeGoalChange(goalKg: number) {
+    await updateWorkoutVolumeGoal(supabase, userId, goalKg);
+    setProfile((p) => ({ ...p, dailyWorkoutVolumeGoalKg: goalKg }));
+  }
+
   async function handleWorkoutSettlementSaved(s: DailyWorkoutSettlement) {
     await upsertWorkoutSettlement(supabase, userId, s);
     const list = await fetchWorkoutSettlements(supabase, userId);
@@ -452,6 +458,7 @@ export function Dashboard({
             onSaveFavoriteWorkout={handleWorkoutFavoriteSave}
             onDeleteFavoriteWorkout={handleWorkoutFavoriteDelete}
             onSettlementSaved={handleWorkoutSettlementSaved}
+            onVolumeGoalChange={handleWorkoutVolumeGoalChange}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />
         )}

@@ -30,6 +30,7 @@ export type ProfileRow = {
   daily_carbs_goal: number | null;
   daily_fat_goal: number | null;
   daily_water_goal_ml: number | null;
+  daily_workout_volume_goal_kg: number | null;
   daily_sodium_goal_mg: number | null;
   target_weight_kg: number | null;
   target_body_fat_pct: number | null;
@@ -55,6 +56,7 @@ export function rowToProfile(row: ProfileRow): UserProfile {
     dailyCarbsGoal: row.daily_carbs_goal ?? 250,
     dailyFatGoal: row.daily_fat_goal ?? 70,
     dailyWaterGoalMl: row.daily_water_goal_ml ?? 2000,
+    dailyWorkoutVolumeGoalKg: row.daily_workout_volume_goal_kg ?? null,
     dailySodiumGoalMg: row.daily_sodium_goal_mg ?? 2300,
     nutritionGoalsInbodyDate: row.nutrition_goals_inbody_date ?? undefined,
   };
@@ -77,6 +79,7 @@ export function rowToWorkout(row: {
   sets: number;
   log_date: string;
   created_at: string;
+  logged_at?: string | null;
   load_type?: string | null;
   extra_weight_kg?: number | null;
   assist_kg?: number | null;
@@ -96,7 +99,7 @@ export function rowToWorkout(row: {
     sets: row.sets,
     setDetails,
     logDate: row.log_date,
-    loggedAt: row.created_at,
+    loggedAt: row.logged_at ?? row.created_at,
   };
 }
 

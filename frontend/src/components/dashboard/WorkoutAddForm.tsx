@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { toDateKey } from "@/lib/datetime";
+import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import type {
   FavoriteWorkoutExercise,
   UserProfile,
@@ -16,6 +18,7 @@ import {
   BODYWEIGHT_FACTOR,
   LOAD_TYPE_OPTIONS,
   getLatestBodyWeightKg,
+  parseWeightKgInput,
 } from "@/lib/workout-volume";
 
 type SetRow = {
@@ -89,6 +92,8 @@ export function WorkoutAddForm({
   const [favoriteCategory, setFavoriteCategory] = useState<
     WorkoutCategory | ""
   >("");
+  const [dateKey, setDateKey] = useState(toDateKey);
+  const [timeStr, setTimeStr] = useState(nowTimeStr);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -136,7 +141,7 @@ export function WorkoutAddForm({
       }
       const setWeight =
         loadType === "bilateral" || loadType === "unilateral"
-          ? Number(row.weightKg || weightKg) || 0
+          ? parseWeightKgInput(row.weightKg || weightKg)
           : undefined;
       if (needsWeight(loadType) && (!setWeight || setWeight <= 0)) {
         alert(`第 ${i + 1} 組請輸入重量`);
@@ -149,9 +154,14 @@ export function WorkoutAddForm({
       });
     }
 
-    const now = new Date();
+    const loggedAt = combineDateAndTime(dateKey, timeStr);
+    if (new Date(loggedAt).getTime() > Date.now()) {
+      alert("紀錄時間不能設在未來");
+      return null;
+    }
+
     const mainWeight = needsWeight(loadType)
-      ? Number(setRows[0]?.weightKg || weightKg) || 0
+      ? parseWeightKgInput(setRows[0]?.weightKg || weightKg)
       : 0;
 
     return {
@@ -159,13 +169,16 @@ export function WorkoutAddForm({
       loadType,
       weightKg: mainWeight,
       extraWeightKg:
-        loadType === "weighted_bw" ? Number(extraWeightKg) || 0 : undefined,
-      assistKg: loadType === "assisted_bw" ? Number(assistKg) || 0 : undefined,
+        loadType === "weighted_bw"
+          ? parseWeightKgInput(extraWeightKg)
+          : undefined,
+      assistKg:
+        loadType === "assisted_bw" ? parseWeightKgInput(assistKg) : undefined,
       reps: details[0]?.reps ?? 0,
       sets: details.length,
       setDetails: details,
-      logDate: toDateKey(now),
-      loggedAt: now.toISOString(),
+      logDate: dateKey,
+      loggedAt,
     };
   }
 
@@ -205,6 +218,7 @@ export function WorkoutAddForm({
       setSetRows([emptySet()]);
       setAddFavorite(false);
       setFavoriteCategory("");
+      setTimeStr(nowTimeStr());
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -215,6 +229,21 @@ export function WorkoutAddForm({
   return (
     <Card title="新增重訓紀錄">
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
+        <DateShiftHeader
+          dateKey={dateKey}
+          onChange={setDateKey}
+          title="紀錄"
+        />
+        <label className="block text-sm text-text-muted">
+          時間
+          <input
+            type="time"
+            value={timeStr}
+            onChange={(e) => setTimeStr(e.target.value)}
+            className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm tabular-nums outline-none focus:border-accent"
+          />
+        </label>
+
         <label className="block">
           <span className="text-sm text-text-muted">動作</span>
           <input
@@ -252,6 +281,8 @@ export function WorkoutAddForm({
             額外負重 kg
             <input
               type="number"
+              inputMode="decimal"
+              step="0.1"
               min={0}
               value={extraWeightKg}
               onChange={(e) => setExtraWeightKg(e.target.value)}
@@ -265,6 +296,8 @@ export function WorkoutAddForm({
             輔助減重 kg
             <input
               type="number"
+              inputMode="decimal"
+              step="0.1"
               min={0}
               value={assistKg}
               onChange={(e) => setAssistKg(e.target.value)}
@@ -302,6 +335,8 @@ export function WorkoutAddForm({
                     {loadType === "unilateral" ? "單邊 kg" : "kg"}
                     <input
                       type="number"
+                      inputMode="decimal"
+                      step="0.1"
                       min={0}
                       value={row.weightKg}
                       onChange={(e) => {

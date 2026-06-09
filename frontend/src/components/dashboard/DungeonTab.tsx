@@ -8,12 +8,15 @@ import {
 } from "@/components/dashboard/WorkoutAddForm";
 import { WorkoutGradeHistory } from "@/components/dashboard/WorkoutGradeHistory";
 import { WorkoutSettlementModal } from "@/components/dashboard/WorkoutSettlementModal";
+import { WorkoutVolumeGoalBar } from "@/components/dashboard/WorkoutVolumeGoalBar";
 import { Card } from "@/components/ui/Card";
 import {
   formatDateLabel,
   formatTime,
   groupByDateKey,
+  isSameDateKey,
   isToday,
+  toDateKey,
 } from "@/lib/datetime";
 import { fileToCompressedBase64 } from "@/lib/image-compress";
 import {
@@ -33,6 +36,10 @@ import {
   getLatestBodyWeightKg,
   normalizeSetDetails,
 } from "@/lib/workout-volume";
+import {
+  effectiveWorkoutVolumeGoalKg,
+  suggestWorkoutVolumeGoalKg,
+} from "@/lib/workout-volume-goal";
 import { cn } from "@/lib/utils";
 
 interface DungeonTabProps {
@@ -45,6 +52,7 @@ interface DungeonTabProps {
   onSaveFavoriteWorkout?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
+  onVolumeGoalChange: (goalKg: number) => void | Promise<void>;
   onSettlement?: (data: {
     settlement: DailyWorkoutSettlement;
     xpGained?: number;
@@ -120,11 +128,16 @@ export function DungeonTab({
   onSaveFavoriteWorkout,
   onDeleteFavoriteWorkout,
   onSettlementSaved,
+  onVolumeGoalChange,
   onSettlement,
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
+  const todayKey = toDateKey();
   const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
-  const [logsHistoryOpen, setLogsHistoryOpen] = useState(true);
+  const [logsHistoryOpen, setLogsHistoryOpen] = useState(false);
+  const [expandedHistoryDays, setExpandedHistoryDays] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
   const [settlement, setSettlement] = useState<DailyWorkoutSettlement | null>(
     null,
@@ -140,9 +153,10 @@ export function DungeonTab({
 
   useEffect(() => {
     const today =
-      settlementHistory.find((s) => isToday(s.logDate)) ?? null;
+      settlementHistory.find((s) => isSameDateKey(s.logDate, todayKey)) ??
+      null;
     setSettlement(today);
-  }, [settlementHistory]);
+  }, [settlementHistory, todayKey]);
 
   function openSettlementModal(s: DailyWorkoutSettlement, reply = "") {
     setModalSettlement(s);
@@ -153,12 +167,12 @@ export function DungeonTab({
   const todayWorkouts = useMemo(
     () =>
       workouts
-        .filter((w) => isToday(w.loggedAt))
+        .filter((w) => w.logDate === todayKey)
         .sort(
           (a, b) =>
             new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
         ),
-    [workouts],
+    [workouts, todayKey],
   );
 
   const todayVolume = useMemo(
@@ -173,8 +187,31 @@ export function DungeonTab({
 
   const latestInbody = profile.inbodyHistory.at(-1);
 
+  const suggestedVolumeGoal = useMemo(
+    () =>
+      suggestWorkoutVolumeGoalKg(
+        workouts,
+        settlementHistory,
+        bodyWeightKg,
+      ),
+    [workouts, settlementHistory, bodyWeightKg],
+  );
+
+  const volumeGoalKg = useMemo(
+    () =>
+      effectiveWorkoutVolumeGoalKg(
+        profile.dailyWorkoutVolumeGoalKg,
+        suggestedVolumeGoal,
+      ),
+    [profile.dailyWorkoutVolumeGoalKg, suggestedVolumeGoal],
+  );
+
+  const hasUserVolumeGoal =
+    profile.dailyWorkoutVolumeGoalKg != null &&
+    profile.dailyWorkoutVolumeGoalKg > 0;
+
   const historyGroups = useMemo(() => {
-    const past = workouts.filter((w) => !isToday(w.loggedAt));
+    const past = workouts.filter((w) => w.logDate !== todayKey);
     return groupByDateKey(past).map((g) => ({
       ...g,
       items: g.items.sort(
@@ -182,7 +219,16 @@ export function DungeonTab({
           new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
       ),
     }));
-  }, [workouts]);
+  }, [workouts, todayKey]);
+
+  function toggleHistoryDay(dateKey: string) {
+    setExpandedHistoryDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
+  }
 
   function historyToPrefill(w: WorkoutLog): WorkoutFormPrefill {
     const { id: _id, logDate: _d, loggedAt: _t, ...rest } = w;
@@ -237,6 +283,7 @@ export function DungeonTab({
             mimeType: compressedMime,
             todayLogs: formatLogsForApi(todayWorkouts, bodyWeightKg),
             bodyMetrics,
+            logDate: todayKey,
           }),
         });
 
@@ -245,6 +292,7 @@ export function DungeonTab({
 
         const s = {
           ...(data.settlement as DailyWorkoutSettlement),
+          logDate: todayKey,
           manualLogs:
             data.settlement.manualLogs ??
             toSettlementLogs(todayWorkouts, bodyWeightKg),
@@ -267,6 +315,7 @@ export function DungeonTab({
     [
       todayWorkouts,
       todayVolume,
+      todayKey,
       bodyWeightKg,
       bodyMetrics,
       onSettlement,
@@ -316,6 +365,13 @@ export function DungeonTab({
       </div>
 
       <Card title={`今日清單 · ${todayWorkouts.length} 項`}>
+        <WorkoutVolumeGoalBar
+          currentKg={todayVolume}
+          goalKg={volumeGoalKg}
+          suggestedKg={suggestedVolumeGoal}
+          hasUserGoal={hasUserVolumeGoal}
+          onGoalChange={onVolumeGoalChange}
+        />
         {todayWorkouts.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">
             請先登記今日動作，結算時會一併納入評分
@@ -494,23 +550,44 @@ export function DungeonTab({
                 尚無過往紀錄
               </p>
             ) : (
-              historyGroups.map((group) => (
-                <div key={group.dateKey}>
-                  <p className="mb-1 text-xs font-semibold text-accent">
-                    {formatDateLabel(group.dateKey)}
-                  </p>
-                  <ul className="divide-y divide-border rounded-xl bg-bg-elevated px-3">
-                    {group.items.map((w) => (
-                      <WorkoutRow
-                        key={w.id}
-                        w={w}
-                        bodyWeightKg={bodyWeightKg}
-                        onSelect={() => setPrefill(historyToPrefill(w))}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))
+              historyGroups.map((group) => {
+                const dayVolume = Math.round(
+                  calcTotalVolumeKg(group.items, bodyWeightKg),
+                );
+                const expanded = expandedHistoryDays.has(group.dateKey);
+                return (
+                  <div key={group.dateKey}>
+                    <button
+                      type="button"
+                      onClick={() => toggleHistoryDay(group.dateKey)}
+                      className="flex w-full items-center justify-between rounded-lg border border-border bg-bg-elevated px-3 py-2 text-left text-xs font-semibold text-accent active:scale-[0.99]"
+                    >
+                      <span>
+                        {expanded ? "▼" : "▶"}{" "}
+                        {formatDateLabel(group.dateKey)}
+                        <span className="ml-2 font-normal text-text-muted">
+                          {group.dateKey}
+                        </span>
+                      </span>
+                      <span className="tabular-nums text-text-muted">
+                        {group.items.length} 項 · {dayVolume}
+                      </span>
+                    </button>
+                    {expanded && (
+                      <ul className="mt-1 divide-y divide-border rounded-xl bg-bg-elevated px-3">
+                        {group.items.map((w) => (
+                          <WorkoutRow
+                            key={w.id}
+                            w={w}
+                            bodyWeightKg={bodyWeightKg}
+                            onSelect={() => setPrefill(historyToPrefill(w))}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })
             )}
             <p className="text-center text-xs text-text-muted">
               點選歷史紀錄可帶入表單，儲存後會新增一筆

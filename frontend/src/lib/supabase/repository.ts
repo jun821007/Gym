@@ -83,6 +83,7 @@ export async function updateProfile(
       daily_carbs_goal: profile.dailyCarbsGoal,
       daily_fat_goal: profile.dailyFatGoal,
       daily_water_goal_ml: profile.dailyWaterGoalMl ?? 2000,
+      daily_workout_volume_goal_kg: profile.dailyWorkoutVolumeGoalKg ?? null,
       nutrition_goals_inbody_date: profile.nutritionGoalsInbodyDate ?? null,
     })
     .eq("id", profile.id);
@@ -236,12 +237,19 @@ export async function insertWorkout(
 ): Promise<WorkoutLog> {
   const full = workoutInsertPayload(userId, log);
   const { load_type, extra_weight_kg, assist_kg, set_details, ...base } = full;
+  const withLoggedAt = { ...full, logged_at: log.loggedAt };
 
   let { data, error } = await supabase
     .from("workout_logs")
-    .insert(full)
+    .insert(withLoggedAt)
     .select()
     .single();
+
+  if (error?.message?.includes("logged_at")) {
+    const retry = await supabase.from("workout_logs").insert(full).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (
     error?.message?.includes("load_type") ||
@@ -647,6 +655,22 @@ export async function updateWaterGoal(
     .from("users_profile")
     .update({ daily_water_goal_ml: dailyGoalMl })
     .eq("id", userId);
+  if (error) throw error;
+}
+
+export async function updateWorkoutVolumeGoal(
+  supabase: SupabaseClient,
+  userId: string,
+  dailyGoalKg: number,
+) {
+  let { error } = await supabase
+    .from("users_profile")
+    .update({ daily_workout_volume_goal_kg: dailyGoalKg })
+    .eq("id", userId);
+
+  if (error?.message?.includes("daily_workout_volume_goal_kg")) {
+    return;
+  }
   if (error) throw error;
 }
 

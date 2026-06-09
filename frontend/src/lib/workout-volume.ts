@@ -8,6 +8,17 @@ import type {
 
 export const BODYWEIGHT_FACTOR = 0.95;
 
+export function formatKg(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+export function parseWeightKgInput(raw: string): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 10) / 10;
+}
+
 export const GEAR_LABELS: Record<string, string> = {
   strap: "拉力帶",
   belt: "護腰",
@@ -139,7 +150,7 @@ export function formatLoadLabel(
 
   switch (log.loadType) {
     case "unilateral":
-      return `單邊 ${log.weightKg}kg`;
+      return `單邊 ${formatKg(log.weightKg)}kg`;
     case "bodyweight":
       return bw != null ? `自重(${bw}kg)` : "自重";
     case "weighted_bw":
@@ -151,7 +162,7 @@ export function formatLoadLabel(
         ? `輔助-${log.assistKg ?? 0}kg`
         : `輔助-${log.assistKg ?? 0}kg`;
     default:
-      return log.weightKg > 0 ? `${log.weightKg}kg` : "";
+      return log.weightKg > 0 ? `${formatKg(log.weightKg)}kg` : "";
   }
 }
 

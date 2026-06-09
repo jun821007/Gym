@@ -42,7 +42,7 @@ function normalizeGrade(g) {
 
 router.post("/", async (req, res) => {
   try {
-    const { message, imageBase64, mimeType, todayLogs, bodyMetrics } =
+    const { message, imageBase64, mimeType, todayLogs, bodyMetrics, logDate } =
       req.body ?? {};
 
     if (!imageBase64) {
@@ -108,7 +108,10 @@ router.post("/", async (req, res) => {
       totalCalories: Number(parsed.total_calories) || 0,
       avgHeartRate: Number(parsed.avg_heart_rate) || 0,
       summary: parsed.summary || "訓練結算完成",
-      logDate: new Date().toISOString().slice(0, 10),
+      logDate:
+        typeof logDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(logDate)
+          ? logDate
+          : new Date().toISOString().slice(0, 10),
       loggedAt: new Date().toISOString(),
       manualLogs,
       totalVolumeKg,

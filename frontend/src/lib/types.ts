@@ -25,6 +25,8 @@ export interface UserProfile {
   dailyCarbsGoal: number;
   dailyFatGoal: number;
   dailyWaterGoalMl?: number;
+  /** 每日訓練量目標（kg），NULL 時用建議值或預設 3000 */
+  dailyWorkoutVolumeGoalKg?: number | null;
   /** 每日鈉上限（毫克），預設 2300 */
   dailySodiumGoalMg?: number;
   /** 營養目標最後依據的 InBody 日期 YYYY-MM-DD */

@@ -6,8 +6,19 @@ export function toDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
-export function isToday(iso: string): boolean {
-  return toDateKey(new Date(iso)) === toDateKey();
+/** 比對 YYYY-MM-DD；日期字串直接比對，避免 UTC 解析錯位 */
+export function isSameDateKey(
+  value: string,
+  dateKey: string = toDateKey(),
+): boolean {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value === dateKey;
+  }
+  return toDateKey(new Date(value)) === dateKey;
+}
+
+export function isToday(value: string): boolean {
+  return isSameDateKey(value);
 }
 
 export function formatTime(iso: string): string {
