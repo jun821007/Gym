@@ -7,16 +7,17 @@ import {
   type WorkoutFormPrefill,
 } from "@/components/dashboard/WorkoutAddForm";
 import { WorkoutGradeHistory } from "@/components/dashboard/WorkoutGradeHistory";
+import { WorkoutGroupedList } from "@/components/dashboard/WorkoutGroupedList";
 import { WorkoutSettlementModal } from "@/components/dashboard/WorkoutSettlementModal";
 import { WorkoutVolumeGoalBar } from "@/components/dashboard/WorkoutVolumeGoalBar";
 import { Card } from "@/components/ui/Card";
 import {
   formatDateLabel,
-  formatTime,
   groupByDateKey,
   isSameDateKey,
   isToday,
   toDateKey,
+  yesterdayDateKey,
 } from "@/lib/datetime";
 import { fileToCompressedBase64 } from "@/lib/image-compress";
 import {
@@ -32,10 +33,10 @@ import type {
   WorkoutLog,
 } from "@/lib/types";
 import {
-  formatWorkoutSummary,
-  getLatestBodyWeightKg,
-  normalizeSetDetails,
-} from "@/lib/workout-volume";
+  countWorkoutSets,
+  groupWorkoutsByExercise,
+} from "@/lib/workout-grouping";
+import { getLatestBodyWeightKg } from "@/lib/workout-volume";
 import {
   effectiveWorkoutVolumeGoalKg,
   suggestWorkoutVolumeGoalKg,
@@ -66,57 +67,6 @@ const GRADE_BADGE: Record<DailyWorkoutSettlement["grade"], string> = {
   C: "bg-bg-elevated text-text-muted border-border",
   D: "bg-danger/15 text-danger border-danger",
 };
-
-function WorkoutRow({
-  w,
-  bodyWeightKg,
-  onSelect,
-  onDelete,
-}: {
-  w: WorkoutLog;
-  bodyWeightKg: number | null;
-  onSelect?: () => void;
-  onDelete?: () => void;
-}) {
-  const sets = normalizeSetDetails(w);
-  const repSummary = sets
-    .map((s) => s.reps)
-    .join("/");
-
-  return (
-    <li className="flex items-start justify-between gap-2 py-2.5 text-sm">
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={!onSelect}
-        className={cn(
-          "min-w-0 flex-1 text-left",
-          onSelect && "active:opacity-70",
-        )}
-      >
-        <span className="font-medium">{w.exerciseName}</span>
-        <time
-          className="ml-2 text-xs tabular-nums text-text-muted"
-          dateTime={w.loggedAt}
-        >
-          {formatTime(w.loggedAt)}
-        </time>
-        <p className="mt-0.5 text-xs text-text-muted">
-          {formatWorkoutSummary(w, bodyWeightKg)} · {repSummary}次
-        </p>
-      </button>
-      {onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs text-text-muted"
-        >
-          刪除
-        </button>
-      )}
-    </li>
-  );
-}
 
 export function DungeonTab({
   profile,
@@ -210,6 +160,24 @@ export function DungeonTab({
     profile.dailyWorkoutVolumeGoalKg != null &&
     profile.dailyWorkoutVolumeGoalKg > 0;
 
+  const todayExerciseGroups = useMemo(
+    () => groupWorkoutsByExercise(todayWorkouts),
+    [todayWorkouts],
+  );
+  const todayTotalSets = useMemo(
+    () => countWorkoutSets(todayWorkouts),
+    [todayWorkouts],
+  );
+
+  const olderGradeCount = useMemo(
+    () =>
+      settlementHistory.filter(
+        (s) =>
+          !isToday(s.logDate) && s.logDate !== yesterdayDateKey(),
+      ).length,
+    [settlementHistory],
+  );
+
   const historyGroups = useMemo(() => {
     const past = workouts.filter((w) => w.logDate !== todayKey);
     return groupByDateKey(past).map((g) => ({
@@ -249,12 +217,9 @@ export function DungeonTab({
     return {
       exerciseName: fav.name,
       loadType: ex.loadType ?? "bilateral",
-      weightKg: ex.weightKg ?? 0,
-      extraWeightKg: ex.extraWeightKg,
-      assistKg: ex.assistKg,
-      reps: ex.reps ?? ex.setDetails?.[0]?.reps ?? 0,
-      sets: ex.sets ?? ex.setDetails?.length ?? 1,
-      setDetails: ex.setDetails,
+      weightKg: 0,
+      reps: 0,
+      sets: 1,
     };
   }
 
@@ -364,7 +329,9 @@ export function DungeonTab({
         />
       </div>
 
-      <Card title={`今日清單 · ${todayWorkouts.length} 項`}>
+      <Card
+        title={`今日清單 · ${todayExerciseGroups.length} 動作 · ${todayTotalSets} 組`}
+      >
         <WorkoutVolumeGoalBar
           currentKg={todayVolume}
           goalKg={volumeGoalKg}
@@ -383,20 +350,15 @@ export function DungeonTab({
               {bodyMetrics &&
                 ` · 相對體重 ${bodyMetrics.volume_per_body_weight}（÷${bodyMetrics.weight_kg}kg）`}
             </p>
-            <ul className="divide-y divide-border">
-              {todayWorkouts.map((w) => (
-                <WorkoutRow
-                  key={w.id}
-                  w={w}
-                  bodyWeightKg={bodyWeightKg}
-                  onDelete={
-                    onDeleteWorkout
-                      ? () => void onDeleteWorkout(w.id)
-                      : undefined
-                  }
-                />
-              ))}
-            </ul>
+            <WorkoutGroupedList
+              workouts={todayWorkouts}
+              bodyWeightKg={bodyWeightKg}
+              onDelete={
+                onDeleteWorkout
+                  ? (id) => void onDeleteWorkout(id)
+                  : undefined
+              }
+            />
           </>
         )}
       </Card>
@@ -511,9 +473,9 @@ export function DungeonTab({
         >
           <span className="card-title mb-0">
             歷史評分
-            {settlementHistory.filter((s) => !isToday(s.logDate)).length > 0 && (
+            {olderGradeCount > 0 && (
               <span className="ml-2 font-normal text-text-muted">
-                ({settlementHistory.filter((s) => !isToday(s.logDate)).length})
+                ({olderGradeCount})
               </span>
             )}
           </span>
@@ -574,16 +536,13 @@ export function DungeonTab({
                       </span>
                     </button>
                     {expanded && (
-                      <ul className="mt-1 divide-y divide-border rounded-xl bg-bg-elevated px-3">
-                        {group.items.map((w) => (
-                          <WorkoutRow
-                            key={w.id}
-                            w={w}
-                            bodyWeightKg={bodyWeightKg}
-                            onSelect={() => setPrefill(historyToPrefill(w))}
-                          />
-                        ))}
-                      </ul>
+                      <div className="mt-1 px-1">
+                        <WorkoutGroupedList
+                          workouts={group.items}
+                          bodyWeightKg={bodyWeightKg}
+                          onSelectLog={(w) => setPrefill(historyToPrefill(w))}
+                        />
+                      </div>
                     )}
                   </div>
                 );

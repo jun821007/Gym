@@ -9,7 +9,12 @@ import { FavoriteMealsPanel } from "@/components/dashboard/FavoriteMealsPanel";
 import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { NutrientBar } from "@/components/ui/NutrientBar";
-import { formatDateLabel, isToday, toDateKey } from "@/lib/datetime";
+import {
+  formatDateLabel,
+  isToday,
+  toDateKey,
+  yesterdayDateKey,
+} from "@/lib/datetime";
 import {
   DEFAULT_SODIUM_GOAL_MG,
   getLatestInbodyRecord,
@@ -507,9 +512,20 @@ export function TavernTab({
         >
           <span className="card-title mb-0">
             歷史評分
-            {settlementHistory.filter((s) => !isToday(s.logDate)).length > 0 && (
+            {settlementHistory.filter(
+              (s) =>
+                !isToday(s.logDate) && s.logDate !== yesterdayDateKey(),
+            ).length > 0 && (
               <span className="ml-2 font-normal text-text-muted">
-                ({settlementHistory.filter((s) => !isToday(s.logDate)).length})
+                (
+                {
+                  settlementHistory.filter(
+                    (s) =>
+                      !isToday(s.logDate) &&
+                      s.logDate !== yesterdayDateKey(),
+                  ).length
+                }
+                )
               </span>
             )}
           </span>

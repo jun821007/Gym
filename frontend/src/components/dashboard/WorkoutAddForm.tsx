@@ -201,12 +201,6 @@ export function WorkoutAddForm({
             {
               exerciseName: log.exerciseName,
               loadType: log.loadType,
-              weightKg: log.weightKg,
-              extraWeightKg: log.extraWeightKg,
-              assistKg: log.assistKg,
-              setDetails: log.setDetails,
-              reps: log.reps,
-              sets: log.sets,
             },
           ],
         });

@@ -21,6 +21,16 @@ export function isToday(value: string): boolean {
   return isSameDateKey(value);
 }
 
+export function yesterdayDateKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return toDateKey(d);
+}
+
+export function isYesterday(value: string): boolean {
+  return isSameDateKey(value, yesterdayDateKey());
+}
+
 export function formatTime(iso: string): string {
   return new Intl.DateTimeFormat("zh-TW", {
     hour: "2-digit",
