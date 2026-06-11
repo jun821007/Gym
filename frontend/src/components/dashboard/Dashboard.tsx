@@ -15,10 +15,12 @@ import { getSupabase } from "@/lib/supabase/client";
 import {
   appendInbodyRecord,
   deleteDiet,
+  deleteDietSettlement,
   deleteFavoriteMeal,
   deleteFavoriteWorkout,
   deleteWaterLog,
   deleteWorkout,
+  deleteWorkoutSettlement,
   fetchDietSettlements,
   fetchDiets,
   fetchFavoriteMeals,
@@ -391,10 +393,22 @@ export function Dashboard({
     setWorkoutSettlements(list);
   }
 
+  async function handleWorkoutSettlementDelete(s: DailyWorkoutSettlement) {
+    await deleteWorkoutSettlement(supabase, userId, s.logDate);
+    setWorkoutSettlements((prev) =>
+      prev.filter((x) => x.logDate !== s.logDate),
+    );
+  }
+
   async function handleDietSettlementSaved(s: DailyDietSettlement) {
     await upsertDietSettlement(supabase, userId, s);
     const list = await fetchDietSettlements(supabase, userId);
     setDietSettlements(list);
+  }
+
+  async function handleDietSettlementDelete(s: DailyDietSettlement) {
+    await deleteDietSettlement(supabase, userId, s.logDate);
+    setDietSettlements((prev) => prev.filter((x) => x.logDate !== s.logDate));
   }
 
   async function handleWeeklyGradeGenerated(g: WeeklyGrade) {
@@ -458,6 +472,7 @@ export function Dashboard({
             onSaveFavoriteWorkout={handleWorkoutFavoriteSave}
             onDeleteFavoriteWorkout={handleWorkoutFavoriteDelete}
             onSettlementSaved={handleWorkoutSettlementSaved}
+            onDeleteSettlement={handleWorkoutSettlementDelete}
             onVolumeGoalChange={handleWorkoutVolumeGoalChange}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />
@@ -483,6 +498,7 @@ export function Dashboard({
             onWaterDelete={handleWaterDelete}
             onWaterGoalChange={handleWaterGoalChange}
             onSettlementSaved={handleDietSettlementSaved}
+            onDeleteSettlement={handleDietSettlementDelete}
             onWeeklyGradeGenerated={handleWeeklyGradeGenerated}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />

@@ -73,6 +73,7 @@ interface TavernTabProps {
   onWaterDelete: (id: string) => void | Promise<void>;
   onWaterGoalChange: (goalMl: number) => void | Promise<void>;
   onSettlementSaved: (s: DailyDietSettlement) => void | Promise<void>;
+  onDeleteSettlement?: (s: DailyDietSettlement) => void | Promise<void>;
   onWeeklyGradeGenerated: (g: WeeklyGrade) => void | Promise<void>;
   onSettlement?: (data: {
     settlement: DailyDietSettlement;
@@ -115,10 +116,12 @@ export function TavernTab({
   onWaterDelete,
   onWaterGoalChange,
   onSettlementSaved,
+  onDeleteSettlement,
   onWeeklyGradeGenerated,
   onSettlement,
 }: TavernTabProps) {
   const [recordDate, setRecordDate] = useState(toDateKey());
+  const [gradeBrowseDateKey, setGradeBrowseDateKey] = useState(toDateKey());
   const [todaySettlement, setTodaySettlement] =
     useState<DailyDietSettlement | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -537,7 +540,12 @@ export function TavernTab({
           <div className="mt-3">
             <DietGradeHistory
               settlements={settlementHistory}
+              browseDateKey={gradeBrowseDateKey}
+              onBrowseDateChange={setGradeBrowseDateKey}
               onSelect={(s) => openSettlementModal(s)}
+              onDelete={onDeleteSettlement}
+              onRequestSettle={(dateKey) => void submitSettlement(dateKey)}
+              settlePending={settling}
             />
           </div>
         )}

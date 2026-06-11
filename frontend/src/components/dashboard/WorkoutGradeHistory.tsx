@@ -6,18 +6,33 @@ import type { DailyWorkoutSettlement, WorkoutLog } from "@/lib/types";
 interface WorkoutGradeHistoryProps {
   settlements: DailyWorkoutSettlement[];
   workouts: WorkoutLog[];
+  browseDateKey: string;
+  onBrowseDateChange: (dateKey: string) => void;
   onSelect: (s: DailyWorkoutSettlement) => void;
+  onDelete?: (s: DailyWorkoutSettlement) => void | Promise<void>;
+  onRequestSettle?: (dateKey: string) => void | Promise<void>;
+  settlePending?: boolean;
 }
 
 export function WorkoutGradeHistory({
   settlements,
   workouts,
+  browseDateKey,
+  onBrowseDateChange,
   onSelect,
+  onDelete,
+  onRequestSettle,
+  settlePending,
 }: WorkoutGradeHistoryProps) {
   return (
     <SettlementGradeCompare
       settlements={settlements}
+      browseDateKey={browseDateKey}
+      onBrowseDateChange={onBrowseDateChange}
       onSelect={onSelect}
+      onDelete={onDelete}
+      onRequestSettle={onRequestSettle}
+      settlePending={settlePending}
       renderSubtitle={(s) => {
         const dayLogs = workouts.filter((w) => w.logDate === s.logDate);
         const hours = Math.floor(s.durationMinutes / 60);

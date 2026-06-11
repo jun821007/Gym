@@ -705,6 +705,19 @@ export async function upsertWorkoutSettlement(
   if (error) throw error;
 }
 
+export async function deleteWorkoutSettlement(
+  supabase: SupabaseClient,
+  userId: string,
+  logDate: string,
+) {
+  const { error } = await supabase
+    .from("workout_daily_settlements")
+    .delete()
+    .eq("user_id", userId)
+    .eq("log_date", logDate);
+  if (error) throw error;
+}
+
 export async function fetchDietSettlements(
   supabase: SupabaseClient,
   userId: string,
@@ -733,6 +746,19 @@ export async function upsertDietSettlement(
     },
     { onConflict: "user_id,log_date" },
   );
+  if (error) throw error;
+}
+
+export async function deleteDietSettlement(
+  supabase: SupabaseClient,
+  userId: string,
+  logDate: string,
+) {
+  const { error } = await supabase
+    .from("diet_daily_settlements")
+    .delete()
+    .eq("user_id", userId)
+    .eq("log_date", logDate);
   if (error) throw error;
 }
 

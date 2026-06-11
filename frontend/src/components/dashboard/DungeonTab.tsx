@@ -53,6 +53,7 @@ interface DungeonTabProps {
   onSaveFavoriteWorkout?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
+  onDeleteSettlement?: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onVolumeGoalChange: (goalKg: number) => void | Promise<void>;
   onSettlement?: (data: {
     settlement: DailyWorkoutSettlement;
@@ -78,6 +79,7 @@ export function DungeonTab({
   onSaveFavoriteWorkout,
   onDeleteFavoriteWorkout,
   onSettlementSaved,
+  onDeleteSettlement,
   onVolumeGoalChange,
   onSettlement,
 }: DungeonTabProps) {
@@ -98,8 +100,15 @@ export function DungeonTab({
   const [coachReply, setCoachReply] = useState("");
   const [uploading, setUploading] = useState(false);
   const [pastePreview, setPastePreview] = useState<string | null>(null);
+  const [gradeBrowseDateKey, setGradeBrowseDateKey] = useState(todayKey);
+  const [settleTargetDate, setSettleTargetDate] = useState<string | null>(
+    null,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const pasteRef = useRef<HTMLDivElement>(null);
+  const pasteSectionRef = useRef<HTMLDivElement>(null);
+
+  const effectiveSettleDate = settleTargetDate ?? todayKey;
 
   useEffect(() => {
     const today =
@@ -125,14 +134,35 @@ export function DungeonTab({
     [workouts, todayKey],
   );
 
+  const settleDateWorkouts = useMemo(
+    () =>
+      workouts
+        .filter((w) => w.logDate === effectiveSettleDate)
+        .sort(
+          (a, b) =>
+            new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
+        ),
+    [workouts, effectiveSettleDate],
+  );
+
   const todayVolume = useMemo(
     () => calcTotalVolumeKg(todayWorkouts, bodyWeightKg),
     [todayWorkouts, bodyWeightKg],
   );
 
+  const settleDateVolume = useMemo(
+    () => calcTotalVolumeKg(settleDateWorkouts, bodyWeightKg),
+    [settleDateWorkouts, bodyWeightKg],
+  );
+
   const bodyMetrics = useMemo(
     () => buildBodyMetricsPayload(profile, todayVolume),
     [profile, todayVolume],
+  );
+
+  const settleBodyMetrics = useMemo(
+    () => buildBodyMetricsPayload(profile, settleDateVolume),
+    [profile, settleDateVolume],
   );
 
   const latestInbody = profile.inbodyHistory.at(-1);
@@ -230,8 +260,19 @@ export function DungeonTab({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  const handleRequestSettle = useCallback((dateKey: string) => {
+    setSettleTargetDate(dateKey);
+    setGradeBrowseDateKey(dateKey);
+    pasteSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    window.setTimeout(() => pasteRef.current?.focus(), 300);
+  }, []);
+
   const submitSettlement = useCallback(
     async (file: File) => {
+      const targetDate = effectiveSettleDate;
       setUploading(true);
       setPastePreview(URL.createObjectURL(file));
       try {
@@ -246,9 +287,9 @@ export function DungeonTab({
             message: "綜合今日重訓清單與健身截圖進行評分",
             imageBase64: base64,
             mimeType: compressedMime,
-            todayLogs: formatLogsForApi(todayWorkouts, bodyWeightKg),
-            bodyMetrics,
-            logDate: todayKey,
+            todayLogs: formatLogsForApi(settleDateWorkouts, bodyWeightKg),
+            bodyMetrics: settleBodyMetrics,
+            logDate: targetDate,
           }),
         });
 
@@ -257,14 +298,17 @@ export function DungeonTab({
 
         const s = {
           ...(data.settlement as DailyWorkoutSettlement),
-          logDate: todayKey,
+          logDate: targetDate,
           manualLogs:
             data.settlement.manualLogs ??
-            toSettlementLogs(todayWorkouts, bodyWeightKg),
+            toSettlementLogs(settleDateWorkouts, bodyWeightKg),
           totalVolumeKg:
-            data.settlement.totalVolumeKg ?? todayVolume,
+            data.settlement.totalVolumeKg ?? settleDateVolume,
         };
-        setSettlement(s);
+        if (isSameDateKey(targetDate, todayKey)) {
+          setSettlement(s);
+        }
+        if (settleTargetDate) setSettleTargetDate(null);
         await onSettlementSaved(s);
         openSettlementModal(s, data.reply ?? "");
         onSettlement?.({
@@ -278,11 +322,13 @@ export function DungeonTab({
       }
     },
     [
-      todayWorkouts,
-      todayVolume,
+      effectiveSettleDate,
+      settleDateWorkouts,
+      settleDateVolume,
       todayKey,
       bodyWeightKg,
-      bodyMetrics,
+      settleBodyMetrics,
+      settleTargetDate,
       onSettlement,
       onSettlementSaved,
     ],
@@ -363,7 +409,7 @@ export function DungeonTab({
         )}
       </Card>
 
-      <div className="pixel-card pixel-card--hero">
+      <div ref={pasteSectionRef} className="pixel-card pixel-card--hero">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-pixel-sm font-bold text-accent-light">
@@ -374,6 +420,18 @@ export function DungeonTab({
                 ? `依體重 ${latestInbody.weight_kg}kg、清單、截圖綜合評分`
                 : "請先在體態頁記錄體重，評分更準"}
             </p>
+            {settleTargetDate && !isSameDateKey(settleTargetDate, todayKey) && (
+              <p className="mt-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent-light">
+                補登 {formatDateLabel(settleTargetDate)}（{settleTargetDate}）
+                <button
+                  type="button"
+                  onClick={() => setSettleTargetDate(null)}
+                  className="ml-2 underline"
+                >
+                  改回今日
+                </button>
+              </p>
+            )}
           </div>
           {settlement && (
             <span
@@ -448,9 +506,11 @@ export function DungeonTab({
           </button>
         </div>
 
-        {todayWorkouts.length === 0 && (
+        {settleDateWorkouts.length === 0 && (
           <p className="mt-2 text-center text-xs text-text-muted">
-            建議先填今日清單，評分會更準；僅截圖也可評分
+            {isSameDateKey(effectiveSettleDate, todayKey)
+              ? "建議先填今日清單，評分會更準；僅截圖也可評分"
+              : `${formatDateLabel(effectiveSettleDate)} 尚無重訓清單，僅截圖也可評分`}
           </p>
         )}
 
@@ -488,7 +548,12 @@ export function DungeonTab({
             <WorkoutGradeHistory
               settlements={settlementHistory}
               workouts={workouts}
+              browseDateKey={gradeBrowseDateKey}
+              onBrowseDateChange={setGradeBrowseDateKey}
               onSelect={(s) => openSettlementModal(s)}
+              onDelete={onDeleteSettlement}
+              onRequestSettle={handleRequestSettle}
+              settlePending={uploading}
             />
           </div>
         )}
