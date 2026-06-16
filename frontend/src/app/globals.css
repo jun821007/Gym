@@ -17,8 +17,8 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --tab-bar-pad-x: 0.5rem;
-  --tab-bar-content-height: 3.125rem;
-  --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
+  --tab-bar-content-height: 3.5rem;
+  --tab-bar-height: 3.5rem;
   --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
@@ -120,13 +120,55 @@ body {
   bottom: 0;
   z-index: 40;
   margin: 0;
-  padding: 0 var(--tab-bar-pad-x);
+  padding: 0.25rem var(--tab-bar-pad-x) max(4px, env(safe-area-inset-bottom, 0px));
   border-top: 2px solid var(--border);
   background: var(--bg-app);
 }
 
-.app-bottom-bar-inner {
-  padding-bottom: var(--safe-bottom);
+.app-bottom-bar-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.375rem;
+}
+
+.app-bottom-bar-row .app-tab-nav-bottom {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-bottom-bar-gear {
+  width: 2.25rem;
+  flex-shrink: 0;
+  border: 2px solid var(--border-pixel);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-tab-nav-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+}
+
+.app-tab-bottom-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.125rem;
+  border: 2px solid var(--border-pixel);
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  font-size: 7px;
+  line-height: 1;
+}
+
+.app-tab-bottom-btn--active {
+  background: var(--accent-gold, #f4c542);
+  color: var(--bg-deep, #0d0d1a);
 }
 
 .card {

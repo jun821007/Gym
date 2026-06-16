@@ -22,7 +22,9 @@ export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
 
   return (
     <nav
-      className={cn("grid grid-cols-3 gap-1.5", isBottom ? "mb-0" : "mb-4")}
+      className={cn(
+        isBottom ? "app-tab-nav-bottom" : "mb-4 grid grid-cols-3 gap-2",
+      )}
     >
       {TABS.map((tab) => (
         <button
@@ -30,22 +32,28 @@ export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
           type="button"
           onClick={() => onChange(tab.id)}
           className={cn(
-            "border-4 border-border-pixel transition",
-            isBottom ? "py-1.5 text-[8px] leading-tight" : "py-3 text-[8px]",
-            active === tab.id
-              ? "bg-accent-gold text-bg-deep"
-              : "bg-bg-panel text-text-muted hover:bg-bg-panel-light",
+            isBottom ? "app-tab-bottom-btn" : "border-4 border-border-pixel py-3 text-[8px]",
+            !isBottom &&
+              (active === tab.id
+                ? "bg-accent-gold text-bg-deep"
+                : "bg-bg-panel text-text-muted hover:bg-bg-panel-light"),
+            isBottom && active === tab.id && "app-tab-bottom-btn--active",
           )}
         >
           <span
             className={cn(
-              "flex min-h-[1rem] items-center justify-center",
-              typeof tab.icon === "string" && (isBottom ? "text-sm" : "text-base"),
+              "flex items-center justify-center",
+              isBottom ? "h-3.5" : "min-h-[1rem] text-base",
+              typeof tab.icon === "string" && !isBottom && "text-base",
             )}
           >
             {tab.icon}
           </span>
-          {tab.label}
+          {isBottom ? (
+            <span className="mt-0.5 leading-none">{tab.label}</span>
+          ) : (
+            tab.label
+          )}
         </button>
       ))}
     </nav>
