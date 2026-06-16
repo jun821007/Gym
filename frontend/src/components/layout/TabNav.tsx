@@ -4,9 +4,9 @@ import type { TabId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: "control", label: "數據艙", icon: "🛸" },
+  { id: "control", label: "勇者資訊", icon: "🛸" },
   { id: "dungeon", label: "地下城", icon: "⚔" },
-  { id: "tavern", label: "補給酒館", icon: "🍺" },
+  { id: "tavern", label: "食堂", icon: "🍽" },
 ];
 
 interface TabNavProps {
@@ -32,7 +32,9 @@ export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
           onClick={() => onChange(tab.id)}
           className={cn(
             "border-4 border-border-pixel transition",
-            isBottom ? "py-2 text-[7px]" : "py-3 text-[8px]",
+            isBottom
+              ? "py-2.5 text-[8px] leading-tight"
+              : "py-3 text-[8px]",
             active === tab.id
               ? "bg-accent-gold text-bg-deep"
               : "bg-bg-panel text-text-muted hover:bg-bg-panel-light",

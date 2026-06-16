@@ -16,7 +16,7 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tab-bar-height: calc(4.75rem + var(--safe-bottom));
+  --tab-bar-height: calc(4.5rem + var(--safe-bottom));
   --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
@@ -107,7 +107,13 @@ body {
 }
 
 .app-bottom-bar {
-  padding: 0.5rem 1rem calc(0.35rem + var(--safe-bottom));
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 0.5rem 0.75rem calc(0.5rem + var(--safe-bottom));
+  --tab-bar-height: calc(4.5rem + var(--safe-bottom));
   border-top: 2px solid var(--border);
   background: var(--bg-app);
 }

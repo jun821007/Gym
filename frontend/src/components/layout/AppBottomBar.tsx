@@ -50,7 +50,7 @@ export function AppBottomBar({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <TabNav active={active} onChange={onChange} variant="bottom" />
         </div>
@@ -58,7 +58,7 @@ export function AppBottomBar({
           type="button"
           onClick={() => setSettingsOpen((o) => !o)}
           className={cn(
-            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-border-pixel text-base",
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-border-pixel text-base",
             settingsOpen
               ? "bg-accent/20 text-accent-light"
               : "bg-bg-elevated text-text-muted",

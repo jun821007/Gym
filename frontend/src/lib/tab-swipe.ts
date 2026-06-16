@@ -3,9 +3,9 @@ import type { TabId } from "@/lib/types";
 export const TAB_SWIPE_ORDER: TabId[] = ["dungeon", "control", "tavern"];
 
 export const TAB_SWIPE_LABELS: Record<TabId, string> = {
-  control: "體態",
-  dungeon: "訓練",
-  tavern: "飲食",
+  control: "勇者資訊",
+  dungeon: "地下城",
+  tavern: "食堂",
 };
 
 /** 快速滑動的最小水平位移（px） */

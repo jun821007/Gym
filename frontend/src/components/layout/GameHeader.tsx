@@ -8,9 +8,9 @@ export function GameHeader() {
         <p className="text-[8px] text-text-muted">BODY MANAGEMENT v0.1</p>
       </div>
       <div className="text-right text-[8px] text-text-muted">
-        <p>◈ 數據艙</p>
+        <p>◈ 勇者資訊</p>
         <p>◈ 地下城</p>
-        <p>◈ 補給酒館</p>
+        <p>◈ 食堂</p>
       </div>
     </header>
   );
