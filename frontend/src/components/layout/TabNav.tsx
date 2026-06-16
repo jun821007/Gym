@@ -12,24 +12,35 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
 interface TabNavProps {
   active: TabId;
   onChange: (tab: TabId) => void;
+  variant?: "inline" | "bottom";
 }
 
-export function TabNav({ active, onChange }: TabNavProps) {
+export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
+  const isBottom = variant === "bottom";
+
   return (
-    <nav className="mb-4 grid grid-cols-3 gap-2">
+    <nav
+      className={cn(
+        "grid grid-cols-3 gap-2",
+        isBottom ? "mb-0" : "mb-4",
+      )}
+    >
       {TABS.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
           className={cn(
-            "border-4 border-border-pixel py-3 text-[8px] transition",
+            "border-4 border-border-pixel transition",
+            isBottom ? "py-2 text-[7px]" : "py-3 text-[8px]",
             active === tab.id
               ? "bg-accent-gold text-bg-deep"
               : "bg-bg-panel text-text-muted hover:bg-bg-panel-light",
           )}
         >
-          <span className="block text-base">{tab.icon}</span>
+          <span className={cn("block", isBottom ? "text-sm" : "text-base")}>
+            {tab.icon}
+          </span>
           {tab.label}
         </button>
       ))}

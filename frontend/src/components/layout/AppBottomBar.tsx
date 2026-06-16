@@ -1,0 +1,74 @@
+"use client";
+
+import { useState } from "react";
+import { TabNav } from "@/components/layout/TabNav";
+import type { TabId } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+interface AppBottomBarProps {
+  active: TabId;
+  onChange: (tab: TabId) => void;
+  swipeTabsEnabled: boolean;
+  onSwipeTabsEnabledChange: (enabled: boolean) => void;
+}
+
+export function AppBottomBar({
+  active,
+  onChange,
+  swipeTabsEnabled,
+  onSwipeTabsEnabledChange,
+}: AppBottomBarProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  return (
+    <footer className="app-bottom-bar shrink-0">
+      {settingsOpen && (
+        <div className="mb-2 rounded-xl border border-border bg-bg-elevated px-3 py-2">
+          <label className="flex items-center justify-between gap-3 text-sm text-text">
+            <span>左右滑動切換頁面</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={swipeTabsEnabled}
+              onClick={() => onSwipeTabsEnabledChange(!swipeTabsEnabled)}
+              className={cn(
+                "relative h-7 w-12 shrink-0 rounded-full border-2 border-border transition",
+                swipeTabsEnabled ? "bg-accent" : "bg-bg-app",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-text transition",
+                  swipeTabsEnabled ? "left-[1.35rem]" : "left-0.5",
+                )}
+              />
+            </button>
+          </label>
+          <p className="mt-1 text-xs text-text-muted">
+            關閉時僅能使用下方分頁切換
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <TabNav active={active} onChange={onChange} variant="bottom" />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((o) => !o)}
+          className={cn(
+            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-border-pixel text-base",
+            settingsOpen
+              ? "bg-accent/20 text-accent-light"
+              : "bg-bg-elevated text-text-muted",
+          )}
+          aria-label="導覽設定"
+          aria-expanded={settingsOpen}
+        >
+          ⚙
+        </button>
+      </div>
+    </footer>
+  );
+}

@@ -16,7 +16,8 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --fab-offset: calc(max(12px, var(--safe-bottom)) + 0.75rem);
+  --tab-bar-height: calc(4.75rem + var(--safe-bottom));
+  --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -103,6 +104,12 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+}
+
+.app-bottom-bar {
+  padding: 0.5rem 1rem calc(0.35rem + var(--safe-bottom));
+  border-top: 2px solid var(--border);
+  background: var(--bg-app);
 }
 
 .card {

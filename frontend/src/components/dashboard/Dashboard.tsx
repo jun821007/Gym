@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MobileChat } from "@/components/chat/MobileChat";
+import { AppBottomBar } from "@/components/layout/AppBottomBar";
 import { ControlRoomTab } from "@/components/dashboard/ControlRoomTab";
 import { DungeonTab } from "@/components/dashboard/DungeonTab";
 import { TavernTab } from "@/components/dashboard/TavernTab";
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
 import { useSwipeTabs } from "@/lib/use-swipe-tabs";
+import { useAppPreferences } from "@/lib/use-app-preferences";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import { resolveNutritionGoalsForDisplay } from "@/lib/nutrition-goals";
@@ -90,7 +92,7 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--safe-bottom) + 1rem)";
+const SCROLL_PAD = "calc(var(--tab-bar-height) + 0.5rem)";
 
 interface DashboardProps {
   session: Session;
@@ -112,16 +114,16 @@ export function Dashboard({
 
   const [tab, setTab] = useState<TabId>("control");
   const keyboardOpen = useKeyboardOpen();
-  const swipeTabs = useSwipeTabs(
-    tab,
-    (next) => {
-      setTab(next);
-      document
-        .querySelector(".app-scroll")
-        ?.scrollTo({ top: 0, behavior: "smooth" });
-    },
-    { enabled: !keyboardOpen },
-  );
+  const { swipeTabsEnabled, setSwipeTabsEnabled } = useAppPreferences();
+
+  function switchTab(next: TabId) {
+    setTab(next);
+    document.querySelector(".app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const swipeTabs = useSwipeTabs(tab, switchTab, {
+    enabled: swipeTabsEnabled && !keyboardOpen,
+  });
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [bodyGoals, setBodyGoals] = useState<BodyGoals>(initialGoals);
   const [diets, setDiets] = useState<DietLog[]>([]);
@@ -456,8 +458,12 @@ export function Dashboard({
         <div
           className="app-scroll px-4 pt-2"
           style={{ paddingBottom: SCROLL_PAD }}
-          onTouchStart={swipeTabs.onTouchStart}
-          onTouchEnd={swipeTabs.onTouchEnd}
+          {...(swipeTabsEnabled
+            ? {
+                onTouchStart: swipeTabs.onTouchStart,
+                onTouchEnd: swipeTabs.onTouchEnd,
+              }
+            : {})}
         >
         {tab === "control" && (
           <ControlRoomTab
@@ -513,6 +519,13 @@ export function Dashboard({
         )}
         </div>
       </div>
+
+      <AppBottomBar
+        active={tab}
+        onChange={switchTab}
+        swipeTabsEnabled={swipeTabsEnabled}
+        onSwipeTabsEnabledChange={setSwipeTabsEnabled}
+      />
 
       {chat && (
         <MobileChat
