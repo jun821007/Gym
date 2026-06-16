@@ -368,6 +368,7 @@ export function DungeonTab({
       <div id="workout-add-form">
         <WorkoutAddForm
           profile={profile}
+          workouts={workouts}
           prefill={prefill}
           onPrefillConsumed={() => setPrefill(null)}
           onSave={onAddWorkout}
@@ -448,32 +449,17 @@ export function DungeonTab({
         <div
           ref={pasteRef}
           tabIndex={0}
-          role="button"
-          onClick={() => pasteRef.current?.focus()}
-          className={cn(
-            "mt-4 min-h-[120px] border-[3px] border-dashed border-border-pixel bg-bg-app p-4 outline-none transition",
-            "focus:border-accent focus:bg-accent-soft",
-            uploading && "pointer-events-none opacity-60",
-          )}
-        >
-          {pastePreview ? (
-            <img
-              src={pastePreview}
-              alt="已貼上的截圖"
-              className="mx-auto max-h-28 object-contain"
-            />
-          ) : (
-            <div className="flex h-full min-h-[88px] flex-col items-center justify-center text-center">
-              <span className="text-2xl">📋</span>
-              <p className="mt-2 text-sm font-medium text-text">
-                點此區域後直接貼上圖片
-              </p>
-              <p className="mt-1 text-xs text-text-muted">
-                長按貼上 / Ctrl+V（電腦）
-              </p>
-            </div>
-          )}
-        </div>
+          className="h-0 overflow-hidden outline-none"
+          aria-hidden
+        />
+
+        {pastePreview && (
+          <img
+            src={pastePreview}
+            alt="已貼上的截圖"
+            className="mx-auto mt-3 max-h-28 object-contain"
+          />
+        )}
 
         <input
           ref={fileRef}

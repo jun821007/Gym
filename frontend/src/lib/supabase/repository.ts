@@ -369,6 +369,7 @@ export async function insertDiet(
     carbs_g: log.carbsG,
     fat_g: log.fatG,
     sodium_mg: log.sodiumMg ?? 0,
+    fiber_g: log.fiberG ?? 0,
     meal_type: log.mealType ?? null,
   };
 
@@ -384,11 +385,11 @@ export async function insertDiet(
     error = retry.error;
   }
 
-  if (error?.message?.includes("sodium_mg")) {
-    const { sodium_mg: _s, ...withoutSodium } = base;
+  if (error?.message?.includes("sodium_mg") || error?.message?.includes("fiber_g")) {
+    const { sodium_mg: _s, fiber_g: _f, ...withoutOptional } = base;
     const retry = await supabase
       .from("diet_logs")
-      .insert({ ...withoutSodium, logged_at: log.loggedAt })
+      .insert({ ...withoutOptional, logged_at: log.loggedAt })
       .select()
       .single();
     data = retry.data;
@@ -396,7 +397,7 @@ export async function insertDiet(
     if (error?.message?.includes("logged_at")) {
       const retry2 = await supabase
         .from("diet_logs")
-        .insert(withoutSodium)
+        .insert(withoutOptional)
         .select()
         .single();
       data = retry2.data;
@@ -422,6 +423,7 @@ export async function updateDiet(
     carbs_g: log.carbsG,
     fat_g: log.fatG,
     sodium_mg: log.sodiumMg ?? 0,
+    fiber_g: log.fiberG ?? 0,
     meal_type: log.mealType ?? null,
   };
 
@@ -445,11 +447,11 @@ export async function updateDiet(
     error = retry.error;
   }
 
-  if (error?.message?.includes("sodium_mg")) {
-    const { sodium_mg: _s, ...withoutSodium } = base;
+  if (error?.message?.includes("sodium_mg") || error?.message?.includes("fiber_g")) {
+    const { sodium_mg: _s, fiber_g: _f, ...withoutOptional } = base;
     const retry = await supabase
       .from("diet_logs")
-      .update({ ...withoutSodium, logged_at: log.loggedAt })
+      .update({ ...withoutOptional, logged_at: log.loggedAt })
       .eq("id", id)
       .eq("user_id", userId)
       .select()
@@ -459,7 +461,7 @@ export async function updateDiet(
     if (error?.message?.includes("logged_at")) {
       const retry2 = await supabase
         .from("diet_logs")
-        .update(withoutSodium)
+        .update(withoutOptional)
         .eq("id", id)
         .eq("user_id", userId)
         .select()
@@ -608,11 +610,12 @@ export async function insertFavoriteMeal(
       carbs_g: meal.carbsG,
       fat_g: meal.fatG,
       sodium_mg: meal.sodiumMg ?? 0,
+      fiber_g: meal.fiberG ?? 0,
       default_meal_type: meal.defaultMealType ?? null,
     })
     .select()
     .single();
-  if (error?.message?.includes("sodium_mg")) {
+  if (error?.message?.includes("sodium_mg") || error?.message?.includes("fiber_g")) {
     const retry = await supabase
       .from("favorite_meals")
       .insert({

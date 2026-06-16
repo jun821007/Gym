@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { toDateKey } from "@/lib/datetime";
+import {
+  formatExerciseSetStat,
+  getExerciseHistoryStats,
+} from "@/lib/exercise-history-stats";
 import { combineDateAndTime, nowTimeStr } from "@/lib/logged-at";
 import type {
   FavoriteWorkoutExercise,
@@ -27,6 +31,7 @@ type SetRow = {
   strap: boolean;
   belt: boolean;
   knee: boolean;
+  wrist: boolean;
 };
 
 const emptySet = (): SetRow => ({
@@ -35,6 +40,7 @@ const emptySet = (): SetRow => ({
   strap: false,
   belt: false,
   knee: false,
+  wrist: false,
 });
 
 function setRowFromDetail(s: WorkoutSetDetail, defaultWeight: string): SetRow {
@@ -44,6 +50,7 @@ function setRowFromDetail(s: WorkoutSetDetail, defaultWeight: string): SetRow {
     strap: s.gear?.includes("strap") ?? false,
     belt: s.gear?.includes("belt") ?? false,
     knee: s.gear?.includes("knee") ?? false,
+    wrist: s.gear?.includes("wrist") ?? false,
   };
 }
 
@@ -52,6 +59,7 @@ function buildGear(row: SetRow): WorkoutSetDetail["gear"] {
   if (row.strap) g.push("strap");
   if (row.belt) g.push("belt");
   if (row.knee) g.push("knee");
+  if (row.wrist) g.push("wrist");
   return g.length ? g : undefined;
 }
 
@@ -59,6 +67,7 @@ export type WorkoutFormPrefill = Omit<WorkoutLog, "id" | "logDate" | "loggedAt">
 
 export interface WorkoutAddFormProps {
   profile: UserProfile;
+  workouts?: WorkoutLog[];
   prefill?: WorkoutFormPrefill | null;
   onPrefillConsumed?: () => void;
   onSave: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
@@ -71,6 +80,7 @@ export interface WorkoutAddFormProps {
 
 export function WorkoutAddForm({
   profile,
+  workouts = [],
   prefill,
   onPrefillConsumed,
   onSave,
@@ -93,8 +103,13 @@ export function WorkoutAddForm({
     WorkoutCategory | ""
   >("");
   const [dateKey, setDateKey] = useState(toDateKey);
-  const [timeStr, setTimeStr] = useState(nowTimeStr);
   const [saving, setSaving] = useState(false);
+
+  const exerciseStats = useMemo(
+    () =>
+      getExerciseHistoryStats(workouts, exerciseName, bodyWeightKg),
+    [workouts, exerciseName, bodyWeightKg],
+  );
 
   useEffect(() => {
     if (!prefill) return;
@@ -116,6 +131,7 @@ export function WorkoutAddForm({
           strap: false,
           belt: false,
           knee: false,
+          wrist: false,
         })),
       );
     }
@@ -154,7 +170,7 @@ export function WorkoutAddForm({
       });
     }
 
-    const loggedAt = combineDateAndTime(dateKey, timeStr);
+    const loggedAt = combineDateAndTime(dateKey, nowTimeStr());
     if (new Date(loggedAt).getTime() > Date.now()) {
       alert("紀錄時間不能設在未來");
       return null;
@@ -212,7 +228,6 @@ export function WorkoutAddForm({
       setSetRows([emptySet()]);
       setAddFavorite(false);
       setFavoriteCategory("");
-      setTimeStr(nowTimeStr());
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -228,15 +243,6 @@ export function WorkoutAddForm({
           onChange={setDateKey}
           title="紀錄"
         />
-        <label className="block text-sm text-text-muted">
-          時間
-          <input
-            type="time"
-            value={timeStr}
-            onChange={(e) => setTimeStr(e.target.value)}
-            className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm tabular-nums outline-none focus:border-accent"
-          />
-        </label>
 
         <label className="block">
           <span className="text-sm text-text-muted">動作</span>
@@ -301,7 +307,15 @@ export function WorkoutAddForm({
         )}
 
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-text-muted">組別</p>
+          <div>
+            <p className="text-sm font-semibold text-text-muted">組別</p>
+            {exerciseStats && (
+              <p className="mt-0.5 text-xs text-text-muted">
+                歷史最高 {formatExerciseSetStat(exerciseStats.max)} · 常用{" "}
+                {formatExerciseSetStat(exerciseStats.common)}
+              </p>
+            )}
+          </div>
           {setRows.map((row, i) => (
             <div
               key={i}
@@ -367,6 +381,7 @@ export function WorkoutAddForm({
                     ["strap", "拉力帶"],
                     ["belt", "護腰"],
                     ["knee", "護膝"],
+                    ["wrist", "護腕"],
                   ] as const
                 ).map(([key, label]) => (
                   <label

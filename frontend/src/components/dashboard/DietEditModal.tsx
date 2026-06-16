@@ -47,6 +47,7 @@ export function DietEditModal(props: DietEditModalProps) {
           carbsG: props.item.carbsG,
           fatG: props.item.fatG,
           sodiumMg: props.item.sodiumMg ?? 0,
+          fiberG: props.item.fiberG ?? 0,
           dateKey: extractDateKey(props.item.loggedAt),
           timeStr: extractTimeStr(props.item.loggedAt),
           mealType: props.item.mealType ?? ("lunch" as DietLog["mealType"]),
@@ -75,6 +76,7 @@ export function DietEditModal(props: DietEditModalProps) {
           carbsG: mealDraft.carbsG,
           fatG: mealDraft.fatG,
           sodiumMg: Math.round(mealDraft.sodiumMg) || 0,
+          fiberG: Math.round(mealDraft.fiberG) || 0,
           loggedAt: combineDateAndTime(mealDraft.dateKey, mealDraft.timeStr),
           mealType: mealDraft.mealType,
         });
@@ -121,6 +123,7 @@ export function DietEditModal(props: DietEditModalProps) {
                   ["carbsG", "碳水"],
                   ["fatG", "脂肪"],
                   ["sodiumMg", "鈉 mg"],
+                  ["fiberG", "膳食纖維 g"],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="text-xs text-text-muted">

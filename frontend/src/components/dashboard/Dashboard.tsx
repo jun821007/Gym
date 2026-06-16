@@ -254,6 +254,7 @@ export function Dashboard({
           carbsG: log.carbsG,
           fatG: log.fatG,
           sodiumMg: log.sodiumMg ?? 0,
+          fiberG: log.fiberG ?? 0,
           defaultMealType: log.mealType,
         });
         setFavorites((prev) => [fav, ...prev]);
@@ -456,6 +457,7 @@ export function Dashboard({
           <ControlRoomTab
             profile={profile}
             goals={bodyGoals}
+            weeklyGrades={weeklyGrades}
             onGoalsChange={handleGoalsChange}
             xpPop={xpPop}
             levelPulse={levelPulse}

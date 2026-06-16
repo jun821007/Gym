@@ -57,6 +57,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
     carbsG: number;
     fatG: number;
     sodiumMg: number;
+    fiberG: number;
   } | null>(null);
 
   async function handleEstimate() {
@@ -82,6 +83,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
         carbsG: result.carbsG,
         fatG: result.fatG,
         sodiumMg: result.sodiumMg,
+        fiberG: result.fiberG,
       });
       setAiReply(result.reply);
     } catch (e) {
@@ -107,6 +109,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
           carbsG: Number(preview.carbsG) || 0,
           fatG: Number(preview.fatG) || 0,
           sodiumMg: Math.round(Number(preview.sodiumMg) || 0),
+          fiberG: Math.round(Number(preview.fiberG) || 0),
           loggedAt: combineDateAndTime(
             dateKey,
             defaultTimeForMealType(mealType),
@@ -248,6 +251,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
                   ["carbsG", "碳水 g"],
                   ["fatG", "脂肪 g"],
                   ["sodiumMg", "鈉 mg"],
+                  ["fiberG", "膳食纖維 g"],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="text-xs text-text-muted">

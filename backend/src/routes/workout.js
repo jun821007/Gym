@@ -5,13 +5,15 @@ import {
   formatTodayLogsPrompt,
 } from "../lib/workout-prompt.js";
 import { WORKOUT_SETTLE_SCHEMA } from "../lib/workout-schema.js";
+import { computeWorkoutGrade } from "../lib/workout-grade-rules.js";
 
 const router = Router();
 
 const SYSTEM = `你是「地下城健身教練」，負責「今日訓練結算評分」。
 輸入包含：(A) 健身 App 截圖 (B) 今日重訓清單 (C) 用戶體態（體重、體脂、骨骼肌、C/I/D 分型）。
 
-評級必須 A+B+C 三者綜合，且 C（體重）用於個人化門檻，禁止用固定絕對值評所有人：
+輸出 JSON 中的 grade 欄位可填佔位值，最終等級由系統規則覆寫。你專注於從截圖讀取數據與撰寫 summary、reply。
+評級參考（系統會另算）：A+B+C 三者綜合，且 C（體重）用於個人化門檻：
 1. 截圖：訓練類型、時長(分鐘)、動態大卡、總大卡、心率。
 2. 清單：動作數、總訓練量；計算 訓練量÷體重 作為相對強度。
 3. 體重個人化：
@@ -66,8 +68,6 @@ router.post("/", async (req, res) => {
       systemInstruction: SYSTEM,
       responseSchema: WORKOUT_SETTLE_SCHEMA,
     });
-    const grade = normalizeGrade(parsed.grade);
-
     const manualLogs = Array.isArray(todayLogs)
       ? todayLogs.map((l) => {
           const setLines = Array.isArray(l.set_lines)
@@ -98,6 +98,16 @@ router.post("/", async (req, res) => {
     const totalVolumeKg = manualLogs.reduce(
       (s, l) => s + (l.volumeKg ?? l.weightKg * l.reps * l.sets),
       0,
+    );
+
+    const grade = normalizeGrade(
+      computeWorkoutGrade({
+        durationMinutes: Number(parsed.duration_minutes) || 0,
+        activeCalories: Number(parsed.active_calories) || 0,
+        bodyWeightKg: bodyMetrics?.weight_kg,
+        volumePerBodyWeight: bodyMetrics?.volume_per_body_weight,
+        totalVolumeKg,
+      }),
     );
 
     const settlement = {

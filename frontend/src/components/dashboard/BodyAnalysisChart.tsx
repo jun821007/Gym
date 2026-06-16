@@ -98,7 +98,7 @@ export function BodyAnalysisChart({ history }: BodyAnalysisChartProps) {
           type="monotone"
           dataKey="fat"
           name="體脂"
-          stroke="#6ee7a0"
+          stroke="#ef4444"
           strokeWidth={2}
           dot={{ r: 3 }}
           connectNulls

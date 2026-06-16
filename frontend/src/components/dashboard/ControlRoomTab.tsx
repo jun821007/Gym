@@ -2,16 +2,18 @@
 
 import { BodyAnalysisSection } from "@/components/dashboard/BodyAnalysisSection";
 import { BodyGoalsPanel } from "@/components/dashboard/BodyGoalsPanel";
+import { WeeklyAchievementPanel } from "@/components/dashboard/WeeklyAchievementPanel";
 import { BodyMetrics } from "@/components/ui/BodyMetrics";
 import { BodyTypeBadge } from "@/components/ui/BodyTypeBadge";
 import { Card } from "@/components/ui/Card";
 import { XPBar } from "@/components/ui/XPBar";
 import { bodyTypeFromRecord } from "@/lib/body-type";
-import type { BodyGoals, UserProfile } from "@/lib/types";
+import type { BodyGoals, UserProfile, WeeklyGrade } from "@/lib/types";
 
 interface ControlRoomTabProps {
   profile: UserProfile;
   goals: BodyGoals;
+  weeklyGrades: WeeklyGrade[];
   onGoalsChange: (g: BodyGoals) => void;
   xpPop: number | null;
   levelPulse: boolean;
@@ -20,6 +22,7 @@ interface ControlRoomTabProps {
 export function ControlRoomTab({
   profile,
   goals,
+  weeklyGrades,
   onGoalsChange,
   xpPop,
   levelPulse,
@@ -72,6 +75,8 @@ export function ControlRoomTab({
         history={profile.inbodyHistory}
         onSave={onGoalsChange}
       />
+
+      <WeeklyAchievementPanel weeklyGrades={weeklyGrades} />
 
       <BodyAnalysisSection history={profile.inbodyHistory} />
     </div>

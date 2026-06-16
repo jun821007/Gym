@@ -23,6 +23,7 @@ export const GEAR_LABELS: Record<string, string> = {
   strap: "拉力帶",
   belt: "護腰",
   knee: "護膝",
+  wrist: "護腕",
 };
 
 export function getLatestBodyWeightKg(profile: UserProfile): number | null {

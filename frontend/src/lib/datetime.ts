@@ -76,3 +76,20 @@ export function groupByDateKey<T extends { logDate: string }>(
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([dateKey, group]) => ({ dateKey, items: group }));
 }
+
+export function isoWeekDateRange(year: number, weekNumber: number): {
+  start: string;
+  end: string;
+  shortLabel: string;
+} {
+  const jan4 = new Date(year, 0, 4);
+  const dayOfWeek = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (weekNumber - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const start = toDateKey(monday);
+  const end = toDateKey(sunday);
+  const shortLabel = `${monday.getMonth() + 1}/${monday.getDate()}–${sunday.getMonth() + 1}/${sunday.getDate()}`;
+  return { start, end, shortLabel };
+}

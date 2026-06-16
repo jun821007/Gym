@@ -29,6 +29,8 @@ export interface UserProfile {
   dailyWorkoutVolumeGoalKg?: number | null;
   /** 每日鈉上限（毫克），預設 2300 */
   dailySodiumGoalMg?: number;
+  /** 每日膳食纖維目標（克），預設 25 */
+  dailyFiberGoalG?: number;
   /** 營養目標最後依據的 InBody 日期 YYYY-MM-DD */
   nutritionGoalsInbodyDate?: string;
 }
@@ -52,7 +54,7 @@ export type WorkoutLoadType =
 export interface WorkoutSetDetail {
   reps: number;
   weightKg?: number;
-  gear?: ("strap" | "belt" | "knee")[];
+  gear?: ("strap" | "belt" | "knee" | "wrist")[];
 }
 
 export interface WorkoutLog {
@@ -100,6 +102,8 @@ export interface DietLog {
   fatG: number;
   /** 鈉含量（毫克） */
   sodiumMg: number;
+  /** 膳食纖維（克） */
+  fiberG: number;
   /** ISO 8601，用餐時間 */
   loggedAt: string;
   mealType?: "breakfast" | "lunch" | "dinner" | "snack";
@@ -115,6 +119,8 @@ export interface FavoriteMeal {
   fatG: number;
   /** 鈉含量（毫克） */
   sodiumMg: number;
+  /** 膳食纖維（克） */
+  fiberG: number;
   defaultMealType?: DietLog["mealType"];
 }
 

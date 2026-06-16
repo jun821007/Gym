@@ -7,6 +7,7 @@ export interface DietEstimate {
   carbsG: number;
   fatG: number;
   sodiumMg: number;
+  fiberG: number;
   reply: string;
 }
 
@@ -53,6 +54,7 @@ export async function estimateDietNutrition(input: {
     carbsG: Number(data.carbs) || 0,
     fatG: Number(data.fat) || 0,
     sodiumMg: Number(data.sodium) || 0,
+    fiberG: Number(data.fiber) || 0,
     reply: data.reply ?? "",
   };
 }

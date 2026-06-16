@@ -6,7 +6,7 @@ const router = Router();
 
 const SYSTEM = `你是「飲食助手」，專精台灣常見餐點營養估算。
 規則：
-1. 先拆解食物品項與份量，再估算熱量(kcal)、蛋白質(g)、碳水(g)、脂肪(g)、鈉(mg)。
+1. 先拆解食物品項與份量，再估算熱量(kcal)、蛋白質(g)、碳水(g)、脂肪(g)、鈉(mg)、膳食纖維(g)。
 2. 參考台灣常見份量：白飯一碗≈280kcal/6g蛋白；雞胸便當≈550-700kcal/35-45g蛋白；滷肉飯一碗≈500-650kcal；火鍋肉盤100g≈20-25g蛋白。
 3. 用戶有提供份量時優先採用；沒有則假設「一般外食一份」並在 reply 註明假設。
 4. 完成後自我檢核：熱量應大致符合 protein×4 + carbs×4 + fat×9（誤差±15%內），不符則修正。
@@ -47,6 +47,7 @@ router.post("/", async (req, res) => {
     let carbs = Number(parsed.carbs) || 0;
     let fat = Number(parsed.fat) || 0;
     const sodium = Number(parsed.sodium) || 0;
+    const fiber = Number(parsed.fiber) || 0;
 
     const macroKcal = protein * 4 + carbs * 4 + fat * 9;
     if (macroKcal > 0 && calories > 0) {
@@ -66,6 +67,7 @@ router.post("/", async (req, res) => {
       carbs,
       fat,
       sodium,
+      fiber,
     });
   } catch (err) {
     console.error("[diet-chat]", err);

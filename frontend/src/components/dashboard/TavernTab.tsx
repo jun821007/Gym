@@ -6,11 +6,13 @@ import { DietGradeHistory } from "@/components/dashboard/DietGradeHistory";
 import { DietRecordSection } from "@/components/dashboard/DietRecordSection";
 import { DietSettlementModal } from "@/components/dashboard/DietSettlementModal";
 import { FavoriteMealsPanel } from "@/components/dashboard/FavoriteMealsPanel";
+import { WeeklyGradeModal } from "@/components/dashboard/WeeklyGradeModal";
 import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { NutrientBar } from "@/components/ui/NutrientBar";
 import {
   formatDateLabel,
+  isoWeekDateRange,
   isToday,
   toDateKey,
   yesterdayDateKey,
@@ -131,9 +133,12 @@ export function TavernTab({
   const [settling, setSettling] = useState(false);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
+  const [selectedWeeklyGrade, setSelectedWeeklyGrade] =
+    useState<WeeklyGrade | null>(null);
 
   const waterGoalMl = profile.dailyWaterGoalMl ?? 2000;
   const sodiumGoalMg = profile.dailySodiumGoalMg ?? DEFAULT_SODIUM_GOAL_MG;
+  const fiberGoalG = profile.dailyFiberGoalG ?? 25;
 
   const dietPhase = useMemo(() => {
     const latest = getLatestInbodyRecord(profile.inbodyHistory);
@@ -165,8 +170,9 @@ export function TavernTab({
           carbs: acc.carbs + d.carbsG,
           fat: acc.fat + d.fatG,
           sodium: acc.sodium + (d.sodiumMg ?? 0),
+          fiber: acc.fiber + (d.fiberG ?? 0),
         }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
+        { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0, fiber: 0 },
       ),
     [recordDateMeals],
   );
@@ -426,6 +432,13 @@ export function TavernTab({
             limit
           />
           <NutrientBar
+            label="膳食纖維"
+            current={Math.round(totals.fiber)}
+            goal={fiberGoalG}
+            unit="g"
+            color="#a78bfa"
+          />
+          <NutrientBar
             label="水分"
             current={recordDateWaterMl}
             goal={waterGoalMl}
@@ -565,29 +578,53 @@ export function TavernTab({
             尚無週評，點上方按鈕依本週紀錄產生
           </p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {weeklyGrades.map((g) => (
-              <div
-                key={`${g.year ?? ""}-${g.weekNumber ?? g.weekLabel}`}
-                className="min-w-[88px] shrink-0 rounded-xl bg-bg-elevated p-3"
-              >
-                <p className="text-xs text-text-muted">{g.weekLabel}</p>
-                <p
-                  className={cn(
-                    "my-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold",
-                    GRADE_STYLE[g.grade],
-                  )}
+          <div className="space-y-2">
+            {weeklyGrades.map((g) => {
+              const range =
+                g.year != null && g.weekNumber != null
+                  ? isoWeekDateRange(g.year, g.weekNumber)
+                  : null;
+              return (
+                <button
+                  key={`${g.year ?? ""}-${g.weekNumber ?? g.weekLabel}`}
+                  type="button"
+                  onClick={() => setSelectedWeeklyGrade(g)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-bg-elevated p-3 text-left active:scale-[0.99]"
                 >
-                  {g.grade}
-                </p>
-                <p className="line-clamp-2 text-xs leading-snug text-text-muted">
-                  {g.summary}
-                </p>
-              </div>
-            ))}
+                  <span
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold",
+                      GRADE_STYLE[g.grade],
+                    )}
+                  >
+                    {g.grade}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-text">
+                      {g.weekLabel}
+                      {range && (
+                        <span className="ml-1.5 font-normal text-text-muted">
+                          {range.shortLabel}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-text-muted">
+                      {g.summary}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </Card>
+
+      {selectedWeeklyGrade && (
+        <WeeklyGradeModal
+          grade={selectedWeeklyGrade}
+          onClose={() => setSelectedWeeklyGrade(null)}
+        />
+      )}
 
       {showModal && modalSettlement && (
         <DietSettlementModal

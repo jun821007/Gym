@@ -62,9 +62,9 @@ export function InbodyChart({ history }: InbodyChartProps) {
           type="monotone"
           dataKey="fat"
           name="體脂"
-          stroke="#6ee7a0"
+          stroke="#ef4444"
           strokeWidth={2}
-          dot={{ r: 3, fill: "#6ee7a0" }}
+          dot={{ r: 3, fill: "#ef4444" }}
         />
       </LineChart>
     </ResponsiveContainer>

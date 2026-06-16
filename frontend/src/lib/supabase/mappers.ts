@@ -32,6 +32,7 @@ export type ProfileRow = {
   daily_water_goal_ml: number | null;
   daily_workout_volume_goal_kg: number | null;
   daily_sodium_goal_mg: number | null;
+  daily_fiber_goal_g: number | null;
   target_weight_kg: number | null;
   target_body_fat_pct: number | null;
   target_muscle_kg: number | null;
@@ -58,6 +59,7 @@ export function rowToProfile(row: ProfileRow): UserProfile {
     dailyWaterGoalMl: row.daily_water_goal_ml ?? 2000,
     dailyWorkoutVolumeGoalKg: row.daily_workout_volume_goal_kg ?? null,
     dailySodiumGoalMg: row.daily_sodium_goal_mg ?? 2300,
+    dailyFiberGoalG: row.daily_fiber_goal_g ?? 25,
     nutritionGoalsInbodyDate: row.nutrition_goals_inbody_date ?? undefined,
   };
 }
@@ -125,6 +127,7 @@ export function rowToDiet(row: {
   carbs_g: number;
   fat_g: number;
   sodium_mg?: number | null;
+  fiber_g?: number | null;
   created_at: string;
   logged_at?: string | null;
   meal_type: string | null;
@@ -137,6 +140,7 @@ export function rowToDiet(row: {
     carbsG: Number(row.carbs_g),
     fatG: Number(row.fat_g),
     sodiumMg: row.sodium_mg != null ? Number(row.sodium_mg) : 0,
+    fiberG: row.fiber_g != null ? Number(row.fiber_g) : 0,
     loggedAt: row.logged_at ?? row.created_at,
     mealType: (row.meal_type as DietLog["mealType"]) ?? undefined,
   };
@@ -150,6 +154,7 @@ export function rowToFavoriteMeal(row: {
   carbs_g: number;
   fat_g: number;
   sodium_mg?: number | null;
+  fiber_g?: number | null;
   default_meal_type: string | null;
 }): FavoriteMeal {
   return {
@@ -160,6 +165,7 @@ export function rowToFavoriteMeal(row: {
     carbsG: Number(row.carbs_g),
     fatG: Number(row.fat_g),
     sodiumMg: row.sodium_mg != null ? Number(row.sodium_mg) : 0,
+    fiberG: row.fiber_g != null ? Number(row.fiber_g) : 0,
     defaultMealType:
       (row.default_meal_type as FavoriteMeal["defaultMealType"]) ?? undefined,
   };
