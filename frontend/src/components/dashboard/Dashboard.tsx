@@ -92,8 +92,6 @@ const CHAT_CONFIG: Record<
   },
 };
 
-const SCROLL_PAD = "calc(var(--tab-bar-height) + 0.5rem)";
-
 interface DashboardProps {
   session: Session;
   initialProfile: UserProfile;
@@ -445,8 +443,16 @@ export function Dashboard({
 
   return (
     <div className="app-shell">
-      <div className="app-main">
-        <div className="flex shrink-0 items-center justify-end px-4 pt-2">
+      <div
+        className="app-scroll px-4 pt-2"
+        {...(swipeTabsEnabled
+          ? {
+              onTouchStart: swipeTabs.onTouchStart,
+              onTouchEnd: swipeTabs.onTouchEnd,
+            }
+          : {})}
+      >
+        <div className="app-top-bar">
           <button
             type="button"
             onClick={() => void signOut()}
@@ -455,16 +461,6 @@ export function Dashboard({
             登出
           </button>
         </div>
-        <div
-          className="app-scroll px-4 pt-2"
-          style={{ paddingBottom: SCROLL_PAD }}
-          {...(swipeTabsEnabled
-            ? {
-                onTouchStart: swipeTabs.onTouchStart,
-                onTouchEnd: swipeTabs.onTouchEnd,
-              }
-            : {})}
-        >
         {tab === "control" && (
           <ControlRoomTab
             profile={profile}
@@ -517,7 +513,6 @@ export function Dashboard({
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />
         )}
-        </div>
       </div>
 
       <AppBottomBar

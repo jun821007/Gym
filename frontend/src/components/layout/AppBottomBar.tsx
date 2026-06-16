@@ -21,7 +21,7 @@ export function AppBottomBar({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <footer className="app-bottom-bar shrink-0">
+    <footer className="app-bottom-bar">
       {settingsOpen && (
         <div className="mb-2 rounded-xl border border-border bg-bg-elevated px-3 py-2">
           <label className="flex items-center justify-between gap-3 text-sm text-text">
