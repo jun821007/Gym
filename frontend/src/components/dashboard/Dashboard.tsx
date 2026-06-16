@@ -111,11 +111,17 @@ export function Dashboard({
   const supabase = getSupabase();
 
   const [tab, setTab] = useState<TabId>("control");
-  useKeyboardOpen();
-  const swipeTabs = useSwipeTabs(tab, (next) => {
-    setTab(next);
-    document.querySelector(".app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
-  });
+  const keyboardOpen = useKeyboardOpen();
+  const swipeTabs = useSwipeTabs(
+    tab,
+    (next) => {
+      setTab(next);
+      document
+        .querySelector(".app-scroll")
+        ?.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    { enabled: !keyboardOpen },
+  );
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [bodyGoals, setBodyGoals] = useState<BodyGoals>(initialGoals);
   const [diets, setDiets] = useState<DietLog[]>([]);
