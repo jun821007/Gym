@@ -58,7 +58,7 @@ export function AppBottomBar({
           type="button"
           onClick={() => setSettingsOpen((o) => !o)}
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-border-pixel text-base",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-border-pixel text-base",
             settingsOpen
               ? "bg-accent/20 text-accent-light"
               : "bg-bg-elevated text-text-muted",
