@@ -31,7 +31,7 @@ export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
           onClick={() => onChange(tab.id)}
           className={cn(
             "border-4 border-border-pixel transition",
-            isBottom ? "py-2 text-[8px] leading-tight" : "py-3 text-[8px]",
+            isBottom ? "py-1.5 text-[8px] leading-tight" : "py-3 text-[8px]",
             active === tab.id
               ? "bg-accent-gold text-bg-deep"
               : "bg-bg-panel text-text-muted hover:bg-bg-panel-light",
