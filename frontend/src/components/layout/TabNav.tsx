@@ -43,14 +43,14 @@ export function TabNav({ active, onChange, variant = "inline" }: TabNavProps) {
           <span
             className={cn(
               "flex items-center justify-center",
-              isBottom ? "h-3.5" : "min-h-[1rem] text-base",
+              isBottom ? "app-tab-bottom-icon" : "min-h-[1rem] text-base",
               typeof tab.icon === "string" && !isBottom && "text-base",
             )}
           >
             {tab.icon}
           </span>
           {isBottom ? (
-            <span className="mt-0.5 leading-none">{tab.label}</span>
+            <span className="app-tab-bottom-label">{tab.label}</span>
           ) : (
             tab.label
           )}

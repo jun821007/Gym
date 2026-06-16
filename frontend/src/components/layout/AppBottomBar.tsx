@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { TabNav } from "@/components/layout/TabNav";
 import type { TabId } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-const TAB_BAR_HEIGHT_VAR = "--tab-bar-height";
 
 interface AppBottomBarProps {
   active: TabId;
@@ -22,37 +19,11 @@ export function AppBottomBar({
   onSwipeTabsEnabledChange,
 }: AppBottomBarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const footerRef = useRef<HTMLElement>(null);
 
-  useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    const el = footerRef.current;
-    if (!el) return;
-
-    function syncHeight() {
-      const node = footerRef.current;
-      if (!node) return;
-      const h = Math.ceil(node.getBoundingClientRect().height);
-      document.documentElement.style.setProperty(TAB_BAR_HEIGHT_VAR, `${h}px`);
-    }
-
-    syncHeight();
-    const ro = new ResizeObserver(syncHeight);
-    ro.observe(el);
-    window.addEventListener("orientationchange", syncHeight);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("orientationchange", syncHeight);
-    };
-  }, [settingsOpen, mounted]);
-
-  const bar = (
-    <footer ref={footerRef} className="app-bottom-bar">
+  return (
+    <footer className="app-bottom-bar">
       {settingsOpen && (
-        <div className="mb-1.5 rounded-lg border border-border bg-bg-elevated px-3 py-2">
+        <div className="app-bottom-bar-settings">
           <label className="flex items-center justify-between gap-3 text-sm text-text">
             <span>左右滑動切換頁面</span>
             <button
@@ -83,19 +54,14 @@ export function AppBottomBar({
           onClick={() => setSettingsOpen((o) => !o)}
           className={cn(
             "app-bottom-bar-gear",
-            settingsOpen
-              ? "bg-accent/20 text-accent-light"
-              : "bg-bg-elevated text-text-muted",
+            settingsOpen && "app-bottom-bar-gear--active",
           )}
           aria-label="導覽設定"
           aria-expanded={settingsOpen}
         >
-          ⚙
+          <span className="app-tab-bottom-icon">⚙</span>
         </button>
       </div>
     </footer>
   );
-
-  if (!mounted) return null;
-  return createPortal(bar, document.body);
 }
