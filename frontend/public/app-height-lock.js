@@ -12,8 +12,6 @@
     document.documentElement.style.setProperty("--app-vv-offset-top", top + "px");
     document.documentElement.style.setProperty("--app-vv-bottom-gap", bottomGap + "px");
     document.documentElement.style.setProperty("--app-height", h + "px");
-    document.documentElement.style.height = h + "px";
-    document.body.style.height = h + "px";
   }
 
   apply();

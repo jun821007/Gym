@@ -21,9 +21,7 @@
   --app-vv-bottom-gap: 0px;
   --tab-bar-content-height: 44px;
   --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
-  --fab-offset: calc(
-    var(--tab-bar-height) + var(--app-vv-bottom-gap) + 0.65rem
-  );
+  --fab-offset: calc(var(--tab-bar-height) + var(--app-vv-bottom-gap, 0px) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -121,10 +119,14 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--app-vv-bottom-gap, 0px);
+  top: calc(
+    var(--app-vv-offset-top, 0px) + var(--app-vvh, 100dvh) -
+      var(--tab-bar-height)
+  );
+  bottom: auto;
   z-index: 40;
   height: var(--tab-bar-height);
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -136,6 +138,8 @@ body {
 .app-bottom-bar:has(.app-bottom-bar-settings) {
   height: auto;
   min-height: var(--tab-bar-height);
+  top: auto;
+  bottom: var(--app-vv-bottom-gap, 0px);
 }
 
 .app-bottom-bar-settings {
@@ -146,8 +150,11 @@ body {
 
 .app-bottom-bar-row {
   display: flex;
-  height: var(--tab-bar-content-height);
+  height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
   flex-shrink: 0;
+  padding-bottom: var(--safe-bottom);
+  box-sizing: border-box;
+  align-items: flex-end;
 }
 
 .app-bottom-bar-row .app-tab-nav-bottom {
@@ -159,8 +166,9 @@ body {
   width: 3rem;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  padding-bottom: 1px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -179,12 +187,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
+  justify-content: flex-end;
+  gap: 1px;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  padding: 0;
+  padding: 0 0 1px;
   font-size: 0.65rem;
   font-weight: 500;
   line-height: 1;

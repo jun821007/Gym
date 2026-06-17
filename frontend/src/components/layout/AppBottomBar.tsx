@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { TabNav } from "@/components/layout/TabNav";
 import type { TabId } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,11 @@ export function AppBottomBar({
   onSwipeTabsEnabledChange,
 }: AppBottomBarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => setMounted(true), []);
+
+  const bar = (
     <footer className="app-bottom-bar">
       {settingsOpen && (
         <div className="app-bottom-bar-settings">
@@ -64,4 +68,7 @@ export function AppBottomBar({
       </div>
     </footer>
   );
+
+  if (!mounted) return null;
+  return createPortal(bar, document.body);
 }
