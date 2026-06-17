@@ -90,7 +90,7 @@ body {
   position: fixed;
   top: var(--app-vv-offset-top, 0px);
   right: 0;
-  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  bottom: 0;
   left: 0;
   width: 100%;
   padding-top: var(--safe-top);
@@ -121,7 +121,7 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  bottom: 0;
   z-index: 40;
   box-sizing: border-box;
   min-height: var(--tab-bar-content-height);
@@ -131,6 +131,18 @@ body {
   justify-content: flex-end;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
+}
+
+/* 圖示維持在 layout 底；只把背景往下延伸到實體螢幕底，避免整條位移把 icon 裁切 */
+.app-bottom-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: var(--app-layout-screen-gap, 0px);
+  background: var(--bg-app);
+  pointer-events: none;
 }
 
 .app-bottom-bar:has(.app-bottom-bar-settings) {

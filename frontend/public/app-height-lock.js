@@ -1,11 +1,24 @@
 (function () {
   "use strict";
 
+  function measureSafeBottom() {
+    var probe = document.createElement("div");
+    probe.setAttribute("aria-hidden", "true");
+    probe.style.cssText =
+      "position:fixed;bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none";
+    document.documentElement.appendChild(probe);
+    var value = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+    probe.remove();
+    return value;
+  }
+
   function layoutScreenGap(viewportHeight) {
     if (!window.matchMedia("(display-mode: standalone)").matches) return 0;
     var screenH = Math.max(window.screen.width, window.screen.height);
     if (viewportHeight < screenH * 0.8) return 0;
-    return Math.max(0, Math.round(screenH - viewportHeight));
+    var raw = Math.max(0, Math.round(screenH - viewportHeight));
+    var safe = measureSafeBottom();
+    return Math.max(0, raw - safe);
   }
 
   function apply() {
