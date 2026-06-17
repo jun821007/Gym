@@ -114,20 +114,13 @@ body {
   background: var(--bg-app);
 }
 
-/* 底欄掛載層（與 POS .bottom-tab 相同：fixed bottom 0） */
-#app-bottom-bar-mount {
+.app-bottom-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 90;
-  pointer-events: none;
-}
-
-.app-bottom-bar {
-  position: relative;
   width: 100%;
-  pointer-events: auto;
   box-sizing: border-box;
   height: var(--tab-bar-height);
   padding-bottom: var(--safe-bottom);
