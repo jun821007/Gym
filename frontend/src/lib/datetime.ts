@@ -46,6 +46,36 @@ export function formatTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+function splitDurationMinutes(totalMinutes: number): {
+  hours: number;
+  minutes: number;
+} {
+  const safe = Math.max(0, totalMinutes);
+  const hours = Math.floor(safe / 60);
+  const minutes = Math.floor(safe - hours * 60);
+  return { hours, minutes };
+}
+
+/** 歷史卡片：83.9 分 → 1h23m（避免浮點 % 產生 .900000006） */
+export function formatDurationShort(totalMinutes: number): string {
+  if (totalMinutes <= 0) return "—";
+  const { hours, minutes } = splitDurationMinutes(totalMinutes);
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+  }
+  return `${Math.round(totalMinutes)}分`;
+}
+
+/** 結算彈窗：83.9 分 → 1:23 */
+export function formatDurationClock(totalMinutes: number): string {
+  if (totalMinutes <= 0) return "—";
+  const { hours, minutes } = splitDurationMinutes(totalMinutes);
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}`;
+  }
+  return `${Math.round(totalMinutes)} 分`;
+}
+
 /** 今天 / 昨天 / 6月3日 */
 export function formatDateLabel(dateKey: string): string {
   const key = normalizeDateKey(dateKey);

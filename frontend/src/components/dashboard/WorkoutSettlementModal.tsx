@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import { formatDurationClock } from "@/lib/datetime";
 import type { DailyWorkoutSettlement, RankGrade } from "@/lib/types";
 import { settlementLogVolume } from "@/lib/workout-grading";
 import { formatSettlementSetLines } from "@/lib/workout-volume";
@@ -66,10 +67,7 @@ export function WorkoutSettlementModal({
 
   if (!mounted) return null;
 
-  const hours = Math.floor(data.durationMinutes / 60);
-  const mins = data.durationMinutes % 60;
-  const duration =
-    hours > 0 ? `${hours}:${String(mins).padStart(2, "0")}` : `${mins} 分`;
+  const duration = formatDurationClock(data.durationMinutes);
 
   return createPortal(
     <div className="settlement-root" role="dialog" aria-modal="true">
