@@ -94,9 +94,8 @@ body {
   position: fixed;
   top: var(--app-vv-offset-top, 0px);
   right: 0;
-  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  bottom: 0;
   left: 0;
-  z-index: 1;
   width: 100%;
   padding-top: var(--safe-top);
   overflow: hidden;
@@ -109,7 +108,9 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding-bottom: var(--tab-bar-height);
+  padding-bottom: calc(
+    var(--tab-bar-height) + var(--app-layout-screen-gap, 0px)
+  );
 }
 
 .app-top-bar {
@@ -122,12 +123,20 @@ body {
   background: var(--bg-app);
 }
 
-.app-bottom-bar {
+/* 底欄專用掛載層：獨立於 app-shell，避免 shell 延伸區塊蓋住選單 */
+#app-bottom-bar-mount {
   position: fixed;
   left: 0;
   right: 0;
   bottom: calc(0px - var(--app-layout-screen-gap, 0px));
-  z-index: 50;
+  z-index: 90;
+  pointer-events: none;
+}
+
+.app-bottom-bar {
+  position: relative;
+  width: 100%;
+  pointer-events: auto;
   box-sizing: border-box;
   min-height: var(--tab-bar-content-height);
   padding-bottom: var(--safe-bottom);
@@ -136,7 +145,7 @@ body {
   justify-content: flex-end;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
-  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .app-bottom-bar:has(.app-bottom-bar-settings) {

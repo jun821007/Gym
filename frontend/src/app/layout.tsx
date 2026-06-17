@@ -56,14 +56,15 @@ export default function RootLayout({
   return (
     <html lang="zh-TW" className={`${noto.variable} ${pressStart.variable}`}>
       <body className="overflow-x-hidden antialiased">
-        <script src="/app-height-lock.js?v=14" />
+        <script src="/app-height-lock.js?v=15" />
         {children}
         {/* 原生 script：next/script 非同步載入時 document.currentScript 為 null，外掛會直接退出 */}
         <script
           src={`${PAINPOINT_API}/feedback-plugin.js?v=7`}
           data-api={PAINPOINT_API}
         />
-        <script src="/painpoint-fab-fix.js?v=6" />
+        <script src="/painpoint-fab-fix.js?v=7" />
+        <div id="app-bottom-bar-mount" />
       </body>
     </html>
   );

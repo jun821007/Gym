@@ -20,9 +20,11 @@ export function AppBottomBar({
   onSwipeTabsEnabledChange,
 }: AppBottomBarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mount, setMount] = useState<HTMLElement | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMount(document.getElementById("app-bottom-bar-mount"));
+  }, []);
 
   const bar = (
     <footer className="app-bottom-bar">
@@ -69,6 +71,6 @@ export function AppBottomBar({
     </footer>
   );
 
-  if (!mounted) return null;
-  return createPortal(bar, document.body);
+  if (!mount) return null;
+  return createPortal(bar, mount);
 }
