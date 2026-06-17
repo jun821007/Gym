@@ -125,7 +125,8 @@ body {
   height: var(--tab-bar-height);
   padding-bottom: var(--safe-bottom);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-end;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
 }
@@ -154,18 +155,17 @@ body {
 }
 
 .app-bottom-bar-gear {
+  flex: 0 0 3rem;
   width: 3rem;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
+  max-width: 3rem;
 }
 
 .app-bottom-bar-gear--active {
   color: var(--accent-light);
+}
+
+.app-tab-bottom-label--spacer {
+  visibility: hidden;
 }
 
 .app-tab-nav-bottom {

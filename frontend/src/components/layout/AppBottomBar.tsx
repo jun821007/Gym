@@ -57,13 +57,16 @@ export function AppBottomBar({
           type="button"
           onClick={() => setSettingsOpen((o) => !o)}
           className={cn(
-            "app-bottom-bar-gear",
+            "app-tab-bottom-btn app-bottom-bar-gear",
             settingsOpen && "app-bottom-bar-gear--active",
           )}
           aria-label="導覽設定"
           aria-expanded={settingsOpen}
         >
           <span className="app-tab-bottom-icon">⚙</span>
+          <span className="app-tab-bottom-label app-tab-bottom-label--spacer" aria-hidden>
+            &nbsp;
+          </span>
         </button>
       </div>
     </footer>
