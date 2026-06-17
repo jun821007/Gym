@@ -18,6 +18,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-vvh: 100dvh;
   --app-vv-offset-top: 0px;
+  --app-layout-screen-gap: 0px;
   --tab-bar-content-height: 44px;
   --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
   --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
@@ -64,13 +65,16 @@
 }
 
 html {
-  height: 100%;
+  height: -webkit-fill-available;
+  min-height: 100%;
   overflow: hidden;
   background: var(--bg-app);
 }
 
 body {
-  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
@@ -85,11 +89,10 @@ body {
 .app-shell {
   position: fixed;
   top: var(--app-vv-offset-top, 0px);
-  left: 0;
   right: 0;
+  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  left: 0;
   width: 100%;
-  height: var(--app-vvh, 100dvh);
-  max-height: var(--app-vvh, 100dvh);
   padding-top: var(--safe-top);
   overflow: hidden;
   background: var(--bg-app);
@@ -118,7 +121,7 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
   z-index: 40;
   box-sizing: border-box;
   min-height: var(--tab-bar-content-height);
