@@ -1,3 +1,4 @@
+-- DEPRECATED: 誤用 6/15，請改執行 014_fix_unilateral_date_2026_06_16.sql
 -- 修正 2026-06-15 單邊訓練重量（先前顯示邏輯誤導致存入 2 倍單邊重量）
 
 UPDATE public.workout_logs
