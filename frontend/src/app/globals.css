@@ -16,14 +16,9 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --app-vvh: 100dvh;
-  --app-vv-offset-top: 0px;
-  --app-layout-screen-gap: 0px;
   --tab-bar-content-height: 44px;
   --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
-  --fab-offset: calc(
-    var(--tab-bar-height) + var(--app-layout-screen-gap, 0px) + 0.65rem
-  );
+  --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -91,26 +86,22 @@ body {
 }
 
 .app-shell {
-  position: fixed;
-  top: var(--app-vv-offset-top, 0px);
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   padding-top: var(--safe-top);
-  overflow: hidden;
   background: var(--bg-app);
 }
 
 .app-scroll {
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding-bottom: calc(
-    var(--tab-bar-height) + var(--app-layout-screen-gap, 0px)
-  );
+  padding-bottom: var(--tab-bar-height);
 }
 
 .app-top-bar {
@@ -123,12 +114,12 @@ body {
   background: var(--bg-app);
 }
 
-/* 底欄專用掛載層：獨立於 app-shell，避免 shell 延伸區塊蓋住選單 */
+/* 底欄掛載層（與 POS .bottom-tab 相同：fixed bottom 0） */
 #app-bottom-bar-mount {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  bottom: 0;
   z-index: 90;
   pointer-events: none;
 }
@@ -138,14 +129,12 @@ body {
   width: 100%;
   pointer-events: auto;
   box-sizing: border-box;
-  min-height: var(--tab-bar-content-height);
+  height: var(--tab-bar-height);
   padding-bottom: var(--safe-bottom);
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  align-items: center;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
-  transform: translateZ(0);
 }
 
 .app-bottom-bar:has(.app-bottom-bar-settings) {
