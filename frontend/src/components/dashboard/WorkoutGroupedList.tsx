@@ -5,11 +5,11 @@ import { formatTime } from "@/lib/datetime";
 import type { WorkoutLog, WorkoutSetDetail } from "@/lib/types";
 import { groupWorkoutsByExercise } from "@/lib/workout-grouping";
 import {
-  effectiveSetWeightKg,
   formatGear,
   formatKg,
   formatLoadLabel,
   normalizeSetDetails,
+  storedSetWeightKg,
 } from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ function formatSetLine(
   ) {
     return `第${setIndex + 1}組 ${formatLoadLabel(log, bodyWeightKg)} · ${set.reps}次${gear}`;
   }
-  const w = effectiveSetWeightKg(log, set, bodyWeightKg);
+  const w = storedSetWeightKg(log, set);
   const prefix = log.loadType === "unilateral" ? "單邊 " : "";
   return `第${setIndex + 1}組 ${prefix}${formatKg(w)}kg · ${set.reps}次${gear}`;
 }

@@ -31,7 +31,15 @@ export function getLatestBodyWeightKg(profile: UserProfile): number | null {
   return w != null && w > 0 ? w : null;
 }
 
-/** 單組有效負重（kg） */
+/** 資料庫儲存的單組重量（單邊／雙邊為使用者輸入值） */
+export function storedSetWeightKg(
+  log: Pick<WorkoutLog, "loadType" | "weightKg">,
+  set: WorkoutSetDetail,
+): number {
+  return set.weightKg ?? log.weightKg;
+}
+
+/** 單組有效負重（kg）；單邊訓練量用兩邊加總故 ×2 */
 export function effectiveSetWeightKg(
   log: Pick<
     WorkoutLog,

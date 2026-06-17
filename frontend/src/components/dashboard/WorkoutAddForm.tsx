@@ -302,6 +302,7 @@ export function WorkoutAddForm({
               value={assistKg}
               onChange={(e) => setAssistKg(e.target.value)}
               className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 tabular-nums"
+              placeholder="例如 10"
             />
           </label>
         )}
@@ -311,8 +312,8 @@ export function WorkoutAddForm({
             <p className="text-sm font-semibold text-text-muted">組別</p>
             {exerciseStats && (
               <p className="mt-0.5 text-xs text-text-muted">
-                歷史最高 {formatExerciseSetStat(exerciseStats.max)} · 常用{" "}
-                {formatExerciseSetStat(exerciseStats.common)}
+                歷史最高 {formatExerciseSetStat(exerciseStats.max, loadType)} · 常用{" "}
+                {formatExerciseSetStat(exerciseStats.common, loadType)}
               </p>
             )}
           </div>
@@ -356,6 +357,7 @@ export function WorkoutAddForm({
                         );
                       }}
                       className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 tabular-nums"
+                      placeholder={loadType === "unilateral" ? "15" : "60"}
                     />
                   </label>
                 )}
@@ -372,6 +374,7 @@ export function WorkoutAddForm({
                       );
                     }}
                     className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 tabular-nums"
+                    placeholder="10"
                   />
                 </label>
               </div>

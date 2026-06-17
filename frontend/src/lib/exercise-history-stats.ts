@@ -2,6 +2,7 @@ import {
   effectiveSetWeightKg,
   formatKg,
   normalizeSetDetails,
+  storedSetWeightKg,
 } from "@/lib/workout-volume";
 import type { WorkoutLog } from "@/lib/types";
 
@@ -20,7 +21,10 @@ function extractSets(
   bodyWeightKg: number | null,
 ): ExerciseSetStat[] {
   return normalizeSetDetails(log).map((s) => ({
-    weightKg: effectiveSetWeightKg(log, s, bodyWeightKg),
+    weightKg:
+      log.loadType === "unilateral"
+        ? storedSetWeightKg(log, s)
+        : effectiveSetWeightKg(log, s, bodyWeightKg),
     reps: s.reps,
   }));
 }
@@ -39,8 +43,14 @@ function parseSetKey(key: string): ExerciseSetStat {
   return { weightKg: Number(w) || 0, reps: Number(r) || 0 };
 }
 
-export function formatExerciseSetStat(set: ExerciseSetStat): string {
-  if (set.weightKg > 0) return `${formatKg(set.weightKg)}kg×${set.reps}`;
+export function formatExerciseSetStat(
+  set: ExerciseSetStat,
+  loadType?: WorkoutLog["loadType"],
+): string {
+  if (set.weightKg > 0) {
+    const prefix = loadType === "unilateral" ? "單邊 " : "";
+    return `${prefix}${formatKg(set.weightKg)}kg×${set.reps}`;
+  }
   return `${set.reps}次`;
 }
 
