@@ -6,15 +6,22 @@ export function toDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** 將 DB / ISO 字串統一成 YYYY-MM-DD，避免含時間時篩選錯位 */
+export function normalizeDateKey(value: string | null | undefined): string {
+  if (!value) return toDateKey();
+  const s = String(value).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? toDateKey() : toDateKey(d);
+}
+
 /** 比對 YYYY-MM-DD；日期字串直接比對，避免 UTC 解析錯位 */
 export function isSameDateKey(
   value: string,
   dateKey: string = toDateKey(),
 ): boolean {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value === dateKey;
-  }
-  return toDateKey(new Date(value)) === dateKey;
+  return normalizeDateKey(value) === normalizeDateKey(dateKey);
 }
 
 export function isToday(value: string): boolean {
@@ -41,14 +48,15 @@ export function formatTime(iso: string): string {
 
 /** 今天 / 昨天 / 6月3日 */
 export function formatDateLabel(dateKey: string): string {
+  const key = normalizeDateKey(dateKey);
   const today = toDateKey();
-  if (dateKey === today) return "今天";
+  if (key === today) return "今天";
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  if (dateKey === toDateKey(yesterday)) return "昨天";
+  if (key === toDateKey(yesterday)) return "昨天";
 
-  const [y, m, d] = dateKey.split("-").map(Number);
+  const [y, m, d] = key.split("-").map(Number);
   return new Intl.DateTimeFormat("zh-TW", {
     month: "numeric",
     day: "numeric",
@@ -68,9 +76,10 @@ export function groupByDateKey<T extends { logDate: string }>(
 ): { dateKey: string; items: T[] }[] {
   const map = new Map<string, T[]>();
   for (const item of items) {
-    const list = map.get(item.logDate) ?? [];
+    const key = normalizeDateKey(item.logDate);
+    const list = map.get(key) ?? [];
     list.push(item);
-    map.set(item.logDate, list);
+    map.set(key, list);
   }
   return [...map.entries()]
     .sort(([a], [b]) => b.localeCompare(a))

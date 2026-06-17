@@ -1,6 +1,7 @@
 "use client";
 
 import { SettlementGradeCompare } from "@/components/dashboard/SettlementGradeCompare";
+import { isSameDateKey } from "@/lib/datetime";
 import type { DailyWorkoutSettlement, WorkoutLog } from "@/lib/types";
 
 interface WorkoutGradeHistoryProps {
@@ -34,7 +35,9 @@ export function WorkoutGradeHistory({
       onRequestSettle={onRequestSettle}
       settlePending={settlePending}
       renderSubtitle={(s) => {
-        const dayLogs = workouts.filter((w) => w.logDate === s.logDate);
+        const dayLogs = workouts.filter((w) =>
+          isSameDateKey(w.logDate, s.logDate),
+        );
         const hours = Math.floor(s.durationMinutes / 60);
         const mins = s.durationMinutes % 60;
         const duration =

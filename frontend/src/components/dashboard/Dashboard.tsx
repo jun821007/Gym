@@ -182,6 +182,19 @@ export function Dashboard({
     })().finally(() => setDataLoading(false));
   }, [refreshData, supabase, userId, onProfilePersist]);
 
+  useEffect(() => {
+    if (tab !== "dungeon") return;
+    void refreshData();
+  }, [tab, refreshData]);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") void refreshData();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshData]);
+
   const persistProfile = useCallback(
     async (next: UserProfile) => {
       setProfile(next);
@@ -485,6 +498,7 @@ export function Dashboard({
             onDeleteSettlement={handleWorkoutSettlementDelete}
             onVolumeGoalChange={handleWorkoutVolumeGoalChange}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
+            onRefresh={refreshData}
           />
         )}
         {tab === "tavern" && (

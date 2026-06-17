@@ -1,4 +1,5 @@
 import { DEFAULT_BODY_GOALS } from "@/lib/body-goals";
+import { normalizeDateKey } from "@/lib/datetime";
 import { normalizeWorkoutCategory } from "@/lib/workout-categories";
 import type {
   BodyGoals,
@@ -100,7 +101,7 @@ export function rowToWorkout(row: {
     reps: row.reps,
     sets: row.sets,
     setDetails,
-    logDate: row.log_date,
+    logDate: normalizeDateKey(row.log_date),
     loggedAt: row.logged_at ?? row.created_at,
   };
 }
@@ -181,7 +182,7 @@ export function rowToWater(row: {
   return {
     id: row.id,
     amountMl: row.amount_ml,
-    logDate: row.log_date,
+    logDate: normalizeDateKey(row.log_date),
     loggedAt: row.logged_at ?? row.created_at,
   };
 }
@@ -195,7 +196,7 @@ export function rowToWorkoutSettlement(row: {
   return {
     ...row.payload,
     grade: row.grade as DailyWorkoutSettlement["grade"],
-    logDate: row.log_date,
+    logDate: normalizeDateKey(row.log_date),
     loggedAt: row.logged_at,
   };
 }
@@ -209,7 +210,7 @@ export function rowToDietSettlement(row: {
   return {
     ...row.payload,
     grade: row.grade as DailyDietSettlement["grade"],
-    logDate: row.log_date,
+    logDate: normalizeDateKey(row.log_date),
     loggedAt: row.logged_at,
   };
 }

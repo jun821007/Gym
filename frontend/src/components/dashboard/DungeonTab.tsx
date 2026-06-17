@@ -59,6 +59,7 @@ interface DungeonTabProps {
     settlement: DailyWorkoutSettlement;
     xpGained?: number;
   }) => void;
+  onRefresh?: () => void | Promise<void>;
 }
 
 const GRADE_BADGE: Record<DailyWorkoutSettlement["grade"], string> = {
@@ -82,6 +83,7 @@ export function DungeonTab({
   onDeleteSettlement,
   onVolumeGoalChange,
   onSettlement,
+  onRefresh,
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const todayKey = toDateKey();
@@ -100,6 +102,7 @@ export function DungeonTab({
   const [coachReply, setCoachReply] = useState("");
   const [uploading, setUploading] = useState(false);
   const [pastePreview, setPastePreview] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [gradeBrowseDateKey, setGradeBrowseDateKey] = useState(todayKey);
   const [settleTargetDate, setSettleTargetDate] = useState<string | null>(
     null,
@@ -126,7 +129,7 @@ export function DungeonTab({
   const todayWorkouts = useMemo(
     () =>
       workouts
-        .filter((w) => w.logDate === todayKey)
+        .filter((w) => isSameDateKey(w.logDate, todayKey))
         .sort(
           (a, b) =>
             new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
@@ -137,7 +140,7 @@ export function DungeonTab({
   const settleDateWorkouts = useMemo(
     () =>
       workouts
-        .filter((w) => w.logDate === effectiveSettleDate)
+        .filter((w) => isSameDateKey(w.logDate, effectiveSettleDate))
         .sort(
           (a, b) =>
             new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
@@ -209,7 +212,7 @@ export function DungeonTab({
   );
 
   const historyGroups = useMemo(() => {
-    const past = workouts.filter((w) => w.logDate !== todayKey);
+    const past = workouts.filter((w) => !isSameDateKey(w.logDate, todayKey));
     return groupByDateKey(past).map((g) => ({
       ...g,
       items: g.items.sort(
@@ -258,6 +261,30 @@ export function DungeonTab({
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function toggleLogsHistory() {
+    setLogsHistoryOpen((open) => {
+      const next = !open;
+      if (next) {
+        setExpandedHistoryDays((prev) => {
+          const expanded = new Set(prev);
+          expanded.add(yesterdayDateKey());
+          return expanded;
+        });
+      }
+      return next;
+    });
+  }
+
+  async function handleRefresh() {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const handleRequestSettle = useCallback((dateKey: string) => {
@@ -357,6 +384,18 @@ export function DungeonTab({
 
   return (
     <div className="space-y-4 pb-2">
+      <div className="flex justify-end">
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            className="text-xs text-text-muted underline disabled:opacity-50"
+          >
+            {refreshing ? "同步中…" : "重新同步訓練紀錄"}
+          </button>
+        )}
+      </div>
       {favoriteWorkouts.length > 0 && onDeleteFavoriteWorkout && (
         <FavoriteWorkoutsPanel
           favorites={favoriteWorkouts}
@@ -549,11 +588,13 @@ export function DungeonTab({
         <button
           type="button"
           className="flex w-full items-center justify-between text-left"
-          onClick={() => setLogsHistoryOpen((o) => !o)}
+          onClick={toggleLogsHistory}
         >
           <span className="card-title mb-0">歷史訓練清單</span>
           <span className="text-sm text-text-muted">
-            {logsHistoryOpen ? "收起" : "展開"}
+            {logsHistoryOpen
+              ? "收起"
+              : `展開 · ${historyGroups.length} 天`}
           </span>
         </button>
         {logsHistoryOpen && (
