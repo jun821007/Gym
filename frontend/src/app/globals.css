@@ -21,7 +21,9 @@
   --app-layout-screen-gap: 0px;
   --tab-bar-content-height: 44px;
   --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
-  --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
+  --fab-offset: calc(
+    var(--tab-bar-height) + var(--app-layout-screen-gap, 0px) + 0.65rem
+  );
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -67,7 +69,8 @@
 html {
   height: -webkit-fill-available;
   min-height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   background: var(--bg-app);
 }
 
@@ -75,7 +78,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -90,8 +94,9 @@ body {
   position: fixed;
   top: var(--app-vv-offset-top, 0px);
   right: 0;
-  bottom: 0;
+  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
   left: 0;
+  z-index: 1;
   width: 100%;
   padding-top: var(--safe-top);
   overflow: hidden;
@@ -121,8 +126,8 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
-  z-index: 40;
+  bottom: calc(0px - var(--app-layout-screen-gap, 0px));
+  z-index: 50;
   box-sizing: border-box;
   min-height: var(--tab-bar-content-height);
   padding-bottom: var(--safe-bottom);
@@ -131,18 +136,7 @@ body {
   justify-content: flex-end;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
-}
-
-/* 圖示維持在 layout 底；只把背景往下延伸到實體螢幕底，避免整條位移把 icon 裁切 */
-.app-bottom-bar::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  height: var(--app-layout-screen-gap, 0px);
-  background: var(--bg-app);
-  pointer-events: none;
+  isolation: isolate;
 }
 
 .app-bottom-bar:has(.app-bottom-bar-settings) {

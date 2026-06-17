@@ -55,8 +55,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-TW" className={`${noto.variable} ${pressStart.variable}`}>
-      <body className="overflow-hidden antialiased">
-        <script src="/app-height-lock.js?v=13" />
+      <body className="overflow-x-hidden antialiased">
+        <script src="/app-height-lock.js?v=14" />
         {children}
         {/* 原生 script：next/script 非同步載入時 document.currentScript 為 null，外掛會直接退出 */}
         <script
