@@ -1,7 +1,8 @@
 (function () {
   "use strict";
   var STORAGE_PREFIX = "pp-fab-pos:";
-  var TAB_OFFSET = "calc(var(--tab-bar-height, 4rem) + 6px)";
+  var TAB_OFFSET =
+    "calc(var(--tab-bar-height, 4rem) + var(--app-vv-bottom-gap, 0px) + 6px)";
   var MIN_TOP = 80;
 
   function placeDefault(fab) {
