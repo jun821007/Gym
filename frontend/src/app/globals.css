@@ -16,15 +16,11 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-bottom-effective: var(--safe-bottom);
   --app-vvh: 100dvh;
   --app-vv-offset-top: 0px;
-  --app-vv-bottom-gap: 0px;
   --tab-bar-content-height: 44px;
-  --tab-bar-height: calc(
-    var(--tab-bar-content-height) + var(--safe-bottom-effective)
-  );
-  --fab-offset: calc(var(--tab-bar-height) + var(--app-vv-bottom-gap, 0px) + 0.65rem);
+  --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
+  --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -122,12 +118,11 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--app-vv-bottom-gap, 0px);
-  top: auto;
+  bottom: 0;
   z-index: 40;
-  height: var(--tab-bar-height);
-  padding-bottom: var(--safe-bottom-effective);
   box-sizing: border-box;
+  min-height: var(--tab-bar-content-height);
+  padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
