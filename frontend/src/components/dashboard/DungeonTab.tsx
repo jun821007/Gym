@@ -250,9 +250,12 @@ export function DungeonTab({
     return {
       exerciseName: fav.name,
       loadType: ex.loadType ?? "bilateral",
-      weightKg: 0,
-      reps: 0,
-      sets: 1,
+      weightKg: ex.weightKg ?? 0,
+      extraWeightKg: ex.extraWeightKg,
+      assistKg: ex.assistKg,
+      reps: ex.reps ?? 0,
+      sets: ex.sets ?? ex.setDetails?.length ?? 1,
+      setDetails: ex.setDetails,
     };
   }
 

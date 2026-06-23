@@ -45,8 +45,11 @@ const emptySet = (): SetRow => ({
 
 function setRowFromDetail(s: WorkoutSetDetail, defaultWeight: string): SetRow {
   return {
-    reps: String(s.reps),
-    weightKg: s.weightKg != null ? String(s.weightKg) : defaultWeight,
+    reps: s.reps > 0 ? String(s.reps) : "",
+    weightKg:
+      s.weightKg != null && s.weightKg > 0
+        ? String(s.weightKg)
+        : defaultWeight,
     strap: s.gear?.includes("strap") ?? false,
     belt: s.gear?.includes("belt") ?? false,
     knee: s.gear?.includes("knee") ?? false,
@@ -125,8 +128,8 @@ export function WorkoutAddForm({
       setSetRows(prefill.setDetails.map((s) => setRowFromDetail(s, w)));
     } else {
       setSetRows(
-        Array.from({ length: prefill.sets }, () => ({
-          reps: String(prefill.reps),
+        Array.from({ length: Math.max(1, prefill.sets) }, () => ({
+          reps: prefill.reps > 0 ? String(prefill.reps) : "",
           weightKg: w,
           strap: false,
           belt: false,
