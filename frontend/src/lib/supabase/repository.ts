@@ -1,3 +1,7 @@
+import {
+  getIsoWeek as getIsoWeekFromDatetime,
+  getPreviousIsoWeek as getPreviousIsoWeekFromDatetime,
+} from "@/lib/datetime";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BodyGoals,
@@ -800,21 +804,12 @@ export async function upsertWeeklyGrade(
 }
 
 export function getIsoWeek(d = new Date()): { year: number; weekNumber: number } {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const day = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const weekNumber = Math.ceil(
-    ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
-  );
-  return { year: date.getUTCFullYear(), weekNumber };
+  return getIsoWeekFromDatetime(d);
 }
 
 export function getPreviousIsoWeek(d = new Date()): {
   year: number;
   weekNumber: number;
 } {
-  const prev = new Date(d);
-  prev.setDate(prev.getDate() - 7);
-  return getIsoWeek(prev);
+  return getPreviousIsoWeekFromDatetime(d);
 }

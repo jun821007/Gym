@@ -11,7 +11,12 @@ import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { NutrientBar } from "@/components/ui/NutrientBar";
 import {
+  canGenerateWeeklyEval,
+  findBackfillWeeklyEvalWeek,
   formatDateLabel,
+  getDefaultWeeklyEvalWeek,
+  getIsoWeek,
+  hasWeeklyGrade,
   isoWeekDateRange,
   isToday,
   toDateKey,
@@ -27,7 +32,6 @@ import {
   xpForDietGrade,
 } from "@/lib/diet-grading";
 import { isSameDateKey } from "@/lib/logged-at";
-import { getIsoWeek, getPreviousIsoWeek } from "@/lib/supabase/repository";
 import type {
   BodyGoals,
   DailyDietSettlement,
@@ -183,20 +187,37 @@ export function TavernTab({
     setTodaySettlement(today);
   }, [settlementHistory]);
 
-  const lastIsoWeek = useMemo(() => getPreviousIsoWeek(), []);
-
-  const lastWeekMissing = useMemo(
-    () =>
-      !weeklyGrades.some(
-        (g) =>
-          g.year === lastIsoWeek.year && g.weekNumber === lastIsoWeek.weekNumber,
-      ),
-    [weeklyGrades, lastIsoWeek],
+  const todayKey = toDateKey();
+  const defaultEvalWeek = useMemo(
+    () => getDefaultWeeklyEvalWeek(),
+    [todayKey],
   );
+  const defaultEvalRange = useMemo(
+    () => isoWeekDateRange(defaultEvalWeek.year, defaultEvalWeek.weekNumber),
+    [defaultEvalWeek],
+  );
+  const defaultWeekMissing = useMemo(
+    () => !hasWeeklyGrade(weeklyGrades, defaultEvalWeek),
+    [weeklyGrades, defaultEvalWeek],
+  );
+  const defaultEvalIsCurrentWeek = useMemo(() => {
+    const current = getIsoWeek();
+    return (
+      defaultEvalWeek.year === current.year &&
+      defaultEvalWeek.weekNumber === current.weekNumber
+    );
+  }, [defaultEvalWeek, todayKey]);
 
-  const lastWeekRange = useMemo(
-    () => isoWeekDateRange(lastIsoWeek.year, lastIsoWeek.weekNumber),
-    [lastIsoWeek],
+  const backfillWeek = useMemo(
+    () => findBackfillWeeklyEvalWeek(weeklyGrades),
+    [weeklyGrades, todayKey],
+  );
+  const backfillRange = useMemo(
+    () =>
+      backfillWeek
+        ? isoWeekDateRange(backfillWeek.year, backfillWeek.weekNumber)
+        : null,
+    [backfillWeek],
   );
 
   function openSettlementModal(s: DailyDietSettlement, reply = "") {
@@ -341,7 +362,13 @@ export function TavernTab({
     async (targetWeek?: { year: number; weekNumber: number }) => {
       setWeeklyLoading(true);
       try {
-        const { year, weekNumber } = targetWeek ?? getIsoWeek();
+        const { year, weekNumber } =
+          targetWeek ?? getDefaultWeeklyEvalWeek();
+        if (!canGenerateWeeklyEval(year, weekNumber)) {
+          throw new Error(
+            "此週尚未結束，請週日再產生本週週評，或選擇已結束的週次補登。",
+          );
+        }
         const weekLabel = `W${weekNumber}`;
         const range = isoWeekDateRange(year, weekNumber);
         const inWeek = (dateKey: string) =>
@@ -589,29 +616,39 @@ export function TavernTab({
       </Card>
 
       <Card title="週評">
-        <button
-          type="button"
-          disabled={weeklyLoading}
-          onClick={() => void submitWeeklyEval()}
-          className="mb-3 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold text-text disabled:opacity-50"
-        >
-          {weeklyLoading ? "產生週報中…" : "生成本週 AI 週評"}
-        </button>
-        {lastWeekMissing && (
+        {defaultWeekMissing ? (
           <button
             type="button"
             disabled={weeklyLoading}
-            onClick={() => void submitWeeklyEval(lastIsoWeek)}
+            onClick={() => void submitWeeklyEval(defaultEvalWeek)}
+            className="mb-3 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold text-text disabled:opacity-50"
+          >
+            {weeklyLoading
+              ? "產生週報中…"
+              : defaultEvalIsCurrentWeek
+                ? `產生本週 W${defaultEvalWeek.weekNumber}（${defaultEvalRange.shortLabel}）週評`
+                : `產生上週 W${defaultEvalWeek.weekNumber}（${defaultEvalRange.shortLabel}）週評`}
+          </button>
+        ) : (
+          <p className="mb-3 text-center text-sm text-text-muted">
+            W{defaultEvalWeek.weekNumber}（{defaultEvalRange.shortLabel}）週評已產生
+          </p>
+        )}
+        {backfillWeek && backfillRange && (
+          <button
+            type="button"
+            disabled={weeklyLoading}
+            onClick={() => void submitWeeklyEval(backfillWeek)}
             className="mb-3 min-h-[44px] w-full rounded-xl border border-accent/40 bg-accent/10 text-sm font-semibold text-accent-light disabled:opacity-50"
           >
             {weeklyLoading
               ? "產生週報中…"
-              : `補登上週 W${lastIsoWeek.weekNumber}（${lastWeekRange.shortLabel}）`}
+              : `補登 W${backfillWeek.weekNumber}（${backfillRange.shortLabel}）`}
           </button>
         )}
         {weeklyGrades.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">
-            尚無週評，點上方按鈕依本週紀錄產生
+            尚無週評，週一～週六請產生上週週評，週日可產生本週週評
           </p>
         ) : (
           <div className="space-y-2">

@@ -132,3 +132,78 @@ export function isoWeekDateRange(year: number, weekNumber: number): {
   const shortLabel = `${monday.getMonth() + 1}/${monday.getDate()}–${sunday.getMonth() + 1}/${sunday.getDate()}`;
   return { start, end, shortLabel };
 }
+
+export type IsoWeek = { year: number; weekNumber: number };
+
+/** ISO 週一為起點的週次（year + weekNumber） */
+export function getIsoWeek(d = new Date()): IsoWeek {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil(
+    ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
+  return { year: date.getUTCFullYear(), weekNumber };
+}
+
+export function getPreviousIsoWeek(d = new Date()): IsoWeek {
+  const prev = new Date(d);
+  prev.setDate(prev.getDate() - 7);
+  return getIsoWeek(prev);
+}
+
+export function stepBackOneIsoWeek(week: IsoWeek): IsoWeek {
+  const range = isoWeekDateRange(week.year, week.weekNumber);
+  const d = new Date(`${range.start}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  return getIsoWeek(d);
+}
+
+/** 週日結算本週，其餘日子結算上週（已結束的完整週） */
+export function getDefaultWeeklyEvalWeek(d = new Date()): IsoWeek {
+  const current = getIsoWeek(d);
+  const range = isoWeekDateRange(current.year, current.weekNumber);
+  if (toDateKey(d) === range.end) return current;
+  return getPreviousIsoWeek(d);
+}
+
+/** 僅允許已結束的 ISO 週（含該週週日當天） */
+export function canGenerateWeeklyEval(
+  year: number,
+  weekNumber: number,
+  d = new Date(),
+): boolean {
+  const range = isoWeekDateRange(year, weekNumber);
+  const todayKey = toDateKey(d);
+  if (todayKey < range.start) return false;
+  return todayKey >= range.end;
+}
+
+export function hasWeeklyGrade(
+  grades: Array<{ year?: number; weekNumber?: number }>,
+  week: IsoWeek,
+): boolean {
+  return grades.some(
+    (g) => g.year === week.year && g.weekNumber === week.weekNumber,
+  );
+}
+
+/** 預設週次之前、最近一筆尚未產生的已結束週（補登用） */
+export function findBackfillWeeklyEvalWeek(
+  grades: Array<{ year?: number; weekNumber?: number }>,
+  d = new Date(),
+  lookback = 12,
+): IsoWeek | null {
+  let cursor = stepBackOneIsoWeek(getDefaultWeeklyEvalWeek(d));
+  for (let i = 0; i < lookback; i++) {
+    if (
+      !hasWeeklyGrade(grades, cursor) &&
+      canGenerateWeeklyEval(cursor.year, cursor.weekNumber, d)
+    ) {
+      return cursor;
+    }
+    cursor = stepBackOneIsoWeek(cursor);
+  }
+  return null;
+}
