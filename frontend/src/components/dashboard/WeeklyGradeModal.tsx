@@ -15,37 +15,15 @@ const GRADE_STYLE: Record<WeeklyGrade["grade"], string> = {
 interface WeeklyGradeModalProps {
   grade: WeeklyGrade;
   onClose: () => void;
-  onDelete?: (grade: WeeklyGrade) => void | Promise<void>;
 }
 
-export function WeeklyGradeModal({
-  grade,
-  onClose,
-  onDelete,
-}: WeeklyGradeModalProps) {
+export function WeeklyGradeModal({ grade, onClose }: WeeklyGradeModalProps) {
   const range =
     grade.year != null && grade.weekNumber != null
       ? isoWeekDateRange(grade.year, grade.weekNumber)
       : null;
 
-  const title = range
-    ? `${range.shortLabel} 週評`
-    : grade.weekLabel;
-
-  const deleteLabel = range
-    ? `W${grade.weekNumber}（${range.shortLabel}）`
-    : grade.weekLabel;
-
-  async function handleDelete() {
-    if (!onDelete) return;
-    if (
-      !confirm(`確定刪除 ${deleteLabel} 的週評紀錄？此動作無法復原。`)
-    ) {
-      return;
-    }
-    await onDelete(grade);
-    onClose();
-  }
+  const title = range ? `${range.shortLabel} 週評` : grade.weekLabel;
 
   return createPortal(
     <div
@@ -78,22 +56,10 @@ export function WeeklyGradeModal({
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-text">
           {grade.summary}
         </p>
-        {onDelete && grade.year != null && grade.weekNumber != null && (
-          <button
-            type="button"
-            onClick={() => void handleDelete()}
-            className="mt-4 min-h-[44px] w-full rounded-xl border border-danger/40 bg-danger/10 text-sm font-semibold text-danger"
-          >
-            刪除週評
-          </button>
-        )}
         <button
           type="button"
           onClick={onClose}
-          className={cn(
-            "min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold",
-            onDelete ? "mt-2" : "mt-4",
-          )}
+          className="mt-4 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold"
         >
           關閉
         </button>

@@ -730,7 +730,6 @@ export function TavernTab({
         <WeeklyGradeModal
           grade={selectedWeeklyGrade}
           onClose={() => setSelectedWeeklyGrade(null)}
-          onDelete={onDeleteWeeklyGrade}
         />
       )}
 

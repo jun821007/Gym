@@ -490,7 +490,6 @@ export function Dashboard({
             profile={profile}
             goals={bodyGoals}
             weeklyGrades={weeklyGrades}
-            onDeleteWeeklyGrade={handleWeeklyGradeDelete}
             onGoalsChange={handleGoalsChange}
             xpPop={xpPop}
             levelPulse={levelPulse}
