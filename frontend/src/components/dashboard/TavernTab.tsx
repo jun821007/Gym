@@ -27,7 +27,7 @@ import {
   xpForDietGrade,
 } from "@/lib/diet-grading";
 import { isSameDateKey } from "@/lib/logged-at";
-import { getIsoWeek } from "@/lib/supabase/repository";
+import { getIsoWeek, getPreviousIsoWeek } from "@/lib/supabase/repository";
 import type {
   BodyGoals,
   DailyDietSettlement,
@@ -183,6 +183,22 @@ export function TavernTab({
     setTodaySettlement(today);
   }, [settlementHistory]);
 
+  const lastIsoWeek = useMemo(() => getPreviousIsoWeek(), []);
+
+  const lastWeekMissing = useMemo(
+    () =>
+      !weeklyGrades.some(
+        (g) =>
+          g.year === lastIsoWeek.year && g.weekNumber === lastIsoWeek.weekNumber,
+      ),
+    [weeklyGrades, lastIsoWeek],
+  );
+
+  const lastWeekRange = useMemo(
+    () => isoWeekDateRange(lastIsoWeek.year, lastIsoWeek.weekNumber),
+    [lastIsoWeek],
+  );
+
   function openSettlementModal(s: DailyDietSettlement, reply = "") {
     setModalSettlement(s);
     setCoachReply(reply);
@@ -321,61 +337,64 @@ export function TavernTab({
     ],
   );
 
-  const submitWeeklyEval = useCallback(async () => {
-    setWeeklyLoading(true);
-    try {
-      const { year, weekNumber } = getIsoWeek();
-      const weekLabel = `W${weekNumber}`;
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 7);
-      const after = cutoff.toISOString().slice(0, 10);
+  const submitWeeklyEval = useCallback(
+    async (targetWeek?: { year: number; weekNumber: number }) => {
+      setWeeklyLoading(true);
+      try {
+        const { year, weekNumber } = targetWeek ?? getIsoWeek();
+        const weekLabel = `W${weekNumber}`;
+        const range = isoWeekDateRange(year, weekNumber);
+        const inWeek = (dateKey: string) =>
+          dateKey >= range.start && dateKey <= range.end;
 
-      const snapshot = {
-        diets: diets.filter((d) => d.loggedAt.slice(0, 10) >= after),
-        dietSettlements: settlementHistory.filter((s) => s.logDate >= after),
-        workoutSettlements: workoutSettlements.filter(
-          (s) => s.logDate >= after,
-        ),
-        waterLogs: waterLogs.filter((w) => w.logDate >= after),
-        goals: {
-          calories: nutritionGoals.calories,
-          protein: nutritionGoals.proteinG,
-          waterMl: waterGoalMl,
-        },
-      };
+        const snapshot = {
+          diets: diets.filter((d) => inWeek(d.loggedAt.slice(0, 10))),
+          dietSettlements: settlementHistory.filter((s) => inWeek(s.logDate)),
+          workoutSettlements: workoutSettlements.filter((s) =>
+            inWeek(s.logDate),
+          ),
+          waterLogs: waterLogs.filter((w) => inWeek(w.logDate)),
+          goals: {
+            calories: nutritionGoals.calories,
+            protein: nutritionGoals.proteinG,
+            waterMl: waterGoalMl,
+          },
+        };
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-      if (!apiBase) throw new Error("請設定 NEXT_PUBLIC_API_URL");
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+        if (!apiBase) throw new Error("請設定 NEXT_PUBLIC_API_URL");
 
-      const res = await fetch(`${apiBase}/api/weekly/eval`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekLabel, snapshot }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "週評失敗");
+        const res = await fetch(`${apiBase}/api/weekly/eval`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weekLabel, snapshot }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "週評失敗");
 
-      await onWeeklyGradeGenerated({
-        weekLabel,
-        grade: data.grade,
-        summary: data.summary,
-        year,
-        weekNumber,
-      });
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "週評失敗");
-    } finally {
-      setWeeklyLoading(false);
-    }
-  }, [
-    diets,
-    settlementHistory,
-    workoutSettlements,
-    waterLogs,
-    nutritionGoals,
-    waterGoalMl,
-    onWeeklyGradeGenerated,
-  ]);
+        await onWeeklyGradeGenerated({
+          weekLabel,
+          grade: data.grade,
+          summary: data.summary,
+          year,
+          weekNumber,
+        });
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "週評失敗");
+      } finally {
+        setWeeklyLoading(false);
+      }
+    },
+    [
+      diets,
+      settlementHistory,
+      workoutSettlements,
+      waterLogs,
+      nutritionGoals,
+      waterGoalMl,
+      onWeeklyGradeGenerated,
+    ],
+  );
 
   const settleLabel =
     recordDate === toDateKey()
@@ -578,6 +597,18 @@ export function TavernTab({
         >
           {weeklyLoading ? "產生週報中…" : "生成本週 AI 週評"}
         </button>
+        {lastWeekMissing && (
+          <button
+            type="button"
+            disabled={weeklyLoading}
+            onClick={() => void submitWeeklyEval(lastIsoWeek)}
+            className="mb-3 min-h-[44px] w-full rounded-xl border border-accent/40 bg-accent/10 text-sm font-semibold text-accent-light disabled:opacity-50"
+          >
+            {weeklyLoading
+              ? "產生週報中…"
+              : `補登上週 W${lastIsoWeek.weekNumber}（${lastWeekRange.shortLabel}）`}
+          </button>
+        )}
         {weeklyGrades.length === 0 ? (
           <p className="py-4 text-center text-sm text-text-muted">
             尚無週評，點上方按鈕依本週紀錄產生

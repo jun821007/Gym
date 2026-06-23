@@ -809,3 +809,12 @@ export function getIsoWeek(d = new Date()): { year: number; weekNumber: number }
   );
   return { year: date.getUTCFullYear(), weekNumber };
 }
+
+export function getPreviousIsoWeek(d = new Date()): {
+  year: number;
+  weekNumber: number;
+} {
+  const prev = new Date(d);
+  prev.setDate(prev.getDate() - 7);
+  return getIsoWeek(prev);
+}
