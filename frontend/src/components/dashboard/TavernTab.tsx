@@ -81,6 +81,7 @@ interface TavernTabProps {
   onSettlementSaved: (s: DailyDietSettlement) => void | Promise<void>;
   onDeleteSettlement?: (s: DailyDietSettlement) => void | Promise<void>;
   onWeeklyGradeGenerated: (g: WeeklyGrade) => void | Promise<void>;
+  onDeleteWeeklyGrade?: (g: WeeklyGrade) => void | Promise<void>;
   onSettlement?: (data: {
     settlement: DailyDietSettlement;
     xpGained?: number;
@@ -124,6 +125,7 @@ export function TavernTab({
   onSettlementSaved,
   onDeleteSettlement,
   onWeeklyGradeGenerated,
+  onDeleteWeeklyGrade,
   onSettlement,
 }: TavernTabProps) {
   const [recordDate, setRecordDate] = useState(toDateKey());
@@ -224,6 +226,23 @@ export function TavernTab({
     setModalSettlement(s);
     setCoachReply(reply);
     setShowModal(true);
+  }
+
+  async function handleWeeklyGradeDelete(g: WeeklyGrade) {
+    if (!onDeleteWeeklyGrade) return;
+    if (g.year == null || g.weekNumber == null) return;
+    const range = isoWeekDateRange(g.year, g.weekNumber);
+    const label = `W${g.weekNumber}（${range.shortLabel}）`;
+    if (!confirm(`確定刪除 ${label} 的週評紀錄？此動作無法復原。`)) {
+      return;
+    }
+    await onDeleteWeeklyGrade(g);
+    if (
+      selectedWeeklyGrade?.year === g.year &&
+      selectedWeeklyGrade?.weekNumber === g.weekNumber
+    ) {
+      setSelectedWeeklyGrade(null);
+    }
   }
 
   const submitSettlement = useCallback(
@@ -658,34 +677,49 @@ export function TavernTab({
                   ? isoWeekDateRange(g.year, g.weekNumber)
                   : null;
               return (
-                <button
+                <div
                   key={`${g.year ?? ""}-${g.weekNumber ?? g.weekLabel}`}
-                  type="button"
-                  onClick={() => setSelectedWeeklyGrade(g)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-bg-elevated p-3 text-left active:scale-[0.99]"
+                  className="flex items-center gap-2 rounded-xl border border-border bg-bg-elevated p-3"
                 >
-                  <span
-                    className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold",
-                      GRADE_STYLE[g.grade],
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWeeklyGrade(g)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]"
                   >
-                    {g.grade}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-text">
-                      {g.weekLabel}
-                      {range && (
-                        <span className="ml-1.5 font-normal text-text-muted">
-                          {range.shortLabel}
-                        </span>
+                    <span
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold",
+                        GRADE_STYLE[g.grade],
                       )}
-                    </p>
-                    <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-text-muted">
-                      {g.summary}
-                    </p>
-                  </div>
-                </button>
+                    >
+                      {g.grade}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-text">
+                        {g.weekLabel}
+                        {range && (
+                          <span className="ml-1.5 font-normal text-text-muted">
+                            {range.shortLabel}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-text-muted">
+                        {g.summary}
+                      </p>
+                    </div>
+                  </button>
+                  {onDeleteWeeklyGrade &&
+                    g.year != null &&
+                    g.weekNumber != null && (
+                      <button
+                        type="button"
+                        onClick={() => void handleWeeklyGradeDelete(g)}
+                        className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                      >
+                        刪除
+                      </button>
+                    )}
+                </div>
               );
             })}
           </div>
@@ -696,6 +730,7 @@ export function TavernTab({
         <WeeklyGradeModal
           grade={selectedWeeklyGrade}
           onClose={() => setSelectedWeeklyGrade(null)}
+          onDelete={onDeleteWeeklyGrade}
         />
       )}
 

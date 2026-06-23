@@ -17,11 +17,13 @@ const GRADE_STYLE: Record<WeeklyGrade["grade"], string> = {
 interface WeeklyAchievementPanelProps {
   weeklyGrades: WeeklyGrade[];
   defaultOpen?: boolean;
+  onDeleteWeeklyGrade?: (g: WeeklyGrade) => void | Promise<void>;
 }
 
 export function WeeklyAchievementPanel({
   weeklyGrades,
   defaultOpen = false,
+  onDeleteWeeklyGrade,
 }: WeeklyAchievementPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [selected, setSelected] = useState<WeeklyGrade | null>(null);
@@ -97,7 +99,11 @@ export function WeeklyAchievementPanel({
       </Card>
 
       {selected && (
-        <WeeklyGradeModal grade={selected} onClose={() => setSelected(null)} />
+        <WeeklyGradeModal
+          grade={selected}
+          onClose={() => setSelected(null)}
+          onDelete={onDeleteWeeklyGrade}
+        />
       )}
     </>
   );

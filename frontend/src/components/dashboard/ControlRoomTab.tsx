@@ -14,6 +14,7 @@ interface ControlRoomTabProps {
   profile: UserProfile;
   goals: BodyGoals;
   weeklyGrades: WeeklyGrade[];
+  onDeleteWeeklyGrade?: (g: WeeklyGrade) => void | Promise<void>;
   onGoalsChange: (g: BodyGoals) => void;
   xpPop: number | null;
   levelPulse: boolean;
@@ -23,6 +24,7 @@ export function ControlRoomTab({
   profile,
   goals,
   weeklyGrades,
+  onDeleteWeeklyGrade,
   onGoalsChange,
   xpPop,
   levelPulse,
@@ -76,7 +78,10 @@ export function ControlRoomTab({
         onSave={onGoalsChange}
       />
 
-      <WeeklyAchievementPanel weeklyGrades={weeklyGrades} />
+      <WeeklyAchievementPanel
+        weeklyGrades={weeklyGrades}
+        onDeleteWeeklyGrade={onDeleteWeeklyGrade}
+      />
 
       <BodyAnalysisSection history={profile.inbodyHistory} />
     </div>

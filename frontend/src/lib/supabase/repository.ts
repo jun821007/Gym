@@ -803,6 +803,21 @@ export async function upsertWeeklyGrade(
   if (error) throw error;
 }
 
+export async function deleteWeeklyGrade(
+  supabase: SupabaseClient,
+  userId: string,
+  year: number,
+  weekNumber: number,
+) {
+  const { error } = await supabase
+    .from("weekly_grades")
+    .delete()
+    .eq("user_id", userId)
+    .eq("year", year)
+    .eq("week_number", weekNumber);
+  if (error) throw error;
+}
+
 export function getIsoWeek(d = new Date()): { year: number; weekNumber: number } {
   return getIsoWeekFromDatetime(d);
 }

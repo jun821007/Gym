@@ -21,6 +21,7 @@ import {
   deleteFavoriteMeal,
   deleteFavoriteWorkout,
   deleteWaterLog,
+  deleteWeeklyGrade,
   deleteWorkout,
   deleteWorkoutSettlement,
   fetchDietSettlements,
@@ -431,6 +432,16 @@ export function Dashboard({
     setDietSettlements((prev) => prev.filter((x) => x.logDate !== s.logDate));
   }
 
+  async function handleWeeklyGradeDelete(g: WeeklyGrade) {
+    if (g.year == null || g.weekNumber == null) return;
+    await deleteWeeklyGrade(supabase, userId, g.year, g.weekNumber);
+    setWeeklyGrades((prev) =>
+      prev.filter(
+        (x) => !(x.year === g.year && x.weekNumber === g.weekNumber),
+      ),
+    );
+  }
+
   async function handleWeeklyGradeGenerated(g: WeeklyGrade) {
     if (g.year == null || g.weekNumber == null) return;
     await upsertWeeklyGrade(supabase, userId, {
@@ -479,6 +490,7 @@ export function Dashboard({
             profile={profile}
             goals={bodyGoals}
             weeklyGrades={weeklyGrades}
+            onDeleteWeeklyGrade={handleWeeklyGradeDelete}
             onGoalsChange={handleGoalsChange}
             xpPop={xpPop}
             levelPulse={levelPulse}
@@ -524,6 +536,7 @@ export function Dashboard({
             onSettlementSaved={handleDietSettlementSaved}
             onDeleteSettlement={handleDietSettlementDelete}
             onWeeklyGradeGenerated={handleWeeklyGradeGenerated}
+            onDeleteWeeklyGrade={handleWeeklyGradeDelete}
             onSettlement={({ xpGained }) => applyXp(xpGained ?? 0)}
           />
         )}
