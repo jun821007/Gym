@@ -210,8 +210,9 @@ export function TavernTab({
             carbs: acc.carbs + d.carbsG,
             fat: acc.fat + d.fatG,
             sodium: acc.sodium + (d.sodiumMg ?? 0),
+            fiber: acc.fiber + (d.fiberG ?? 0),
           }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0 },
+          { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0, fiber: 0 },
         );
 
         const payload = {
@@ -221,6 +222,7 @@ export function TavernTab({
             carbsG: nutritionGoals.carbsG,
             fatG: nutritionGoals.fatG,
             sodiumMg: sodiumGoalMg,
+            fiberG: fiberGoalG,
             waterMl: waterGoalMl,
           },
           totals: {
@@ -229,6 +231,7 @@ export function TavernTab({
             carbsG: mealTotals.carbs,
             fatG: mealTotals.fat,
             sodiumMg: mealTotals.sodium,
+            fiberG: mealTotals.fiber,
           },
           meals: meals.map((d) => ({
             foodName: d.foodName,
@@ -237,6 +240,7 @@ export function TavernTab({
             carbsG: d.carbsG,
             fatG: d.fatG,
             sodiumMg: d.sodiumMg ?? 0,
+            fiberG: d.fiberG ?? 0,
             loggedAt: d.loggedAt,
           })),
           waterMl,
@@ -310,6 +314,7 @@ export function TavernTab({
       nutritionGoals,
       waterGoalMl,
       sodiumGoalMg,
+      fiberGoalG,
       dietPhase,
       onSettlement,
       onSettlementSaved,

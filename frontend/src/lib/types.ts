@@ -132,6 +132,8 @@ export interface DietSettlementMeal {
   fatG: number;
   /** 鈉含量（毫克） */
   sodiumMg: number;
+  /** 膳食纖維（克） */
+  fiberG?: number;
   loggedAt: string;
 }
 
@@ -152,6 +154,7 @@ export interface DailyDietSettlement {
     carbsG: number;
     fatG: number;
     sodiumMg: number;
+    fiberG: number;
   };
   goals: {
     calories: number;
@@ -159,6 +162,7 @@ export interface DailyDietSettlement {
     carbsG: number;
     fatG: number;
     sodiumMg: number;
+    fiberG: number;
     waterMl: number;
   };
   waterMl: number;
@@ -170,6 +174,7 @@ export interface DailyDietSettlement {
     carbs: number;
     fat: number;
     sodium: number;
+    fiber: number;
     water: number;
     overall: number;
   };

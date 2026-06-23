@@ -130,7 +130,24 @@ export function DietSettlementModal({
               </span>
             </p>
           </div>
-          <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center sm:col-span-2">
+          <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center">
+            <p className="text-xs text-text-muted">膳食纖維</p>
+            <p
+              className={`font-bold tabular-nums ${
+                data.totals.fiberG >= data.goals.fiberG
+                  ? "text-accent-light"
+                  : data.totals.fiberG < data.goals.fiberG * 0.7
+                    ? "text-danger"
+                    : "text-[#f59e0b]"
+              }`}
+            >
+              {Math.round(data.totals.fiberG)}g
+              <span className="text-xs font-normal text-text-muted">
+                /{data.goals.fiberG}g
+              </span>
+            </p>
+          </div>
+          <div className="border-[3px] border-solid border-border-pixel bg-bg-elevated p-2 text-center col-span-2 sm:col-span-3">
             <p className="text-xs text-sky-400">飲水</p>
             <p className="font-bold tabular-nums text-sky-300">
               {data.waterMl}
@@ -148,7 +165,7 @@ export function DietSettlementModal({
               {data.meals.map((m, i) => (
                 <li key={i}>
                   {m.foodName} · {m.calories} kcal · P{Math.round(m.proteinG)}g
-                  · 鈉{Math.round(m.sodiumMg ?? 0)}mg
+                  · 纖維{Math.round(m.fiberG ?? 0)}g · 鈉{Math.round(m.sodiumMg ?? 0)}mg
                 </li>
               ))}
             </ul>

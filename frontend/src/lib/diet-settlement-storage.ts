@@ -13,16 +13,19 @@ function normalize(s: DailyDietSettlement): DailyDietSettlement {
       carbs: 0,
       fat: 0,
       sodium: 0,
+      fiber: 0,
       water: 0,
       overall: 0,
     },
     totals: {
       ...s.totals,
       sodiumMg: s.totals?.sodiumMg ?? 0,
+      fiberG: s.totals?.fiberG ?? 0,
     },
     goals: {
       ...s.goals,
       sodiumMg: s.goals?.sodiumMg ?? 2300,
+      fiberG: s.goals?.fiberG ?? 25,
     },
   };
 }
@@ -83,6 +86,7 @@ function seedDemoDietHistory(): DailyDietSettlement[] {
       carbsG: 220,
       fatG: 62,
       sodiumMg: grade === "A" ? 1800 : 2400,
+      fiberG: grade === "A" ? 28 : 14,
     },
     goals: {
       calories: 2200,
@@ -90,6 +94,7 @@ function seedDemoDietHistory(): DailyDietSettlement[] {
       carbsG: 250,
       fatG: 70,
       sodiumMg: 2300,
+      fiberG: 25,
       waterMl: 2000,
     },
     waterMl: grade === "A" ? 2100 : 1200,
@@ -101,6 +106,7 @@ function seedDemoDietHistory(): DailyDietSettlement[] {
       carbs: 85,
       fat: 88,
       sodium: grade === "A" ? 90 : 55,
+      fiber: grade === "A" ? 95 : 45,
       water: waterPct >= 100 ? 100 : 65,
       overall: grade === "A" ? 88 : 68,
     },

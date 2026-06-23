@@ -81,6 +81,18 @@ function sodiumScore(current, limitMg) {
   return 25;
 }
 
+function fiberScore(current, goalG) {
+  if (goalG <= 0) return 50;
+  const r = current / goalG;
+  if (r >= 1.0) return 100;
+  if (r >= 0.85) return 90;
+  if (r >= 0.7) return 75;
+  if (r >= 0.55) return 58;
+  if (r >= 0.4) return 42;
+  if (r > 0) return 28;
+  return 10;
+}
+
 function waterScore(current, goal) {
   if (goal <= 0) return 50;
   const r = current / goal;
@@ -95,12 +107,36 @@ function waterScore(current, goal) {
 
 function overallWeights(phase) {
   if (phase === "bulk") {
-    return { cal: 0.22, pro: 0.32, carb: 0.12, fat: 0.08, sodium: 0.06, water: 0.2 };
+    return {
+      cal: 0.19,
+      pro: 0.27,
+      carb: 0.1,
+      fat: 0.08,
+      sodium: 0.06,
+      fiber: 0.08,
+      water: 0.22,
+    };
   }
   if (phase === "cut") {
-    return { cal: 0.2, pro: 0.3, carb: 0.1, fat: 0.14, sodium: 0.1, water: 0.16 };
+    return {
+      cal: 0.18,
+      pro: 0.27,
+      carb: 0.09,
+      fat: 0.12,
+      sodium: 0.09,
+      fiber: 0.09,
+      water: 0.16,
+    };
   }
-  return { cal: 0.2, pro: 0.26, carb: 0.11, fat: 0.12, sodium: 0.08, water: 0.23 };
+  return {
+    cal: 0.18,
+    pro: 0.24,
+    carb: 0.1,
+    fat: 0.11,
+    sodium: 0.07,
+    fiber: 0.07,
+    water: 0.23,
+  };
 }
 
 const PHASE_LABEL = { cut: "減脂", bulk: "增肌", maintain: "維持" };
@@ -122,6 +158,7 @@ function buildSummary(
   carbsGoal,
   fatGoal,
   sodiumGoalMg,
+  fiberGoalG,
   waterMl,
   waterGoalMl,
   mealCount,
@@ -140,6 +177,9 @@ function buildSummary(
   const sodiumPct = sodiumGoalMg
     ? Math.round((totals.sodiumMg / sodiumGoalMg) * 100)
     : 0;
+  const fiberPct = fiberGoalG
+    ? Math.round((totals.fiberG / fiberGoalG) * 100)
+    : 0;
   const waterPct = waterGoalMl
     ? Math.round((waterMl / waterGoalMl) * 100)
     : 0;
@@ -148,13 +188,16 @@ function buildSummary(
   const carbsRatio = carbsGoal > 0 ? totals.carbsG / carbsGoal : 1;
   const fatRatio = fatGoal > 0 ? totals.fatG / fatGoal : 1;
   const sodiumRatio = sodiumGoalMg > 0 ? totals.sodiumMg / sodiumGoalMg : 0;
+  const fiberRatio = fiberGoalG > 0 ? totals.fiberG / fiberGoalG : 1;
   const parts = [
     `依${PHASE_LABEL[phase]}目標評分`,
     `今日 ${mealCount} 餐 · 熱量 ${totals.calories}kcal（${calPct}%）`,
     `蛋白 ${Math.round(totals.proteinG)}g（${proteinPct}%）· 碳水 ${Math.round(totals.carbsG)}g（${carbsPct}%）· 脂肪 ${Math.round(totals.fatG)}g（${fatPct}%）`,
-    `鈉 ${Math.round(totals.sodiumMg)}mg（${sodiumPct}% 上限）· 飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
+    `鈉 ${Math.round(totals.sodiumMg)}mg（${sodiumPct}% 上限）· 膳食纖維 ${Math.round(totals.fiberG)}g（${fiberPct}%）· 飲水 ${waterMl}/${waterGoalMl}ml（${waterPct}%）`,
   ];
   if (scores.water < 70) parts.push("飲水未達標");
+  if (fiberRatio < 0.7) parts.push("膳食纖維偏低");
+  else if (fiberRatio >= 1.0) parts.push("纖維攝取充足");
   if (sodiumRatio > 1.15) parts.push("鈉攝取偏高");
   else if (sodiumRatio > 1.0) parts.push("鈉略超標");
   if (phase === "bulk") {
@@ -191,9 +234,9 @@ function buildSummary(
 
 /**
  * @param {{
- *   goals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; waterMl: number };
- *   totals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number };
- *   meals: Array<{ foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; loggedAt: string }>;
+ *   goals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; fiberG?: number; waterMl: number };
+ *   totals: { calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; fiberG?: number };
+ *   meals: Array<{ foodName: string; calories: number; proteinG: number; carbsG: number; fatG: number; sodiumMg?: number; fiberG?: number; loggedAt: string }>;
  *   waterMl: number;
  *   dietPhase?: "cut"|"bulk"|"maintain";
  * }} input
@@ -203,7 +246,9 @@ export function computeDietSettlement(input) {
   const phase = input.dietPhase ?? "maintain";
   const waterGoalMl = goals.waterMl || 2000;
   const sodiumGoalMg = goals.sodiumMg || 2300;
+  const fiberGoalG = goals.fiberG || 25;
   const sodiumTotal = totals.sodiumMg ?? 0;
+  const fiberTotal = totals.fiberG ?? 0;
   const weights = overallWeights(phase);
 
   const scores = {
@@ -212,6 +257,7 @@ export function computeDietSettlement(input) {
     carbs: macroScore(totals.carbsG, goals.carbsG),
     fat: fatScore(totals.fatG, goals.fatG, phase),
     sodium: sodiumScore(sodiumTotal, sodiumGoalMg),
+    fiber: fiberScore(fiberTotal, fiberGoalG),
     water: waterScore(waterMl, waterGoalMl),
     overall: 0,
   };
@@ -222,6 +268,7 @@ export function computeDietSettlement(input) {
       scores.carbs * weights.carb +
       scores.fat * weights.fat +
       scores.sodium * weights.sodium +
+      scores.fiber * weights.fiber +
       scores.water * weights.water,
   );
 
@@ -240,6 +287,7 @@ export function computeDietSettlement(input) {
   const normalizedTotals = {
     ...totals,
     sodiumMg: sodiumTotal,
+    fiberG: fiberTotal,
   };
 
   return {
@@ -255,6 +303,7 @@ export function computeDietSettlement(input) {
       goals.carbsG,
       goals.fatG,
       sodiumGoalMg,
+      fiberGoalG,
       waterMl,
       waterGoalMl,
       meals.length,
@@ -265,7 +314,12 @@ export function computeDietSettlement(input) {
     mealCount: meals.length,
     meals,
     totals: normalizedTotals,
-    goals: { ...goals, sodiumMg: sodiumGoalMg, waterMl: waterGoalMl },
+    goals: {
+      ...goals,
+      sodiumMg: sodiumGoalMg,
+      fiberG: fiberGoalG,
+      waterMl: waterGoalMl,
+    },
     waterMl,
     waterGoalMl,
     waterPct,
