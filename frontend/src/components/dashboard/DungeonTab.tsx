@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FavoriteWorkoutsPanel } from "@/components/dashboard/FavoriteWorkoutsPanel";
+import { WorkoutMenusPanel } from "@/components/dashboard/WorkoutMenusPanel";
 import {
   WorkoutAddForm,
   type WorkoutFormPrefill,
@@ -29,6 +30,7 @@ import {
 import type {
   DailyWorkoutSettlement,
   FavoriteWorkout,
+  FavoriteWorkoutExercise,
   UserProfile,
   WorkoutLog,
 } from "@/lib/types";
@@ -87,6 +89,16 @@ export function DungeonTab({
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const todayKey = toDateKey();
+
+  const exerciseFavorites = useMemo(
+    () => favoriteWorkouts.filter((f) => (f.kind ?? "exercise") !== "menu"),
+    [favoriteWorkouts],
+  );
+  const workoutMenus = useMemo(
+    () => favoriteWorkouts.filter((f) => f.kind === "menu"),
+    [favoriteWorkouts],
+  );
+
   const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
   const [logsHistoryOpen, setLogsHistoryOpen] = useState(false);
   const [expandedHistoryDays, setExpandedHistoryDays] = useState<Set<string>>(
@@ -236,6 +248,16 @@ export function DungeonTab({
     return rest;
   }
 
+  function exerciseToPrefill(ex: FavoriteWorkoutExercise): WorkoutFormPrefill {
+    return {
+      exerciseName: ex.exerciseName,
+      loadType: ex.loadType ?? "bilateral",
+      weightKg: 0,
+      reps: 0,
+      sets: 1,
+    };
+  }
+
   function favoriteToPrefill(fav: FavoriteWorkout): WorkoutFormPrefill {
     const ex = fav.exercises[0];
     if (!ex) {
@@ -248,14 +270,8 @@ export function DungeonTab({
       };
     }
     return {
-      exerciseName: fav.name,
-      loadType: ex.loadType ?? "bilateral",
-      weightKg: ex.weightKg ?? 0,
-      extraWeightKg: ex.extraWeightKg,
-      assistKg: ex.assistKg,
-      reps: ex.reps ?? 0,
-      sets: ex.sets ?? ex.setDetails?.length ?? 1,
-      setDetails: ex.setDetails,
+      ...exerciseToPrefill(ex),
+      exerciseName: ex.exerciseName || fav.name,
     };
   }
 
@@ -264,6 +280,53 @@ export function DungeonTab({
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function applyMenuExercise(ex: FavoriteWorkoutExercise) {
+    setPrefill(exerciseToPrefill(ex));
+    document
+      .getElementById("workout-add-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function addHistoryDayAsMenu(dateKey: string, items: WorkoutLog[]) {
+    if (!onSaveFavoriteWorkout) return;
+    if (items.length === 0) {
+      alert("這天沒有訓練紀錄可加入菜單");
+      return;
+    }
+    const [, m, d] = dateKey.split("-");
+    const short = `${Number(m)}/${Number(d)}`;
+    const name = `${short} 訓練菜單`;
+    if (
+      !confirm(
+        `將 ${short}（${formatDateLabel(dateKey)}）的紀錄存成訓練菜單「${name}」？`,
+      )
+    ) {
+      return;
+    }
+
+    const seen = new Set<string>();
+    const exercises: FavoriteWorkoutExercise[] = [];
+    for (const w of items) {
+      const key = `${w.exerciseName}::${w.loadType}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      exercises.push({
+        exerciseName: w.exerciseName,
+        loadType: w.loadType,
+      });
+    }
+
+    try {
+      await onSaveFavoriteWorkout({
+        name,
+        kind: "menu",
+        exercises,
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加入菜單失敗");
+    }
   }
 
   function toggleLogsHistory() {
@@ -399,10 +462,18 @@ export function DungeonTab({
           </button>
         )}
       </div>
-      {favoriteWorkouts.length > 0 && onDeleteFavoriteWorkout && (
+      {exerciseFavorites.length > 0 && onDeleteFavoriteWorkout && (
         <FavoriteWorkoutsPanel
-          favorites={favoriteWorkouts}
+          favorites={exerciseFavorites}
           onApply={applyFavorite}
+          onDelete={onDeleteFavoriteWorkout}
+        />
+      )}
+
+      {workoutMenus.length > 0 && onDeleteFavoriteWorkout && (
+        <WorkoutMenusPanel
+          menus={workoutMenus}
+          onApplyExercise={applyMenuExercise}
           onDelete={onDeleteFavoriteWorkout}
         />
       )}
@@ -614,22 +685,38 @@ export function DungeonTab({
                 const expanded = expandedHistoryDays.has(group.dateKey);
                 return (
                   <div key={group.dateKey}>
-                    <button
-                      type="button"
-                      onClick={() => toggleHistoryDay(group.dateKey)}
-                      className="flex w-full items-center justify-between rounded-lg border border-border bg-bg-elevated px-3 py-2 text-left text-xs font-semibold text-accent active:scale-[0.99]"
-                    >
-                      <span>
-                        {expanded ? "▼" : "▶"}{" "}
-                        {formatDateLabel(group.dateKey)}
-                        <span className="ml-2 font-normal text-text-muted">
-                          {group.dateKey}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleHistoryDay(group.dateKey)}
+                        className="flex min-w-0 flex-1 items-center justify-between rounded-lg border border-border bg-bg-elevated px-3 py-2 text-left text-xs font-semibold text-accent active:scale-[0.99]"
+                      >
+                        <span>
+                          {expanded ? "▼" : "▶"}{" "}
+                          {formatDateLabel(group.dateKey)}
+                          <span className="ml-2 font-normal text-text-muted">
+                            {group.dateKey}
+                          </span>
                         </span>
-                      </span>
-                      <span className="tabular-nums text-text-muted">
-                        {group.items.length} 項 · {dayVolume}
-                      </span>
-                    </button>
+                        <span className="tabular-nums text-text-muted">
+                          {group.items.length} 項 · {dayVolume}
+                        </span>
+                      </button>
+                      {onSaveFavoriteWorkout && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void addHistoryDayAsMenu(
+                              group.dateKey,
+                              group.items,
+                            )
+                          }
+                          className="shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-2 text-[11px] font-semibold text-accent-light"
+                        >
+                          加入菜單
+                        </button>
+                      )}
+                    </div>
                     {expanded && (
                       <div className="mt-1 px-1">
                         <WorkoutGroupedList

@@ -77,6 +77,7 @@ export interface WorkoutAddFormProps {
   onSaveFavorite?: (fav: {
     name: string;
     category: WorkoutCategory;
+    kind?: "exercise" | "menu";
     exercises: FavoriteWorkoutExercise[];
   }) => void | Promise<void>;
 }
@@ -216,6 +217,7 @@ export function WorkoutAddForm({
         await onSaveFavorite({
           name: log.exerciseName,
           category: favoriteCategory,
+          kind: "exercise",
           exercises: [
             {
               exerciseName: log.exerciseName,

@@ -16,6 +16,7 @@ interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
   onApply: (fav: FavoriteWorkout) => void;
   onDelete: (id: string) => void | Promise<void>;
+  defaultOpen?: boolean;
 }
 
 function FavoriteChip({
@@ -96,10 +97,18 @@ export function FavoriteWorkoutsPanel({
   favorites,
   onApply,
   onDelete,
+  defaultOpen = false,
 }: FavoriteWorkoutsPanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
   const [activeCategory, setActiveCategory] = useState<WorkoutCategory>("back");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const pending = favorites.find((f) => f.id === pendingDeleteId);
+
+  const exerciseFavorites = useMemo(
+    () => favorites.filter((f) => (f.kind ?? "exercise") !== "menu"),
+    [favorites],
+  );
+
+  const pending = exerciseFavorites.find((f) => f.id === pendingDeleteId);
 
   const grouped = useMemo(() => {
     const map: Record<WorkoutCategory, FavoriteWorkout[]> = {
@@ -108,58 +117,83 @@ export function FavoriteWorkoutsPanel({
       chest: [],
       shoulders: [],
     };
-    for (const fav of favorites) {
+    for (const fav of exerciseFavorites) {
       if (!fav.category) continue;
       map[fav.category].push(fav);
     }
     return map;
-  }, [favorites]);
+  }, [exerciseFavorites]);
 
   const activeItems = grouped[activeCategory];
+  const totalCount = exerciseFavorites.length;
+  const summaryParts = WORKOUT_CATEGORY_ORDER.filter(
+    (cat) => grouped[cat].length > 0,
+  ).map((cat) => `${WORKOUT_CATEGORY_LABELS[cat]}(${grouped[cat].length})`);
 
-  if (favorites.length === 0) return null;
+  if (totalCount === 0) return null;
 
   return (
     <>
-      <Card title="常用訓練">
-        <div className="mb-2 flex gap-1.5">
-          {WORKOUT_CATEGORY_ORDER.map((cat) => {
-            const count = grouped[cat].length;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  "min-h-[32px] flex-1 rounded-lg border text-xs font-semibold",
-                  activeCategory === cat
-                    ? "border-accent bg-accent/20 text-accent-light"
-                    : "border-border bg-bg-elevated text-text-muted",
-                )}
-              >
-                {WORKOUT_CATEGORY_LABELS[cat]}
-                {count > 0 && (
-                  <span className="ml-0.5 opacity-80">({count})</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+      <Card>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <div>
+            <span className="card-title mb-0">常用訓練</span>
+            <p className="mt-1 text-xs text-text-muted">
+              {totalCount} 項
+              {summaryParts.length > 0 && ` · ${summaryParts.join(" · ")}`}
+            </p>
+          </div>
+          <span className="text-sm text-text-muted">{open ? "收起" : "展開"}</span>
+        </button>
 
-        {activeItems.length === 0 ? (
-          <p className="py-2 text-center text-xs text-text-muted">
-            尚無{WORKOUT_CATEGORY_LABELS[activeCategory]}常用動作
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {activeItems.map((fav) => (
-              <FavoriteChip
-                key={fav.id}
-                fav={fav}
-                onApply={onApply}
-                onRequestDelete={() => setPendingDeleteId(fav.id)}
-              />
-            ))}
+        {open && (
+          <div className="mt-3">
+            <div className="mb-2 flex gap-1.5">
+              {WORKOUT_CATEGORY_ORDER.map((cat) => {
+                const count = grouped[cat].length;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={cn(
+                      "min-h-[32px] flex-1 rounded-lg border text-xs font-semibold",
+                      activeCategory === cat
+                        ? "border-accent bg-accent/20 text-accent-light"
+                        : "border-border bg-bg-elevated text-text-muted",
+                    )}
+                  >
+                    {WORKOUT_CATEGORY_LABELS[cat]}
+                    {count > 0 && (
+                      <span className="ml-0.5 opacity-80">({count})</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeItems.length === 0 ? (
+              <p className="py-2 text-center text-xs text-text-muted">
+                尚無{WORKOUT_CATEGORY_LABELS[activeCategory]}常用動作
+              </p>
+            ) : (
+              <div className="max-h-[7.5rem] overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5">
+                  {activeItems.map((fav) => (
+                    <FavoriteChip
+                      key={fav.id}
+                      fav={fav}
+                      onApply={onApply}
+                      onRequestDelete={() => setPendingDeleteId(fav.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Card>

@@ -306,18 +306,33 @@ export async function insertFavoriteWorkout(
   userId: string,
   fav: Omit<FavoriteWorkout, "id">,
 ): Promise<FavoriteWorkout> {
+  const kind = fav.kind ?? "exercise";
   const base = {
     user_id: userId,
     name: fav.name,
     exercises: fav.exercises,
   };
-  const full = fav.category ? { ...base, category: fav.category } : base;
+  const withCategory = fav.category
+    ? { ...base, category: fav.category }
+    : base;
+  const full = { ...withCategory, kind };
 
   let { data, error } = await supabase
     .from("favorite_workouts")
     .insert(full)
     .select()
     .single();
+
+  // Migration 015 尚未套用時去掉 kind 重試
+  if (error?.message?.includes("kind")) {
+    const retry = await supabase
+      .from("favorite_workouts")
+      .insert(withCategory)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error?.message?.includes("category")) {
     const retry = await supabase

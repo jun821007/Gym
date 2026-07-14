@@ -110,12 +110,16 @@ export function rowToFavoriteWorkout(row: {
   id: string;
   name: string;
   category?: string | null;
+  kind?: string | null;
   exercises: FavoriteWorkout["exercises"];
 }): FavoriteWorkout {
+  const kind =
+    row.kind === "menu" ? ("menu" as const) : ("exercise" as const);
   return {
     id: row.id,
     name: row.name,
     category: normalizeWorkoutCategory(row.category),
+    kind,
     exercises: Array.isArray(row.exercises) ? row.exercises : [],
   };
 }

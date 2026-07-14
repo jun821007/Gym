@@ -86,10 +86,14 @@ export interface FavoriteWorkoutExercise {
   sets?: number;
 }
 
+export type FavoriteWorkoutKind = "exercise" | "menu";
+
 export interface FavoriteWorkout {
   id: string;
   name: string;
   category?: WorkoutCategory | null;
+  /** exercise = 常用芯片；menu = 整日訓練菜單 */
+  kind?: FavoriteWorkoutKind;
   exercises: FavoriteWorkoutExercise[];
 }
 
