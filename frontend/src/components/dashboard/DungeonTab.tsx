@@ -54,6 +54,7 @@ interface DungeonTabProps {
   onDeleteWorkout?: (id: string) => void | Promise<void>;
   onSaveFavoriteWorkout?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
+  onRenameFavoriteWorkout?: (id: string, name: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onDeleteSettlement?: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onVolumeGoalChange: (goalKg: number) => void | Promise<void>;
@@ -81,6 +82,7 @@ export function DungeonTab({
   onDeleteWorkout,
   onSaveFavoriteWorkout,
   onDeleteFavoriteWorkout,
+  onRenameFavoriteWorkout,
   onSettlementSaved,
   onDeleteSettlement,
   onVolumeGoalChange,
@@ -297,10 +299,10 @@ export function DungeonTab({
     }
     const [, m, d] = dateKey.split("-");
     const short = `${Number(m)}/${Number(d)}`;
-    const name = `${short} 訓練菜單`;
+    const name = short;
     if (
       !confirm(
-        `將 ${short}（${formatDateLabel(dateKey)}）的紀錄存成訓練菜單「${name}」？`,
+        `將 ${short}（${formatDateLabel(dateKey)}）的 ${items.length} 項紀錄存成菜單「${name}」？之後可重新命名。`,
       )
     ) {
       return;
@@ -475,6 +477,7 @@ export function DungeonTab({
           menus={workoutMenus}
           onApplyExercise={applyMenuExercise}
           onDelete={onDeleteFavoriteWorkout}
+          onRename={onRenameFavoriteWorkout}
         />
       )}
 

@@ -42,6 +42,7 @@ import {
   syncNutritionGoalsFromInbody,
   syncNutritionGoalsIfStale,
   updateDiet,
+  updateFavoriteWorkout,
   updateProfile,
   updateWaterGoal,
   updateWorkoutVolumeGoal,
@@ -369,6 +370,13 @@ export function Dashboard({
     setWorkoutFavorites((prev) => prev.filter((f) => f.id !== id));
   }
 
+  async function handleWorkoutFavoriteRename(id: string, name: string) {
+    const updated = await updateFavoriteWorkout(supabase, userId, id, { name });
+    setWorkoutFavorites((prev) =>
+      prev.map((f) => (f.id === id ? updated : f)),
+    );
+  }
+
   async function handleWaterAdd(amountMl: number, logDate: string) {
     const loggedAt = combineDateAndTime(logDate, nowTimeStr());
     const entry = await insertWaterLog(
@@ -505,6 +513,7 @@ export function Dashboard({
             onDeleteWorkout={handleWorkoutDelete}
             onSaveFavoriteWorkout={handleWorkoutFavoriteSave}
             onDeleteFavoriteWorkout={handleWorkoutFavoriteDelete}
+            onRenameFavoriteWorkout={handleWorkoutFavoriteRename}
             onSettlementSaved={handleWorkoutSettlementSaved}
             onDeleteSettlement={handleWorkoutSettlementDelete}
             onVolumeGoalChange={handleWorkoutVolumeGoalChange}

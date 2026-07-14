@@ -99,7 +99,10 @@ export function calcLogVolume(log: WorkoutLog, bodyWeightKg: number | null): num
 }
 
 /** 將逐組明細壓成可讀字串，連續相同組會合併（例：60×10×3 + 50×10） */
-export function formatSettlementSetLines(setLines: SettlementSetLine[]): string {
+export function formatSettlementSetLines(
+  setLines: SettlementSetLine[],
+  options?: { unilateral?: boolean },
+): string {
   if (!setLines.length) return "";
 
   const groups: { weightKg: number; reps: number; count: number }[] = [];
@@ -112,24 +115,31 @@ export function formatSettlementSetLines(setLines: SettlementSetLine[]): string 
     }
   }
 
+  const prefix = options?.unilateral ? "單邊 " : "";
   return groups
     .map((g) =>
       g.count > 1
-        ? `${g.weightKg}kg×${g.reps}×${g.count}`
-        : `${g.weightKg}kg×${g.reps}`,
+        ? `${prefix}${g.weightKg}kg×${g.reps}×${g.count}`
+        : `${prefix}${g.weightKg}kg×${g.reps}`,
     )
     .join(" + ");
 }
 
+/** 結算畫面顯示用：單邊顯示使用者輸入的單側 kg（訓練量另以 volumeKg ×2 計算） */
 export function buildSettlementSetLines(
   log: WorkoutLog,
   bodyWeightKg: number | null,
 ): SettlementSetLine[] {
-  return normalizeSetDetails(log).map((set) => ({
-    weightKg:
-      Math.round(effectiveSetWeightKg(log, set, bodyWeightKg) * 10) / 10,
-    reps: set.reps,
-  }));
+  return normalizeSetDetails(log).map((set) => {
+    const weight =
+      log.loadType === "unilateral"
+        ? storedSetWeightKg(log, set)
+        : effectiveSetWeightKg(log, set, bodyWeightKg);
+    return {
+      weightKg: Math.round(weight * 10) / 10,
+      reps: set.reps,
+    };
+  });
 }
 
 /** 結算沿用：等效 weight × reps × sets */

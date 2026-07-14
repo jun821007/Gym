@@ -102,8 +102,10 @@ export function WorkoutSettlementModal({
                   <span className="font-semibold text-text">{l.exerciseName}</span>
                   {" · "}
                   {l.setLines?.length
-                    ? formatSettlementSetLines(l.setLines)
-                    : `${l.weightKg}kg×${l.reps}×${l.sets}`}
+                    ? formatSettlementSetLines(l.setLines, {
+                        unilateral: l.loadType === "unilateral",
+                      })
+                    : `${l.loadType === "unilateral" ? "單邊 " : ""}${l.weightKg}kg×${l.reps}×${l.sets}`}
                   <span className="ml-1 tabular-nums opacity-80">
                     （{Math.round(settlementLogVolume(l))}）
                   </span>

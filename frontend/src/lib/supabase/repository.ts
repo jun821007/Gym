@@ -361,6 +361,23 @@ export async function deleteFavoriteWorkout(
   if (error) throw error;
 }
 
+export async function updateFavoriteWorkout(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  patch: { name: string },
+): Promise<FavoriteWorkout> {
+  const { data, error } = await supabase
+    .from("favorite_workouts")
+    .update({ name: patch.name.trim() })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToFavoriteWorkout(data);
+}
+
 export async function fetchDiets(
   supabase: SupabaseClient,
   userId: string,
