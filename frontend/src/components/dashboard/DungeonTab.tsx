@@ -518,7 +518,16 @@ export function DungeonTab({
               bodyWeightKg={bodyWeightKg}
               onDelete={
                 onDeleteWorkout
-                  ? (id) => void onDeleteWorkout(id)
+                  ? (id) => {
+                      if (
+                        !confirm(
+                          "確定刪除這筆訓練紀錄？此動作無法復原。",
+                        )
+                      ) {
+                        return;
+                      }
+                      void onDeleteWorkout(id);
+                    }
                   : undefined
               }
             />
@@ -726,6 +735,20 @@ export function DungeonTab({
                           workouts={group.items}
                           bodyWeightKg={bodyWeightKg}
                           onSelectLog={(w) => setPrefill(historyToPrefill(w))}
+                          onDelete={
+                            onDeleteWorkout
+                              ? (id) => {
+                                  if (
+                                    !confirm(
+                                      "確定刪除這筆訓練紀錄？此動作無法復原。",
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  void onDeleteWorkout(id);
+                                }
+                              : undefined
+                          }
                         />
                       </div>
                     )}
