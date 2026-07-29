@@ -648,9 +648,29 @@ export async function insertFavoriteMeal(
       sodium_mg: meal.sodiumMg ?? 0,
       fiber_g: meal.fiberG ?? 0,
       default_meal_type: meal.defaultMealType ?? null,
+      bundle_name: meal.bundleName?.trim() || null,
     })
     .select()
     .single();
+  if (error?.message?.includes("bundle_name")) {
+    const retry = await supabase
+      .from("favorite_meals")
+      .insert({
+        user_id: userId,
+        name: meal.name,
+        calories: meal.calories,
+        protein_g: meal.proteinG,
+        carbs_g: meal.carbsG,
+        fat_g: meal.fatG,
+        sodium_mg: meal.sodiumMg ?? 0,
+        fiber_g: meal.fiberG ?? 0,
+        default_meal_type: meal.defaultMealType ?? null,
+      })
+      .select()
+      .single();
+    if (retry.error) throw retry.error;
+    return rowToFavoriteMeal(retry.data);
+  }
   if (error?.message?.includes("sodium_mg") || error?.message?.includes("fiber_g")) {
     const retry = await supabase
       .from("favorite_meals")

@@ -29,7 +29,7 @@ interface DietAddFormProps {
   defaultDate?: string;
   onSave: (
     log: Omit<DietLog, "id">,
-    options?: { addToFavorites?: boolean },
+    options?: { addToFavorites?: boolean; favoriteBundleName?: string },
   ) => void | Promise<void>;
 }
 
@@ -45,6 +45,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
   const [estimating, setEstimating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addFavorite, setAddFavorite] = useState(false);
+  const [favoriteBundleName, setFavoriteBundleName] = useState("");
   const [aiReply, setAiReply] = useState("");
   useEffect(() => {
     if (defaultDate) setDateKey(defaultDate);
@@ -116,13 +117,17 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
           ),
           mealType,
         },
-        { addToFavorites: addFavorite },
+        {
+          addToFavorites: addFavorite,
+          favoriteBundleName: favoriteBundleName.trim() || undefined,
+        },
       );
       setText("");
       setImageFile(null);
       setPreview(null);
       setAiReply("");
       setAddFavorite(false);
+      setFavoriteBundleName("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       alert(e instanceof Error ? e.message : "儲存失敗");
@@ -277,6 +282,17 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
               />
               加入常吃
             </label>
+            {addFavorite && (
+              <label className="block text-xs text-text-muted">
+                套餐名稱（可選）
+                <input
+                  value={favoriteBundleName}
+                  onChange={(e) => setFavoriteBundleName(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-3 text-sm"
+                  placeholder="例如：早餐A"
+                />
+              </label>
+            )}
             <button
               type="button"
               disabled={saving}

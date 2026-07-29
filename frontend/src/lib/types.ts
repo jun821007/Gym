@@ -116,7 +116,10 @@ export interface DietLog {
 
 export interface FavoriteMeal {
   id: string;
+  /** 食物名稱（套餐中的單品名稱） */
   name: string;
+  /** 套餐名稱；相同 bundleName 視為同一套餐 */
+  bundleName?: string;
   calories: number;
   proteinG: number;
   carbsG: number;

@@ -262,7 +262,7 @@ export function Dashboard({
 
   async function handleDietAdd(
     log: Omit<DietLog, "id">,
-    options?: { addToFavorites?: boolean },
+    options?: { addToFavorites?: boolean; favoriteBundleName?: string },
   ) {
     const inserted = await insertDiet(supabase, userId, log);
     setDiets((prev) => [inserted, ...prev]);
@@ -270,6 +270,7 @@ export function Dashboard({
       try {
         const fav = await insertFavoriteMeal(supabase, userId, {
           name: log.foodName,
+          bundleName: options.favoriteBundleName,
           calories: log.calories,
           proteinG: log.proteinG,
           carbsG: log.carbsG,

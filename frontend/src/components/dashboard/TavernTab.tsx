@@ -66,7 +66,7 @@ interface TavernTabProps {
   weeklyGrades: WeeklyGrade[];
   onDietAdd: (
     log: Omit<DietLog, "id">,
-    options?: { addToFavorites?: boolean },
+    options?: { addToFavorites?: boolean; favoriteBundleName?: string },
   ) => void | Promise<void>;
   onDietUpdate: (id: string, log: Omit<DietLog, "id">) => void | Promise<void>;
   onDietDelete: (id: string) => void | Promise<void>;
@@ -523,7 +523,11 @@ export function TavernTab({
       <FavoriteMealsPanel
         favorites={favorites}
         recordDate={recordDate}
-        onQuickAdd={onDietAdd}
+        onQuickAddMany={async (logs) => {
+          for (const log of logs) {
+            await onDietAdd(log);
+          }
+        }}
         onDelete={onFavoriteDelete}
       />
 

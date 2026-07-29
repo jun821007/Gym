@@ -464,11 +464,13 @@ export function DungeonTab({
           </button>
         )}
       </div>
-      {exerciseFavorites.length > 0 && onDeleteFavoriteWorkout && (
+      {(exerciseFavorites.length > 0 || onSaveFavoriteWorkout) &&
+        onDeleteFavoriteWorkout && (
         <FavoriteWorkoutsPanel
           favorites={exerciseFavorites}
           onApply={applyFavorite}
           onDelete={onDeleteFavoriteWorkout}
+          onCreate={onSaveFavoriteWorkout}
         />
       )}
 
@@ -488,7 +490,6 @@ export function DungeonTab({
           prefill={prefill}
           onPrefillConsumed={() => setPrefill(null)}
           onSave={onAddWorkout}
-          onSaveFavorite={onSaveFavoriteWorkout}
         />
       </div>
 

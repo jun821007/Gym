@@ -3,11 +3,18 @@
 import { useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import {
+  WORKOUT_CATEGORY_OPTIONS,
   WORKOUT_CATEGORY_LABELS,
   WORKOUT_CATEGORY_ORDER,
 } from "@/lib/workout-categories";
-import type { FavoriteWorkout, WorkoutCategory } from "@/lib/types";
+import type {
+  FavoriteWorkout,
+  FavoriteWorkoutExercise,
+  WorkoutCategory,
+  WorkoutLoadType,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { LOAD_TYPE_OPTIONS } from "@/lib/workout-volume";
 
 const LONG_PRESS_MS = 480;
 const MOVE_CANCEL_PX = 10;
@@ -16,6 +23,12 @@ interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
   onApply: (fav: FavoriteWorkout) => void;
   onDelete: (id: string) => void | Promise<void>;
+  onCreate?: (fav: {
+    name: string;
+    category: WorkoutCategory;
+    exercises: FavoriteWorkoutExercise[];
+    kind?: "exercise";
+  }) => void | Promise<void>;
   defaultOpen?: boolean;
 }
 
@@ -97,11 +110,17 @@ export function FavoriteWorkoutsPanel({
   favorites,
   onApply,
   onDelete,
+  onCreate,
   defaultOpen = false,
 }: FavoriteWorkoutsPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [activeCategory, setActiveCategory] = useState<WorkoutCategory>("back");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCategory, setNewCategory] = useState<WorkoutCategory>("back");
+  const [newLoadType, setNewLoadType] = useState<WorkoutLoadType>("bilateral");
+  const [creating, setCreating] = useState(false);
 
   const exerciseFavorites = useMemo(
     () => favorites.filter((f) => (f.kind ?? "exercise") !== "menu"),
@@ -130,7 +149,33 @@ export function FavoriteWorkoutsPanel({
     (cat) => grouped[cat].length > 0,
   ).map((cat) => `${WORKOUT_CATEGORY_LABELS[cat]}(${grouped[cat].length})`);
 
-  if (totalCount === 0) return null;
+  async function submitCreate() {
+    if (!onCreate) return;
+    const name = newName.trim();
+    if (!name) {
+      alert("請輸入動作名稱");
+      return;
+    }
+    setCreating(true);
+    try {
+      await onCreate({
+        name,
+        category: newCategory,
+        kind: "exercise",
+        exercises: [{ exerciseName: name, loadType: newLoadType }],
+      });
+      setNewName("");
+      setNewCategory(activeCategory);
+      setNewLoadType("bilateral");
+      setShowCreate(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "新增常用訓練失敗");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (totalCount === 0 && !onCreate) return null;
 
   return (
     <>
@@ -152,6 +197,20 @@ export function FavoriteWorkoutsPanel({
 
         {open && (
           <div className="mt-3">
+            {onCreate && (
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewCategory(activeCategory);
+                    setShowCreate(true);
+                  }}
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent-light"
+                >
+                  + 新增動作
+                </button>
+              </div>
+            )}
             <div className="mb-2 flex gap-1.5">
               {WORKOUT_CATEGORY_ORDER.map((cat) => {
                 const count = grouped[cat].length;
@@ -225,6 +284,75 @@ export function FavoriteWorkoutsPanel({
                 className="min-h-[44px] flex-1 rounded-xl bg-danger text-sm font-bold text-white"
               >
                 確認刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 p-4">
+          <div
+            role="dialog"
+            className="w-full max-w-sm rounded-2xl border border-border bg-bg-card p-4"
+          >
+            <h3 className="text-sm font-bold text-accent-light">新增常用動作</h3>
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs text-text-muted">
+                動作名稱
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                  placeholder="例如：硬舉"
+                />
+              </label>
+              <label className="block text-xs text-text-muted">
+                分類
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value as WorkoutCategory)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                >
+                  {WORKOUT_CATEGORY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs text-text-muted">
+                負載類型
+                <select
+                  value={newLoadType}
+                  onChange={(e) => setNewLoadType(e.target.value as WorkoutLoadType)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                >
+                  {LOAD_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => setShowCreate(false)}
+                className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={() => void submitCreate()}
+                className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
+              >
+                {creating ? "新增中…" : "確認新增"}
               </button>
             </div>
           </div>

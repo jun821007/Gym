@@ -161,10 +161,12 @@ export function rowToFavoriteMeal(row: {
   sodium_mg?: number | null;
   fiber_g?: number | null;
   default_meal_type: string | null;
+  bundle_name?: string | null;
 }): FavoriteMeal {
   return {
     id: row.id,
     name: row.name,
+    bundleName: row.bundle_name ?? undefined,
     calories: row.calories,
     proteinG: Number(row.protein_g),
     carbsG: Number(row.carbs_g),
