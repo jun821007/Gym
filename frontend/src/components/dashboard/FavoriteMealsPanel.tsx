@@ -64,18 +64,15 @@ export function FavoriteMealsPanel({
   const [assignExisting, setAssignExisting] = useState("");
   const [assignNewName, setAssignNewName] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
+  const [itemsOpen, setItemsOpen] = useState(false);
 
-  const { bundles, singles } = useMemo(() => {
+  const { bundles } = useMemo(() => {
     const bundleMap = new Map<string, FavoriteMeal[]>();
-    const ungrouped: FavoriteMeal[] = [];
 
     for (const fav of favorites) {
       const meal = resolveMealType(fav);
       const name = fav.bundleName?.trim();
-      if (!name) {
-        ungrouped.push(fav);
-        continue;
-      }
+      if (!name) continue;
       const key = `${meal}::${name}`;
       const list = bundleMap.get(key) ?? [];
       list.push(fav);
@@ -95,21 +92,18 @@ export function FavoriteMealsPanel({
     }
     allBundles.sort((a, b) => a.name.localeCompare(b.name, "zh-TW"));
 
-    return { bundles: allBundles, singles: ungrouped };
+    return { bundles: allBundles };
   }, [favorites]);
+
+  const allItems = useMemo(
+    () =>
+      [...favorites].sort((a, b) => a.name.localeCompare(b.name, "zh-TW")),
+    [favorites],
+  );
 
   const mealBundles = useMemo(
     () => bundles.filter((b) => b.mealType === mealType),
     [bundles, mealType],
-  );
-
-  const mealSingles = useMemo(
-    () =>
-      singles.filter((f) => {
-        if (!f.defaultMealType) return true;
-        return f.defaultMealType === mealType;
-      }),
-    [singles, mealType],
   );
 
   const existingBundleNames = useMemo(
@@ -125,18 +119,8 @@ export function FavoriteMealsPanel({
       snack: 0,
     };
     for (const b of bundles) map[b.mealType] += 1;
-    for (const f of singles) {
-      if (!f.defaultMealType) {
-        map.breakfast += 1;
-        map.lunch += 1;
-        map.dinner += 1;
-        map.snack += 1;
-        continue;
-      }
-      map[f.defaultMealType] += 1;
-    }
     return map;
-  }, [bundles, singles]);
+  }, [bundles]);
 
   if (favorites.length === 0) return null;
 
@@ -302,9 +286,9 @@ export function FavoriteMealsPanel({
         </div>
 
         <div className="space-y-2">
-          {mealBundles.length === 0 && mealSingles.length === 0 ? (
+          {mealBundles.length === 0 ? (
             <p className="py-3 text-center text-sm text-text-muted">
-              此餐期尚無套餐。新增餐點時勾「加入常吃」並填套餐名稱即可建立。
+              此餐期尚無套餐。可從下方「已加入的單品」勾選後納入，或新增餐點時建立套餐。
             </p>
           ) : null}
 
@@ -365,84 +349,108 @@ export function FavoriteMealsPanel({
             );
           })}
 
-          {mealSingles.length > 0 && (
-            <div className="rounded-xl border border-dashed border-border p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold text-text-muted">
-                    未分組單品（舊資料）
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-text-muted">
-                    勾選後按「納入套餐」，可併入既有套餐或建新套餐（歸到目前餐期）。
-                  </p>
-                </div>
-                {onAssignToBundle && (
+          <div className="rounded-xl border border-dashed border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setItemsOpen((o) => !o)}
+                className="min-w-0 flex-1 text-left"
+              >
+                <p className="text-xs font-semibold text-text-muted">
+                  已加入的單品
+                  <span className="ml-1 font-normal">
+                    ({allItems.length})
+                  </span>
+                </p>
+                <p className="mt-0.5 text-[11px] text-text-muted">
+                  {itemsOpen
+                    ? "可單點新增；勾選後可納入／改套餐"
+                    : "點此展開全部常吃單品"}
+                </p>
+              </button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {itemsOpen && onAssignToBundle && (
                   <button
                     type="button"
                     onClick={() => openAssign()}
                     disabled={selectedIds.size === 0}
-                    className="shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent-light disabled:opacity-40"
+                    className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent-light disabled:opacity-40"
                   >
                     納入套餐
                     {selectedIds.size > 0 ? `（${selectedIds.size}）` : ""}
                   </button>
                 )}
-              </div>
-              <div className="mt-2 space-y-1.5">
-                {mealSingles.map((fav) => (
-                  <div
-                    key={fav.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-app px-2.5 py-1.5"
-                  >
-                    <label className="flex min-w-0 flex-1 items-center gap-2">
-                      {onAssignToBundle && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(fav.id)}
-                          onChange={() => toggleSelected(fav.id)}
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold">
-                          {fav.name}
-                        </p>
-                        <p className="text-[11px] tabular-nums text-text-muted">
-                          {fav.calories} kcal · P{fav.proteinG}
-                          {!fav.defaultMealType && " · 未指定餐期"}
-                        </p>
-                      </div>
-                    </label>
-                    <div className="flex shrink-0 gap-1">
-                      {onAssignToBundle && (
-                        <button
-                          type="button"
-                          onClick={() => openAssign([fav.id])}
-                          className="rounded-lg border border-border px-2 py-1 text-[11px] text-accent-light"
-                        >
-                          納入
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={addingKey === fav.id}
-                        onClick={() => void addSingle(fav)}
-                        className="rounded-lg bg-accent/15 px-2 py-1 text-[11px] font-bold text-accent-light disabled:opacity-40"
-                      >
-                        新增
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingSingle(fav)}
-                        className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
-                      >
-                        刪除
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setItemsOpen((o) => !o)}
+                  className="text-xs text-text-muted"
+                >
+                  {itemsOpen ? "收起" : "展開"}
+                </button>
               </div>
             </div>
-          )}
+
+            {itemsOpen && (
+              <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+                {allItems.map((fav) => {
+                  const bundleLabel = fav.bundleName?.trim();
+                  return (
+                    <div
+                      key={fav.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-app px-2.5 py-1.5"
+                    >
+                      <label className="flex min-w-0 flex-1 items-center gap-2">
+                        {onAssignToBundle && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(fav.id)}
+                            onChange={() => toggleSelected(fav.id)}
+                          />
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold">
+                            {fav.name}
+                          </p>
+                          <p className="text-[11px] tabular-nums text-text-muted">
+                            {fav.calories} kcal · P{fav.proteinG}
+                            {bundleLabel
+                              ? ` · ${bundleLabel}`
+                              : " · 未入套餐"}
+                          </p>
+                        </div>
+                      </label>
+                      <div className="flex shrink-0 gap-1">
+                        {onAssignToBundle && (
+                          <button
+                            type="button"
+                            onClick={() => openAssign([fav.id])}
+                            className="rounded-lg border border-border px-2 py-1 text-[11px] text-accent-light"
+                          >
+                            納入
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={addingKey === fav.id}
+                          onClick={() => void addSingle(fav)}
+                          className="rounded-lg bg-accent/15 px-2 py-1 text-[11px] font-bold text-accent-light disabled:opacity-40"
+                        >
+                          新增
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingSingle(fav)}
+                          className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
+                        >
+                          刪除
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 

@@ -45,7 +45,6 @@ import {
   updateFavoriteMeal,
   updateFavoriteWorkout,
   updateProfile,
-  updateWaterGoal,
   updateWorkoutVolumeGoal,
   updateWaterLog,
   upsertDietSettlement,
@@ -406,38 +405,50 @@ export function Dashboard({
     );
   }
 
-  async function handleWaterAdd(amountMl: number, logDate: string) {
+  async function handleWaterSetTotal(amountMl: number, logDate: string) {
+    const dayEntries = waterLogs
+      .filter((w) => w.logDate === logDate)
+      .sort(
+        (a, b) =>
+          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
+      );
+
+    if (amountMl <= 0) {
+      for (const e of dayEntries) {
+        await deleteWaterLog(supabase, userId, e.id);
+      }
+      setWaterLogs((prev) => prev.filter((w) => w.logDate !== logDate));
+      return;
+    }
+
     const loggedAt = combineDateAndTime(logDate, nowTimeStr());
-    const entry = await insertWaterLog(
-      supabase,
-      userId,
+    if (dayEntries.length === 0) {
+      const entry = await insertWaterLog(
+        supabase,
+        userId,
+        amountMl,
+        logDate,
+        loggedAt,
+      );
+      setWaterLogs((prev) => [entry, ...prev]);
+      return;
+    }
+
+    const [keep, ...rest] = dayEntries;
+    const updated = await updateWaterLog(supabase, userId, keep.id, {
       amountMl,
       logDate,
       loggedAt,
+    });
+    for (const e of rest) {
+      await deleteWaterLog(supabase, userId, e.id);
+    }
+    const restIds = new Set(rest.map((e) => e.id));
+    setWaterLogs((prev) =>
+      prev
+        .filter((w) => !restIds.has(w.id))
+        .map((w) => (w.id === keep.id ? updated : w)),
     );
-    setWaterLogs((prev) => [entry, ...prev]);
-  }
-
-  async function handleWaterUpdate(
-    id: string,
-    patch: { amountMl: number; logDate: string; loggedAt: string },
-  ) {
-    const updated = await updateWaterLog(supabase, userId, id, patch);
-    setWaterLogs((prev) => prev.map((w) => (w.id === id ? updated : w)));
-  }
-
-  async function handleWaterDelete(id: string) {
-    await deleteWaterLog(supabase, userId, id);
-    setWaterLogs((prev) => prev.filter((w) => w.id !== id));
-  }
-
-  async function handleWaterGoalChange(goalMl: number) {
-    await updateWaterGoal(supabase, userId, goalMl);
-    const next = {
-      ...profile,
-      dailyWaterGoalMl: goalMl,
-    };
-    await persistProfile(next);
   }
 
   async function handleWorkoutVolumeGoalChange(goalKg: number) {
@@ -568,10 +579,7 @@ export function Dashboard({
             onFavoriteDelete={handleFavoriteDelete}
             onFavoriteDeleteMany={handleFavoriteDeleteMany}
             onFavoriteAssignToBundle={handleFavoriteAssignToBundle}
-            onWaterAdd={handleWaterAdd}
-            onWaterUpdate={handleWaterUpdate}
-            onWaterDelete={handleWaterDelete}
-            onWaterGoalChange={handleWaterGoalChange}
+            onWaterSetTotal={handleWaterSetTotal}
             onSettlementSaved={handleDietSettlementSaved}
             onDeleteSettlement={handleDietSettlementDelete}
             onWeeklyGradeGenerated={handleWeeklyGradeGenerated}

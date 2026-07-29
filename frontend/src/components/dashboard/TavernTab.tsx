@@ -79,13 +79,7 @@ interface TavernTabProps {
       defaultMealType: NonNullable<DietLog["mealType"]>;
     },
   ) => void | Promise<void>;
-  onWaterAdd: (amountMl: number, logDate: string) => void | Promise<void>;
-  onWaterUpdate: (
-    id: string,
-    patch: { amountMl: number; logDate: string; loggedAt: string },
-  ) => void | Promise<void>;
-  onWaterDelete: (id: string) => void | Promise<void>;
-  onWaterGoalChange: (goalMl: number) => void | Promise<void>;
+  onWaterSetTotal: (amountMl: number, logDate: string) => void | Promise<void>;
   onSettlementSaved: (s: DailyDietSettlement) => void | Promise<void>;
   onDeleteSettlement?: (s: DailyDietSettlement) => void | Promise<void>;
   onWeeklyGradeGenerated: (g: WeeklyGrade) => void | Promise<void>;
@@ -128,10 +122,7 @@ export function TavernTab({
   onFavoriteDelete,
   onFavoriteDeleteMany,
   onFavoriteAssignToBundle,
-  onWaterAdd,
-  onWaterUpdate,
-  onWaterDelete,
-  onWaterGoalChange,
+  onWaterSetTotal,
   onSettlementSaved,
   onDeleteSettlement,
   onWeeklyGradeGenerated,
@@ -552,12 +543,9 @@ export function TavernTab({
         waterLogs={waterLogs}
         waterGoalMl={waterGoalMl}
         recordDate={recordDate}
-        onWaterAdd={onWaterAdd}
-        onWaterGoalChange={onWaterGoalChange}
+        onWaterSetTotal={onWaterSetTotal}
         onDietUpdate={onDietUpdate}
         onDietDelete={onDietDelete}
-        onWaterUpdate={onWaterUpdate}
-        onWaterDelete={onWaterDelete}
       />
 
       <div className="pixel-card pixel-card--hero">
