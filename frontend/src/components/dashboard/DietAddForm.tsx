@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { estimateDietNutrition } from "@/lib/diet-api";
 import { toDateKey } from "@/lib/datetime";
 import { combineDateAndTime } from "@/lib/logged-at";
 import { defaultTimeForMealType, mealTypeFromHour } from "@/lib/meal-type";
-import type { DietLog } from "@/lib/types";
+import type { DietLog, FavoriteMeal } from "@/lib/types";
 
 const PORTION_OPTIONS = [
   { value: "", label: "未指定（AI 假設一般份量）" },
@@ -27,13 +27,18 @@ const MEAL_OPTIONS: { value: NonNullable<DietLog["mealType"]>; label: string }[]
 
 interface DietAddFormProps {
   defaultDate?: string;
+  favorites?: FavoriteMeal[];
   onSave: (
     log: Omit<DietLog, "id">,
     options?: { addToFavorites?: boolean; favoriteBundleName?: string },
   ) => void | Promise<void>;
 }
 
-export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
+export function DietAddForm({
+  defaultDate,
+  favorites = [],
+  onSave,
+}: DietAddFormProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [portion, setPortion] = useState("");
@@ -45,11 +50,38 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
   const [estimating, setEstimating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addFavorite, setAddFavorite] = useState(false);
-  const [favoriteBundleName, setFavoriteBundleName] = useState("");
+  const [bundleMode, setBundleMode] = useState<"existing" | "new">("existing");
+  const [existingBundle, setExistingBundle] = useState("");
+  const [newBundleName, setNewBundleName] = useState("");
   const [aiReply, setAiReply] = useState("");
   useEffect(() => {
     if (defaultDate) setDateKey(defaultDate);
   }, [defaultDate]);
+
+  const existingBundlesForMeal = useMemo(() => {
+    const names = new Set<string>();
+    for (const fav of favorites) {
+      const name = fav.bundleName?.trim();
+      if (!name) continue;
+      if ((fav.defaultMealType ?? "lunch") !== (mealType ?? "lunch")) continue;
+      names.add(name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, "zh-TW"));
+  }, [favorites, mealType]);
+
+  useEffect(() => {
+    if (existingBundlesForMeal.length === 0) {
+      setBundleMode("new");
+      setExistingBundle("");
+      return;
+    }
+    setBundleMode("existing");
+    setExistingBundle((prev) =>
+      prev && existingBundlesForMeal.includes(prev)
+        ? prev
+        : existingBundlesForMeal[0],
+    );
+  }, [existingBundlesForMeal]);
 
   const [preview, setPreview] = useState<{
     foodName: string;
@@ -100,6 +132,21 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
       alert("請輸入品名");
       return;
     }
+    let favoriteBundleName: string | undefined;
+    if (addFavorite) {
+      favoriteBundleName =
+        bundleMode === "existing"
+          ? existingBundle.trim()
+          : newBundleName.trim();
+      if (!favoriteBundleName) {
+        alert(
+          bundleMode === "existing"
+            ? "請選擇要加入的套餐"
+            : "請輸入套餐名稱（例如：早餐A）",
+        );
+        return;
+      }
+    }
     setSaving(true);
     try {
       await onSave(
@@ -119,7 +166,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
         },
         {
           addToFavorites: addFavorite,
-          favoriteBundleName: favoriteBundleName.trim() || undefined,
+          favoriteBundleName,
         },
       );
       setText("");
@@ -127,7 +174,7 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
       setPreview(null);
       setAiReply("");
       setAddFavorite(false);
-      setFavoriteBundleName("");
+      setNewBundleName("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       alert(e instanceof Error ? e.message : "儲存失敗");
@@ -280,18 +327,69 @@ export function DietAddForm({ defaultDate, onSave }: DietAddFormProps) {
                 checked={addFavorite}
                 onChange={(e) => setAddFavorite(e.target.checked)}
               />
-              加入常吃
+              加入常吃套餐
             </label>
             {addFavorite && (
-              <label className="block text-xs text-text-muted">
-                套餐名稱（可選）
-                <input
-                  value={favoriteBundleName}
-                  onChange={(e) => setFavoriteBundleName(e.target.value)}
-                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-3 text-sm"
-                  placeholder="例如：早餐A"
-                />
-              </label>
+              <div className="space-y-2 rounded-lg border border-border bg-bg-app p-2.5">
+                <p className="text-xs text-text-muted">
+                  同一套餐名稱的品項會歸在同一組，之後可一次新增多品。
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={existingBundlesForMeal.length === 0}
+                    onClick={() => setBundleMode("existing")}
+                    className={`min-h-[36px] flex-1 rounded-lg border text-xs font-semibold disabled:opacity-40 ${
+                      bundleMode === "existing"
+                        ? "border-accent bg-accent/20 text-accent-light"
+                        : "border-border text-text-muted"
+                    }`}
+                  >
+                    加入既有套餐
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBundleMode("new")}
+                    className={`min-h-[36px] flex-1 rounded-lg border text-xs font-semibold ${
+                      bundleMode === "new"
+                        ? "border-accent bg-accent/20 text-accent-light"
+                        : "border-border text-text-muted"
+                    }`}
+                  >
+                    建立新套餐
+                  </button>
+                </div>
+                {bundleMode === "existing" ? (
+                  <label className="block text-xs text-text-muted">
+                    選擇套餐
+                    <select
+                      value={existingBundle}
+                      onChange={(e) => setExistingBundle(e.target.value)}
+                      className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-elevated px-2 text-sm"
+                    >
+                      {existingBundlesForMeal.length === 0 ? (
+                        <option value="">此餐期尚無套餐</option>
+                      ) : (
+                        existingBundlesForMeal.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </label>
+                ) : (
+                  <label className="block text-xs text-text-muted">
+                    新套餐名稱（必填）
+                    <input
+                      value={newBundleName}
+                      onChange={(e) => setNewBundleName(e.target.value)}
+                      className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-elevated px-3 text-sm"
+                      placeholder="例如：增肌早餐 / 外食午餐A"
+                    />
+                  </label>
+                )}
+              </div>
             )}
             <button
               type="button"

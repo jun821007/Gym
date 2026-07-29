@@ -301,6 +301,14 @@ export function Dashboard({
     setFavorites((prev) => prev.filter((f) => f.id !== id));
   }
 
+  async function handleFavoriteDeleteMany(ids: string[]) {
+    for (const id of ids) {
+      await deleteFavoriteMeal(supabase, userId, id);
+    }
+    const idSet = new Set(ids);
+    setFavorites((prev) => prev.filter((f) => !idSet.has(f.id)));
+  }
+
   async function handleChatUpdate(
     data: unknown,
     context?: { userMessage?: string },
@@ -538,6 +546,7 @@ export function Dashboard({
             onDietUpdate={handleDietUpdate}
             onDietDelete={handleDietDelete}
             onFavoriteDelete={handleFavoriteDelete}
+            onFavoriteDeleteMany={handleFavoriteDeleteMany}
             onWaterAdd={handleWaterAdd}
             onWaterUpdate={handleWaterUpdate}
             onWaterDelete={handleWaterDelete}

@@ -71,6 +71,7 @@ interface TavernTabProps {
   onDietUpdate: (id: string, log: Omit<DietLog, "id">) => void | Promise<void>;
   onDietDelete: (id: string) => void | Promise<void>;
   onFavoriteDelete: (id: string) => void | Promise<void>;
+  onFavoriteDeleteMany?: (ids: string[]) => void | Promise<void>;
   onWaterAdd: (amountMl: number, logDate: string) => void | Promise<void>;
   onWaterUpdate: (
     id: string,
@@ -118,6 +119,7 @@ export function TavernTab({
   onDietUpdate,
   onDietDelete,
   onFavoriteDelete,
+  onFavoriteDeleteMany,
   onWaterAdd,
   onWaterUpdate,
   onWaterDelete,
@@ -518,7 +520,11 @@ export function TavernTab({
         </div>
       </Card>
 
-      <DietAddForm defaultDate={recordDate} onSave={onDietAdd} />
+      <DietAddForm
+        defaultDate={recordDate}
+        favorites={favorites}
+        onSave={onDietAdd}
+      />
 
       <FavoriteMealsPanel
         favorites={favorites}
@@ -529,6 +535,7 @@ export function TavernTab({
           }
         }}
         onDelete={onFavoriteDelete}
+        onDeleteMany={onFavoriteDeleteMany}
       />
 
       <DietRecordSection
