@@ -72,6 +72,13 @@ interface TavernTabProps {
   onDietDelete: (id: string) => void | Promise<void>;
   onFavoriteDelete: (id: string) => void | Promise<void>;
   onFavoriteDeleteMany?: (ids: string[]) => void | Promise<void>;
+  onFavoriteAssignToBundle?: (
+    ids: string[],
+    patch: {
+      bundleName: string;
+      defaultMealType: NonNullable<DietLog["mealType"]>;
+    },
+  ) => void | Promise<void>;
   onWaterAdd: (amountMl: number, logDate: string) => void | Promise<void>;
   onWaterUpdate: (
     id: string,
@@ -120,6 +127,7 @@ export function TavernTab({
   onDietDelete,
   onFavoriteDelete,
   onFavoriteDeleteMany,
+  onFavoriteAssignToBundle,
   onWaterAdd,
   onWaterUpdate,
   onWaterDelete,
@@ -536,6 +544,7 @@ export function TavernTab({
         }}
         onDelete={onFavoriteDelete}
         onDeleteMany={onFavoriteDeleteMany}
+        onAssignToBundle={onFavoriteAssignToBundle}
       />
 
       <DietRecordSection

@@ -29,6 +29,13 @@ interface FavoriteMealsPanelProps {
   onQuickAddMany: (logs: Omit<DietLog, "id">[]) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
   onDeleteMany?: (ids: string[]) => void | Promise<void>;
+  onAssignToBundle?: (
+    ids: string[],
+    patch: {
+      bundleName: string;
+      defaultMealType: NonNullable<DietLog["mealType"]>;
+    },
+  ) => void | Promise<void>;
 }
 
 function resolveMealType(
@@ -43,6 +50,7 @@ export function FavoriteMealsPanel({
   onQuickAddMany,
   onDelete,
   onDeleteMany,
+  onAssignToBundle,
 }: FavoriteMealsPanelProps) {
   const [mealType, setMealType] = useState<NonNullable<DietLog["mealType"]>>(
     "breakfast",
@@ -50,6 +58,12 @@ export function FavoriteMealsPanel({
   const [addingKey, setAddingKey] = useState<string | null>(null);
   const [pendingBundle, setPendingBundle] = useState<MealBundle | null>(null);
   const [pendingSingle, setPendingSingle] = useState<FavoriteMeal | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignMode, setAssignMode] = useState<"existing" | "new">("new");
+  const [assignExisting, setAssignExisting] = useState("");
+  const [assignNewName, setAssignNewName] = useState("");
+  const [assignSaving, setAssignSaving] = useState(false);
 
   const { bundles, singles } = useMemo(() => {
     const bundleMap = new Map<string, FavoriteMeal[]>();
@@ -90,8 +104,17 @@ export function FavoriteMealsPanel({
   );
 
   const mealSingles = useMemo(
-    () => singles.filter((f) => resolveMealType(f) === mealType),
+    () =>
+      singles.filter((f) => {
+        if (!f.defaultMealType) return true;
+        return f.defaultMealType === mealType;
+      }),
     [singles, mealType],
+  );
+
+  const existingBundleNames = useMemo(
+    () => mealBundles.map((b) => b.name),
+    [mealBundles],
   );
 
   const mealCounts = useMemo(() => {
@@ -102,7 +125,16 @@ export function FavoriteMealsPanel({
       snack: 0,
     };
     for (const b of bundles) map[b.mealType] += 1;
-    for (const f of singles) map[resolveMealType(f)] += 1;
+    for (const f of singles) {
+      if (!f.defaultMealType) {
+        map.breakfast += 1;
+        map.lunch += 1;
+        map.dinner += 1;
+        map.snack += 1;
+        continue;
+      }
+      map[f.defaultMealType] += 1;
+    }
     return map;
   }, [bundles, singles]);
 
@@ -177,6 +209,68 @@ export function FavoriteMealsPanel({
     }
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function openAssign(ids?: string[]) {
+    if (!onAssignToBundle) return;
+    const targetIds = ids ?? [...selectedIds];
+    if (targetIds.length === 0) {
+      alert("請先勾選要納入套餐的單品");
+      return;
+    }
+    if (ids) setSelectedIds(new Set(ids));
+    if (existingBundleNames.length > 0) {
+      setAssignMode("existing");
+      setAssignExisting(existingBundleNames[0]);
+    } else {
+      setAssignMode("new");
+      setAssignExisting("");
+    }
+    setAssignNewName("");
+    setAssignOpen(true);
+  }
+
+  async function submitAssign() {
+    if (!onAssignToBundle) return;
+    const ids = [...selectedIds];
+    if (ids.length === 0) {
+      alert("請先勾選要納入套餐的單品");
+      return;
+    }
+    const name =
+      assignMode === "existing"
+        ? assignExisting.trim()
+        : assignNewName.trim();
+    if (!name) {
+      alert(
+        assignMode === "existing"
+          ? "請選擇套餐"
+          : "請輸入新套餐名稱（例如：增肌早餐）",
+      );
+      return;
+    }
+    setAssignSaving(true);
+    try {
+      await onAssignToBundle(ids, {
+        bundleName: name,
+        defaultMealType: mealType,
+      });
+      setSelectedIds(new Set());
+      setAssignOpen(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "納入套餐失敗");
+    } finally {
+      setAssignSaving(false);
+    }
+  }
+
   return (
     <>
       <Card title="常吃套餐">
@@ -187,7 +281,10 @@ export function FavoriteMealsPanel({
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setMealType(tab.value)}
+                onClick={() => {
+                  setMealType(tab.value);
+                  setSelectedIds(new Set());
+                }}
                 className={cn(
                   "min-h-[36px] flex-1 rounded-lg border text-xs font-semibold",
                   mealType === tab.value
@@ -270,27 +367,61 @@ export function FavoriteMealsPanel({
 
           {mealSingles.length > 0 && (
             <div className="rounded-xl border border-dashed border-border p-3">
-              <p className="text-xs font-semibold text-text-muted">
-                未分組單品（舊資料）
-              </p>
-              <p className="mt-0.5 text-[11px] text-text-muted">
-                這些沒有套餐名稱。之後加入常吃時請填套餐名，才會歸在上方套餐。
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-text-muted">
+                    未分組單品（舊資料）
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-text-muted">
+                    勾選後按「納入套餐」，可併入既有套餐或建新套餐（歸到目前餐期）。
+                  </p>
+                </div>
+                {onAssignToBundle && (
+                  <button
+                    type="button"
+                    onClick={() => openAssign()}
+                    disabled={selectedIds.size === 0}
+                    className="shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent-light disabled:opacity-40"
+                  >
+                    納入套餐
+                    {selectedIds.size > 0 ? `（${selectedIds.size}）` : ""}
+                  </button>
+                )}
+              </div>
               <div className="mt-2 space-y-1.5">
                 {mealSingles.map((fav) => (
                   <div
                     key={fav.id}
                     className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-app px-2.5 py-1.5"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold">
-                        {fav.name}
-                      </p>
-                      <p className="text-[11px] tabular-nums text-text-muted">
-                        {fav.calories} kcal · P{fav.proteinG}
-                      </p>
-                    </div>
+                    <label className="flex min-w-0 flex-1 items-center gap-2">
+                      {onAssignToBundle && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(fav.id)}
+                          onChange={() => toggleSelected(fav.id)}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold">
+                          {fav.name}
+                        </p>
+                        <p className="text-[11px] tabular-nums text-text-muted">
+                          {fav.calories} kcal · P{fav.proteinG}
+                          {!fav.defaultMealType && " · 未指定餐期"}
+                        </p>
+                      </div>
+                    </label>
                     <div className="flex shrink-0 gap-1">
+                      {onAssignToBundle && (
+                        <button
+                          type="button"
+                          onClick={() => openAssign([fav.id])}
+                          className="rounded-lg border border-border px-2 py-1 text-[11px] text-accent-light"
+                        >
+                          納入
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={addingKey === fav.id}
@@ -373,6 +504,95 @@ export function FavoriteMealsPanel({
                 className="min-h-[44px] flex-1 rounded-xl bg-danger text-sm font-bold text-white"
               >
                 確認刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {assignOpen && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 p-4">
+          <div
+            role="dialog"
+            className="w-full max-w-sm rounded-2xl border border-border bg-bg-card p-4"
+          >
+            <h3 className="text-sm font-bold text-accent-light">納入套餐</h3>
+            <p className="mt-1 text-xs text-text-muted">
+              已選 {selectedIds.size} 品，將歸到
+              {MEAL_TABS.find((t) => t.value === mealType)?.label}。
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                disabled={existingBundleNames.length === 0}
+                onClick={() => setAssignMode("existing")}
+                className={cn(
+                  "min-h-[36px] flex-1 rounded-lg border text-xs font-semibold disabled:opacity-40",
+                  assignMode === "existing"
+                    ? "border-accent bg-accent/20 text-accent-light"
+                    : "border-border text-text-muted",
+                )}
+              >
+                併入既有
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignMode("new")}
+                className={cn(
+                  "min-h-[36px] flex-1 rounded-lg border text-xs font-semibold",
+                  assignMode === "new"
+                    ? "border-accent bg-accent/20 text-accent-light"
+                    : "border-border text-text-muted",
+                )}
+              >
+                建立新套餐
+              </button>
+            </div>
+            {assignMode === "existing" ? (
+              <label className="mt-3 block text-xs text-text-muted">
+                選擇套餐
+                <select
+                  value={assignExisting}
+                  onChange={(e) => setAssignExisting(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                >
+                  {existingBundleNames.length === 0 ? (
+                    <option value="">尚無套餐</option>
+                  ) : (
+                    existingBundleNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+            ) : (
+              <label className="mt-3 block text-xs text-text-muted">
+                新套餐名稱
+                <input
+                  value={assignNewName}
+                  onChange={(e) => setAssignNewName(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-3 text-sm"
+                  placeholder="例如：增肌早餐"
+                />
+              </label>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={assignSaving}
+                onClick={() => setAssignOpen(false)}
+                className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={assignSaving}
+                onClick={() => void submitAssign()}
+                className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
+              >
+                {assignSaving ? "儲存中…" : "確認納入"}
               </button>
             </div>
           </div>

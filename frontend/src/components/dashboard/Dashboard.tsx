@@ -42,6 +42,7 @@ import {
   syncNutritionGoalsFromInbody,
   syncNutritionGoalsIfStale,
   updateDiet,
+  updateFavoriteMeal,
   updateFavoriteWorkout,
   updateProfile,
   updateWaterGoal,
@@ -309,6 +310,25 @@ export function Dashboard({
     setFavorites((prev) => prev.filter((f) => !idSet.has(f.id)));
   }
 
+  async function handleFavoriteAssignToBundle(
+    ids: string[],
+    patch: {
+      bundleName: string;
+      defaultMealType: NonNullable<DietLog["mealType"]>;
+    },
+  ) {
+    const updatedList: FavoriteMeal[] = [];
+    for (const id of ids) {
+      const updated = await updateFavoriteMeal(supabase, userId, id, {
+        bundleName: patch.bundleName,
+        defaultMealType: patch.defaultMealType,
+      });
+      updatedList.push(updated);
+    }
+    const map = new Map(updatedList.map((f) => [f.id, f]));
+    setFavorites((prev) => prev.map((f) => map.get(f.id) ?? f));
+  }
+
   async function handleChatUpdate(
     data: unknown,
     context?: { userMessage?: string },
@@ -547,6 +567,7 @@ export function Dashboard({
             onDietDelete={handleDietDelete}
             onFavoriteDelete={handleFavoriteDelete}
             onFavoriteDeleteMany={handleFavoriteDeleteMany}
+            onFavoriteAssignToBundle={handleFavoriteAssignToBundle}
             onWaterAdd={handleWaterAdd}
             onWaterUpdate={handleWaterUpdate}
             onWaterDelete={handleWaterDelete}

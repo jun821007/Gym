@@ -705,6 +705,51 @@ export async function deleteFavoriteMeal(
   if (error) throw error;
 }
 
+export async function updateFavoriteMeal(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+  patch: {
+    bundleName?: string | null;
+    defaultMealType?: DietLog["mealType"] | null;
+  },
+): Promise<FavoriteMeal> {
+  const update: Record<string, unknown> = {};
+  if (patch.bundleName !== undefined) {
+    update.bundle_name = patch.bundleName?.trim() || null;
+  }
+  if (patch.defaultMealType !== undefined) {
+    update.default_meal_type = patch.defaultMealType ?? null;
+  }
+
+  let { data, error } = await supabase
+    .from("favorite_meals")
+    .update(update)
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  if (error?.message?.includes("bundle_name")) {
+    const { bundle_name: _b, ...withoutBundle } = update;
+    if (Object.keys(withoutBundle).length === 0) {
+      throw new Error("請先在 Supabase 執行 017_favorite_meal_bundle.sql");
+    }
+    const retry = await supabase
+      .from("favorite_meals")
+      .update(withoutBundle)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) throw error;
+  return rowToFavoriteMeal(data);
+}
+
 export async function updateWaterGoal(
   supabase: SupabaseClient,
   userId: string,
