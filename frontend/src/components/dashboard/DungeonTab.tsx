@@ -518,6 +518,7 @@ export function DungeonTab({
           onApplyMenu={startMenuQueue}
           onDelete={onDeleteFavoriteWorkout}
           onRename={onRenameFavoriteWorkout}
+          onUpdate={onUpdateFavoriteWorkout}
         />
       )}
 
