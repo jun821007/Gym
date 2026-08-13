@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import {
+  collectWorkoutCategories,
+  normalizeWorkoutCategory,
+  workoutCategoryLabel,
   WORKOUT_CATEGORY_OPTIONS,
-  WORKOUT_CATEGORY_LABELS,
-  WORKOUT_CATEGORY_ORDER,
 } from "@/lib/workout-categories";
 import type {
   FavoriteWorkout,
@@ -15,9 +16,6 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { LOAD_TYPE_OPTIONS } from "@/lib/workout-volume";
-
-const LONG_PRESS_MS = 480;
-const MOVE_CANCEL_PX = 10;
 
 interface FavoriteWorkoutsPanelProps {
   favorites: FavoriteWorkout[];
@@ -29,81 +27,15 @@ interface FavoriteWorkoutsPanelProps {
     exercises: FavoriteWorkoutExercise[];
     kind?: "exercise";
   }) => void | Promise<void>;
+  onUpdate?: (
+    id: string,
+    patch: {
+      name?: string;
+      category?: WorkoutCategory | null;
+      exercises?: FavoriteWorkoutExercise[];
+    },
+  ) => void | Promise<void>;
   defaultOpen?: boolean;
-}
-
-function FavoriteChip({
-  fav,
-  onApply,
-  onRequestDelete,
-}: {
-  fav: FavoriteWorkout;
-  onApply: (fav: FavoriteWorkout) => void;
-  onRequestDelete: () => void;
-}) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressRef = useRef(false);
-  const startRef = useRef<{ x: number; y: number } | null>(null);
-
-  function clearTimer() {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
-  function movedTooFar(clientX: number, clientY: number) {
-    const s = startRef.current;
-    if (!s) return false;
-    return (
-      Math.abs(clientX - s.x) > MOVE_CANCEL_PX ||
-      Math.abs(clientY - s.y) > MOVE_CANCEL_PX
-    );
-  }
-
-  function onPressStart(clientX: number, clientY: number) {
-    longPressRef.current = false;
-    startRef.current = { x: clientX, y: clientY };
-    clearTimer();
-    timerRef.current = setTimeout(() => {
-      longPressRef.current = true;
-      onRequestDelete();
-    }, LONG_PRESS_MS);
-  }
-
-  function onPressMove(clientX: number, clientY: number) {
-    if (movedTooFar(clientX, clientY)) clearTimer();
-  }
-
-  function onPressEnd(clientX: number, clientY: number) {
-    clearTimer();
-    if (longPressRef.current || movedTooFar(clientX, clientY)) return;
-    onApply(fav);
-  }
-
-  return (
-    <button
-      type="button"
-      title={fav.name}
-      className={cn(
-        "max-w-[7.5rem] shrink-0 truncate rounded-lg border border-border bg-bg-elevated",
-        "px-2.5 py-1.5 text-xs font-semibold text-accent-light",
-        "select-none touch-manipulation active:bg-accent/20",
-      )}
-      style={{ WebkitTouchCallout: "none" }}
-      onContextMenu={(e) => e.preventDefault()}
-      onPointerDown={(e) => {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        onPressStart(e.clientX, e.clientY);
-      }}
-      onPointerMove={(e) => onPressMove(e.clientX, e.clientY)}
-      onPointerUp={(e) => onPressEnd(e.clientX, e.clientY)}
-      onPointerLeave={clearTimer}
-      onPointerCancel={clearTimer}
-    >
-      {fav.name}
-    </button>
-  );
 }
 
 export function FavoriteWorkoutsPanel({
@@ -111,43 +43,67 @@ export function FavoriteWorkoutsPanel({
   onApply,
   onDelete,
   onCreate,
+  onUpdate,
   defaultOpen = false,
 }: FavoriteWorkoutsPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [activeCategory, setActiveCategory] = useState<WorkoutCategory>("back");
+  const [selectedId, setSelectedId] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<FavoriteWorkout | null>(null);
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState<WorkoutCategory>("back");
   const [newLoadType, setNewLoadType] = useState<WorkoutLoadType>("bilateral");
+  const [customCategory, setCustomCategory] = useState("");
   const [creating, setCreating] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState<WorkoutCategory>("back");
+  const [editLoadType, setEditLoadType] = useState<WorkoutLoadType>("bilateral");
+  const [editCustomCategory, setEditCustomCategory] = useState("");
 
   const exerciseFavorites = useMemo(
     () => favorites.filter((f) => (f.kind ?? "exercise") !== "menu"),
     [favorites],
   );
 
+  const categories = useMemo(
+    () => collectWorkoutCategories(exerciseFavorites),
+    [exerciseFavorites],
+  );
+
   const pending = exerciseFavorites.find((f) => f.id === pendingDeleteId);
 
   const grouped = useMemo(() => {
-    const map: Record<WorkoutCategory, FavoriteWorkout[]> = {
-      back: [],
-      legs: [],
-      chest: [],
-      shoulders: [],
-    };
+    const map = new Map<string, FavoriteWorkout[]>();
+    for (const cat of categories) map.set(cat, []);
     for (const fav of exerciseFavorites) {
-      if (!fav.category) continue;
-      map[fav.category].push(fav);
+      const cat = fav.category?.trim() || "";
+      const list = map.get(cat) ?? [];
+      list.push(fav);
+      map.set(cat, list);
     }
     return map;
-  }, [exerciseFavorites]);
+  }, [exerciseFavorites, categories]);
 
-  const activeItems = grouped[activeCategory];
+  const activeItems = grouped.get(activeCategory) ?? [];
   const totalCount = exerciseFavorites.length;
-  const summaryParts = WORKOUT_CATEGORY_ORDER.filter(
-    (cat) => grouped[cat].length > 0,
-  ).map((cat) => `${WORKOUT_CATEGORY_LABELS[cat]}(${grouped[cat].length})`);
+  const summaryParts = categories
+    .filter((cat) => (grouped.get(cat)?.length ?? 0) > 0)
+    .map((cat) => `${workoutCategoryLabel(cat)}(${grouped.get(cat)?.length})`);
+
+  const selected = activeItems.find((f) => f.id === selectedId) ?? null;
+
+  function resolveCategoryInput(
+    selectedCat: string,
+    custom: string,
+  ): WorkoutCategory | null {
+    if (selectedCat === "__custom__") {
+      return normalizeWorkoutCategory(custom);
+    }
+    return normalizeWorkoutCategory(selectedCat);
+  }
 
   async function submitCreate() {
     if (!onCreate) return;
@@ -156,18 +112,25 @@ export function FavoriteWorkoutsPanel({
       alert("請輸入動作名稱");
       return;
     }
+    const category = resolveCategoryInput(newCategory, customCategory);
+    if (!category) {
+      alert("請選擇或輸入分類");
+      return;
+    }
     setCreating(true);
     try {
       await onCreate({
         name,
-        category: newCategory,
+        category,
         kind: "exercise",
         exercises: [{ exerciseName: name, loadType: newLoadType }],
       });
       setNewName("");
-      setNewCategory(activeCategory);
+      setNewCategory(category === customCategory.trim() ? "__custom__" : category);
+      setCustomCategory("");
       setNewLoadType("bilateral");
       setShowCreate(false);
+      setActiveCategory(category);
     } catch (e) {
       alert(e instanceof Error ? e.message : "新增常用訓練失敗");
     } finally {
@@ -175,7 +138,64 @@ export function FavoriteWorkoutsPanel({
     }
   }
 
+  function openEdit(fav: FavoriteWorkout) {
+    const cat = fav.category?.trim() || "back";
+    const isCustom = !WORKOUT_CATEGORY_OPTIONS.some((o) => o.value === cat);
+    setEditing(fav);
+    setEditName(fav.name);
+    setEditCategory(isCustom ? "__custom__" : cat);
+    setEditCustomCategory(isCustom ? cat : "");
+    setEditLoadType(fav.exercises[0]?.loadType ?? "bilateral");
+  }
+
+  async function submitEdit() {
+    if (!editing || !onUpdate) return;
+    const name = editName.trim();
+    if (!name) {
+      alert("請輸入動作名稱");
+      return;
+    }
+    const category = resolveCategoryInput(editCategory, editCustomCategory);
+    if (!category) {
+      alert("請選擇或輸入分類");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await onUpdate(editing.id, {
+        name,
+        category,
+        exercises: [{ exerciseName: name, loadType: editLoadType }],
+      });
+      setEditing(null);
+      setActiveCategory(category);
+      setSelectedId(editing.id);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "更新失敗");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function applySelected() {
+    if (!selected) {
+      alert("請先從下拉選取動作");
+      return;
+    }
+    onApply(selected);
+  }
+
   if (totalCount === 0 && !onCreate) return null;
+
+  const categorySelectOptions = [
+    ...categories
+      .filter((value) => value)
+      .map((value) => ({
+        value,
+        label: workoutCategoryLabel(value),
+      })),
+    { value: "__custom__", label: "＋ 新增分類…" },
+  ];
 
   return (
     <>
@@ -197,36 +217,41 @@ export function FavoriteWorkoutsPanel({
 
         {open && (
           <div className="mt-3">
-            {onCreate && (
-              <div className="mb-2 flex justify-end">
+            <div className="mb-2 flex justify-end gap-1.5">
+              {onCreate && (
                 <button
                   type="button"
                   onClick={() => {
                     setNewCategory(activeCategory);
+                    setCustomCategory("");
                     setShowCreate(true);
                   }}
                   className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent-light"
                 >
                   + 新增動作
                 </button>
-              </div>
-            )}
-            <div className="mb-2 flex gap-1.5">
-              {WORKOUT_CATEGORY_ORDER.map((cat) => {
-                const count = grouped[cat].length;
+              )}
+            </div>
+
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {categories.map((cat) => {
+                const count = grouped.get(cat)?.length ?? 0;
                 return (
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setActiveCategory(cat)}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setSelectedId("");
+                    }}
                     className={cn(
-                      "min-h-[32px] flex-1 rounded-lg border text-xs font-semibold",
+                      "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
                       activeCategory === cat
                         ? "border-accent bg-accent/20 text-accent-light"
                         : "border-border bg-bg-elevated text-text-muted",
                     )}
                   >
-                    {WORKOUT_CATEGORY_LABELS[cat]}
+                    {workoutCategoryLabel(cat)}
                     {count > 0 && (
                       <span className="ml-0.5 opacity-80">({count})</span>
                     )}
@@ -237,19 +262,52 @@ export function FavoriteWorkoutsPanel({
 
             {activeItems.length === 0 ? (
               <p className="py-2 text-center text-xs text-text-muted">
-                尚無{WORKOUT_CATEGORY_LABELS[activeCategory]}常用動作
+                尚無{workoutCategoryLabel(activeCategory)}常用動作
               </p>
             ) : (
-              <div className="max-h-[7.5rem] overflow-y-auto">
-                <div className="flex flex-wrap gap-1.5">
-                  {activeItems.map((fav) => (
-                    <FavoriteChip
-                      key={fav.id}
-                      fav={fav}
-                      onApply={onApply}
-                      onRequestDelete={() => setPendingDeleteId(fav.id)}
-                    />
-                  ))}
+              <div className="space-y-2">
+                <label className="block text-xs text-text-muted">
+                  選擇動作
+                  <select
+                    value={selectedId}
+                    onChange={(e) => setSelectedId(e.target.value)}
+                    className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm"
+                  >
+                    <option value="">請選擇動作</option>
+                    {activeItems.map((fav) => (
+                      <option key={fav.id} value={fav.id}>
+                        {fav.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!selected}
+                    onClick={applySelected}
+                    className="min-h-[40px] flex-1 rounded-lg bg-accent/20 text-sm font-bold text-accent-light disabled:opacity-40"
+                  >
+                    帶入表單
+                  </button>
+                  {onUpdate && (
+                    <button
+                      type="button"
+                      disabled={!selected}
+                      onClick={() => selected && openEdit(selected)}
+                      className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
+                    >
+                      編輯
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!selected}
+                    onClick={() => selected && setPendingDeleteId(selected.id)}
+                    className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
+                  >
+                    刪除
+                  </button>
                 </div>
               </div>
             )}
@@ -280,6 +338,7 @@ export function FavoriteWorkoutsPanel({
                 onClick={() => {
                   void onDelete(pending.id);
                   setPendingDeleteId(null);
+                  if (selectedId === pending.id) setSelectedId("");
                 }}
                 className="min-h-[44px] flex-1 rounded-xl bg-danger text-sm font-bold text-white"
               >
@@ -312,16 +371,28 @@ export function FavoriteWorkoutsPanel({
                 分類
                 <select
                   value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value as WorkoutCategory)}
+                  onChange={(e) => setNewCategory(e.target.value)}
                   className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
                 >
-                  {WORKOUT_CATEGORY_OPTIONS.map((o) => (
+                  {categorySelectOptions.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
                   ))}
                 </select>
               </label>
+              {newCategory === "__custom__" && (
+                <label className="block text-xs text-text-muted">
+                  新分類名稱
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                    placeholder="例如：臀部"
+                  />
+                </label>
+              )}
               <label className="block text-xs text-text-muted">
                 負載類型
                 <select
@@ -353,6 +424,86 @@ export function FavoriteWorkoutsPanel({
                 className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
               >
                 {creating ? "新增中…" : "確認新增"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 p-4">
+          <div
+            role="dialog"
+            className="w-full max-w-sm rounded-2xl border border-border bg-bg-card p-4"
+          >
+            <h3 className="text-sm font-bold text-accent-light">編輯常用動作</h3>
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs text-text-muted">
+                動作名稱
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-text-muted">
+                分類
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                >
+                  {categorySelectOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {editCategory === "__custom__" && (
+                <label className="block text-xs text-text-muted">
+                  分類名稱
+                  <input
+                    type="text"
+                    value={editCustomCategory}
+                    onChange={(e) => setEditCustomCategory(e.target.value)}
+                    className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                    placeholder="例如：核心"
+                  />
+                </label>
+              )}
+              <label className="block text-xs text-text-muted">
+                負載類型
+                <select
+                  value={editLoadType}
+                  onChange={(e) => setEditLoadType(e.target.value as WorkoutLoadType)}
+                  className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 text-sm"
+                >
+                  {LOAD_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={savingEdit}
+                onClick={() => setEditing(null)}
+                className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={savingEdit}
+                onClick={() => void submitEdit()}
+                className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
+              >
+                {savingEdit ? "儲存中…" : "儲存"}
               </button>
             </div>
           </div>

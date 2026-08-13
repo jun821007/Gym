@@ -36,6 +36,7 @@ interface FavoriteMealsPanelProps {
       defaultMealType: NonNullable<DietLog["mealType"]>;
     },
   ) => void | Promise<void>;
+  onRemoveFromBundle?: (ids: string[]) => void | Promise<void>;
 }
 
 function resolveMealType(
@@ -51,6 +52,7 @@ export function FavoriteMealsPanel({
   onDelete,
   onDeleteMany,
   onAssignToBundle,
+  onRemoveFromBundle,
 }: FavoriteMealsPanelProps) {
   const [mealType, setMealType] = useState<NonNullable<DietLog["mealType"]>>(
     "breakfast",
@@ -65,6 +67,8 @@ export function FavoriteMealsPanel({
   const [assignNewName, setAssignNewName] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
   const [itemsOpen, setItemsOpen] = useState(false);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editBusyId, setEditBusyId] = useState<string | null>(null);
 
   const { bundles } = useMemo(() => {
     const bundleMap = new Map<string, FavoriteMeal[]>();
@@ -110,6 +114,23 @@ export function FavoriteMealsPanel({
     () => mealBundles.map((b) => b.name),
     [mealBundles],
   );
+
+  const editingBundle = useMemo(() => {
+    if (!editingKey) return null;
+    const sep = editingKey.indexOf("::");
+    if (sep < 0) return null;
+    const meal = editingKey.slice(0, sep);
+    const name = editingKey.slice(sep + 2);
+    return (
+      bundles.find((b) => b.mealType === meal && b.name === name) ?? null
+    );
+  }, [editingKey, bundles]);
+
+  const addableToEditing = useMemo(() => {
+    if (!editingBundle) return [];
+    const inBundle = new Set(editingBundle.items.map((i) => i.id));
+    return allItems.filter((f) => !inBundle.has(f.id));
+  }, [editingBundle, allItems]);
 
   const mealCounts = useMemo(() => {
     const map: Record<string, number> = {
@@ -255,6 +276,33 @@ export function FavoriteMealsPanel({
     }
   }
 
+  async function removeFromEditing(id: string) {
+    if (!onRemoveFromBundle) return;
+    setEditBusyId(id);
+    try {
+      await onRemoveFromBundle([id]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "移出套餐失敗");
+    } finally {
+      setEditBusyId(null);
+    }
+  }
+
+  async function addToEditing(id: string) {
+    if (!onAssignToBundle || !editingBundle) return;
+    setEditBusyId(id);
+    try {
+      await onAssignToBundle([id], {
+        bundleName: editingBundle.name,
+        defaultMealType: editingBundle.mealType,
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加入套餐失敗");
+    } finally {
+      setEditBusyId(null);
+    }
+  }
+
   return (
     <>
       <Card title="常吃套餐">
@@ -310,13 +358,24 @@ export function FavoriteMealsPanel({
                       kcal · 蛋白 {Math.round(bundle.proteinG)}g
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setPendingBundle(bundle)}
-                    className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
-                  >
-                    刪除套餐
-                  </button>
+                  <div className="flex shrink-0 gap-1">
+                    {(onAssignToBundle || onRemoveFromBundle) && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingKey(key)}
+                        className="rounded-lg border border-border px-2 py-1 text-[11px] text-accent-light"
+                      >
+                        編輯
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPendingBundle(bundle)}
+                      className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
+                    >
+                      刪除套餐
+                    </button>
+                  </div>
                 </div>
 
                 <ul className="mt-2 space-y-1 border-t border-border/60 pt-2">
@@ -517,6 +576,101 @@ export function FavoriteMealsPanel({
           </div>
         </div>
       )}
+      {editingKey && editingBundle && (
+        <div className="fixed inset-0 z-[210] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+          <div
+            role="dialog"
+            className="max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-bg-card p-4"
+          >
+            <h3 className="text-sm font-bold text-accent-light">
+              編輯套餐「{editingBundle.name}」
+            </h3>
+            <p className="mt-1 text-xs text-text-muted">
+              移出後單品仍在「已加入的單品」；可從下方加入其他常吃。
+            </p>
+
+            <p className="mt-3 text-xs font-semibold text-text-muted">
+              目前品項（{editingBundle.items.length}）
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {editingBundle.items.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold">{item.name}</p>
+                    <p className="text-[11px] tabular-nums text-text-muted">
+                      {item.calories} kcal · P{item.proteinG}
+                    </p>
+                  </div>
+                  {onRemoveFromBundle && (
+                    <button
+                      type="button"
+                      disabled={editBusyId === item.id}
+                      onClick={() => void removeFromEditing(item.id)}
+                      className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted disabled:opacity-40"
+                    >
+                      移出
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {onAssignToBundle && (
+              <>
+                <p className="mt-4 text-xs font-semibold text-text-muted">
+                  加入單品
+                </p>
+                {addableToEditing.length === 0 ? (
+                  <p className="mt-1.5 text-xs text-text-muted">
+                    沒有可加入的其他常吃單品
+                  </p>
+                ) : (
+                  <ul className="mt-1.5 max-h-40 space-y-1.5 overflow-y-auto">
+                    {addableToEditing.map((fav) => (
+                      <li
+                        key={fav.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold">
+                            {fav.name}
+                          </p>
+                          <p className="text-[11px] tabular-nums text-text-muted">
+                            {fav.calories} kcal
+                            {fav.bundleName?.trim()
+                              ? ` · 目前：${fav.bundleName}`
+                              : " · 未入套餐"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={editBusyId === fav.id}
+                          onClick={() => void addToEditing(fav.id)}
+                          className="shrink-0 rounded-lg bg-accent/15 px-2 py-1 text-[11px] font-bold text-accent-light disabled:opacity-40"
+                        >
+                          加入
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setEditingKey(null)}
+              className="mt-4 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold"
+            >
+              完成
+            </button>
+          </div>
+        </div>
+      )}
+
       {assignOpen && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 p-4">
           <div

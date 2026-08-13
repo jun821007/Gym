@@ -2,9 +2,9 @@ import { bodyTypeFromRecord } from "@/lib/body-type";
 import {
   buildSettlementSetLines,
   calcLogVolume,
-  effectiveSetWeightKg,
   getLatestBodyWeightKg,
   normalizeSetDetails,
+  storedSetWeightKg,
   toSettlementWeight,
 } from "@/lib/workout-volume";
 import type { SettlementManualLog, UserProfile, WorkoutLog } from "./types";
@@ -70,14 +70,20 @@ export function formatLogsForApi(logs: WorkoutLog[], bodyWeightKg: number | null
     const sets = normalizeSetDetails(w);
     return {
       name: w.exerciseName,
-      weight: entry.weightKg,
+      weight:
+        w.loadType === "unilateral"
+          ? Math.round(
+              (sets.reduce((s, x) => s + storedSetWeightKg(w, x), 0) /
+                Math.max(sets.length, 1)) *
+                10,
+            ) / 10
+          : entry.weightKg,
       reps: entry.reps,
       sets: entry.sets,
       volume: entry.volumeKg,
       load_type: w.loadType,
-      set_lines: sets.map((s) => ({
-        weight:
-          Math.round(effectiveSetWeightKg(w, s, bodyWeightKg) * 10) / 10,
+      set_lines: (entry.setLines ?? []).map((s) => ({
+        weight: s.weightKg,
         reps: s.reps,
       })),
     };

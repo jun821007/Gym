@@ -3,41 +3,11 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { formatDurationClock } from "@/lib/datetime";
-import type { DailyWorkoutSettlement, RankGrade } from "@/lib/types";
+import type { DailyWorkoutSettlement } from "@/lib/types";
+import { WORKOUT_GRADE_META } from "@/lib/rank-grade";
 import { settlementLogVolume } from "@/lib/workout-grading";
 import { formatSettlementSetLines } from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
-
-const GRADE_STYLE: Record<
-  RankGrade,
-  { ring: string; glow: string; label: string }
-> = {
-  S: {
-    ring: "border-accent-light text-accent-light",
-    glow: "shadow-[0_0_40px_rgba(110,231,160,0.55)]",
-    label: "傳說級訓練",
-  },
-  A: {
-    ring: "border-accent text-accent",
-    glow: "shadow-[0_0_32px_rgba(56,189,148,0.45)]",
-    label: "優秀表現",
-  },
-  B: {
-    ring: "border-sky-400 text-sky-300",
-    glow: "shadow-[0_0_24px_rgba(96,165,250,0.35)]",
-    label: "穩定輸出",
-  },
-  C: {
-    ring: "border-text-muted text-text-muted",
-    glow: "shadow-[0_0_16px_rgba(155,173,183,0.25)]",
-    label: "還需加油",
-  },
-  D: {
-    ring: "border-danger text-danger",
-    glow: "shadow-[0_0_16px_rgba(232,93,117,0.35)]",
-    label: "明日再戰",
-  },
-};
 
 interface WorkoutSettlementModalProps {
   data: DailyWorkoutSettlement;
@@ -52,7 +22,7 @@ export function WorkoutSettlementModal({
 }: WorkoutSettlementModalProps) {
   const [mounted, setMounted] = useState(false);
   const [stamp, setStamp] = useState(false);
-  const style = GRADE_STYLE[data.grade];
+  const style = WORKOUT_GRADE_META[data.grade] ?? WORKOUT_GRADE_META.S;
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {

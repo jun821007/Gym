@@ -5,7 +5,7 @@ export const WORKOUT_SETTLE_SCHEMA = {
   properties: {
     grade: {
       type: Type.STRING,
-      description: "今日訓練評級，只能是 S、A、B、C、D",
+      description: "今日訓練評級佔位（系統會覆寫）：SSS+、SSS、SS、S、A、B、C、D",
     },
     workout_name: { type: Type.STRING, description: "訓練類型名稱" },
     duration_minutes: {
@@ -21,7 +21,8 @@ export const WORKOUT_SETTLE_SCHEMA = {
     },
     reply: {
       type: Type.STRING,
-      description: "硬派教練 2 句話以內建議，禁止談飲食",
+      description:
+        "硬派教練評語 3～4 句：肯定今日表現 + 指出可加強的動作／部位 + 下次具體建議（加重、加組、節奏）+ 一句注意事項。禁止談飲食。",
     },
   },
   required: ["grade", "workout_name", "duration_minutes", "summary", "reply"],

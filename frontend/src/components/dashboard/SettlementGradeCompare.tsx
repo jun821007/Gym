@@ -10,15 +10,8 @@ import {
   yesterdayDateKey,
 } from "@/lib/datetime";
 import type { RankGrade } from "@/lib/types";
+import { RANK_GRADE_BADGE } from "@/lib/rank-grade";
 import { cn } from "@/lib/utils";
-
-const GRADE_BADGE: Record<RankGrade, string> = {
-  S: "bg-accent/30 text-accent-light border-accent-light",
-  A: "bg-accent/20 text-accent border-accent",
-  B: "bg-sky-500/20 text-sky-300 border-sky-400",
-  C: "bg-bg-elevated text-text-muted border-border",
-  D: "bg-danger/15 text-danger border-danger",
-};
 
 interface SettlementGradeCompareProps<
   T extends { logDate: string; grade: RankGrade; summary?: string },
@@ -64,7 +57,7 @@ function SettlementRecordCard<
           className={cn(
             "flex shrink-0 items-center justify-center border-[3px] border-solid font-pixel",
             gradeSize,
-            GRADE_BADGE[settlement.grade],
+            RANK_GRADE_BADGE[settlement.grade] ?? RANK_GRADE_BADGE.S,
           )}
         >
           {settlement.grade}

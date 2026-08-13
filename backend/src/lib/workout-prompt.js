@@ -20,19 +20,21 @@ export function formatTodayLogsPrompt(todayLogs) {
       }
     }
 
+    const prefix = l.load_type === "unilateral" ? "單邊 " : "";
     return groups
       .map((g) =>
         g.count > 1
-          ? `${g.weight}kg×${g.reps}×${g.count}`
-          : `${g.weight}kg×${g.reps}`,
+          ? `${prefix}${g.weight}kg×${g.reps}×${g.count}`
+          : `${prefix}${g.weight}kg×${g.reps}`,
       )
       .join(" + ");
   }
 
-  const lines = todayLogs.map((l, i) => {
-    const vol =
-      Number(l.volume) ||
-      (Array.isArray(l.set_lines) && l.set_lines.length
+  function logVolumeKg(l) {
+    const explicit = Number(l.volume);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const fromLines =
+      Array.isArray(l.set_lines) && l.set_lines.length
         ? l.set_lines.reduce(
             (s, sl) =>
               s + (Number(sl.weight) || 0) * (Number(sl.reps) || 0),
@@ -40,27 +42,16 @@ export function formatTodayLogsPrompt(todayLogs) {
           )
         : (Number(l.weight) || 0) *
           (Number(l.reps) || 0) *
-          (Number(l.sets) || 0));
+          (Number(l.sets) || 0);
+    return l.load_type === "unilateral" ? fromLines * 2 : fromLines;
+  }
+
+  const lines = todayLogs.map((l, i) => {
+    const vol = logVolumeKg(l);
     return `${i + 1}. ${l.name} — ${formatSetLines(l)}（訓練量 ${Math.round(vol)}）`;
   });
 
-  const totalVol = todayLogs.reduce((s, l) => {
-    if (Number(l.volume)) return s + Number(l.volume);
-    if (Array.isArray(l.set_lines) && l.set_lines.length) {
-      return (
-        s +
-        l.set_lines.reduce(
-          (sum, sl) =>
-            sum + (Number(sl.weight) || 0) * (Number(sl.reps) || 0),
-          0,
-        )
-      );
-    }
-    return (
-      s +
-      (Number(l.weight) || 0) * (Number(l.reps) || 0) * (Number(l.sets) || 0)
-    );
-  }, 0);
+  const totalVol = todayLogs.reduce((s, l) => s + logVolumeKg(l), 0);
 
   return `【今日重訓清單】共 ${todayLogs.length} 項，總訓練量 ${totalVol}：
 ${lines.join("\n")}`;

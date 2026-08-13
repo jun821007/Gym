@@ -5,7 +5,11 @@ import {
   formatTodayLogsPrompt,
 } from "../lib/workout-prompt.js";
 import { WORKOUT_SETTLE_SCHEMA } from "../lib/workout-schema.js";
-import { computeWorkoutGrade } from "../lib/workout-grade-rules.js";
+import {
+  computeWorkoutGrade,
+  normalizeWorkoutGrade,
+  xpForWorkoutGrade,
+} from "../lib/workout-grade-rules.js";
 
 const router = Router();
 
@@ -21,7 +25,7 @@ const SYSTEM = `你是「地下城健身教練」，負責「今日訓練結算�
    - 訓練量÷體重：≥1.2 優、0.9-1.19 良、<0.6 低
 4. 基礎等級後依清單與相對強度微調（±1級，S上限）。
 5. summary 必須寫明體重、相對訓練量、動態大卡/體重。
-6. reply 最多2句，禁止飲食。`;
+6. reply 寫 3～4 句繁體中文：先肯定今日（時長／相對訓練量／心率），再點名清單裡可加強的動作或部位，接著給下次具體建議（例如某動作 +2.5kg 或再加 1 組），最後一句注意事項（左右差、力竭、護具等）。禁止飲食。`;
 
 function buildParts(message, imageBase64, mimeType, logsPrompt) {
   const text = `${logsPrompt}\n\n${message?.trim() || "請解析健身截圖並綜合今日清單評分。"}`;
@@ -35,11 +39,6 @@ function buildParts(message, imageBase64, mimeType, logsPrompt) {
     parts.push({ text });
   }
   return parts;
-}
-
-function normalizeGrade(g) {
-  const u = String(g || "C").toUpperCase();
-  return ["S", "A", "B", "C", "D"].includes(u) ? u : "C";
 }
 
 router.post("/", async (req, res) => {
@@ -76,13 +75,18 @@ router.post("/", async (req, res) => {
                 reps: Number(sl.reps) || 0,
               }))
             : undefined;
+          const linesVol = setLines?.length
+            ? setLines.reduce((s, x) => s + x.weightKg * x.reps, 0)
+            : (Number(l.weight) || 0) *
+              (Number(l.reps) || 0) *
+              (Number(l.sets) || 0);
+          const volumeRaw = Number(l.volume);
           const volumeKg =
-            Number(l.volume) ||
-            (setLines?.length
-              ? setLines.reduce((s, x) => s + x.weightKg * x.reps, 0)
-              : (Number(l.weight) || 0) *
-                (Number(l.reps) || 0) *
-                (Number(l.sets) || 0));
+            Number.isFinite(volumeRaw) && volumeRaw > 0
+              ? volumeRaw
+              : l.load_type === "unilateral"
+                ? linesVol * 2
+                : linesVol;
           return {
             exerciseName: l.name,
             weightKg: Number(l.weight) || 0,
@@ -100,7 +104,7 @@ router.post("/", async (req, res) => {
       0,
     );
 
-    const grade = normalizeGrade(
+    const grade = normalizeWorkoutGrade(
       computeWorkoutGrade({
         durationMinutes: Number(parsed.duration_minutes) || 0,
         activeCalories: Number(parsed.active_calories) || 0,
@@ -133,8 +137,7 @@ router.post("/", async (req, res) => {
       reply: parsed.reply,
       settlement,
       profileUpdate: {
-        xpGained:
-          grade === "S" ? 50 : grade === "A" ? 40 : grade === "B" ? 30 : 20,
+        xpGained: xpForWorkoutGrade(grade),
       },
     });
   } catch (err) {

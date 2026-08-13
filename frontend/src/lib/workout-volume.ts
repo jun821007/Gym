@@ -119,7 +119,7 @@ export function formatSettlementSetLines(
   return groups
     .map((g) =>
       g.count > 1
-        ? `${prefix}${g.weightKg}kg×${g.reps}×${g.count}`
+        ? `${prefix}${g.weightKg}kg×${g.reps}（${g.count}組）`
         : `${prefix}${g.weightKg}kg×${g.reps}`,
     )
     .join(" + ");

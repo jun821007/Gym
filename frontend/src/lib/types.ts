@@ -73,7 +73,8 @@ export interface WorkoutLog {
   loggedAt: string;
 }
 
-export type WorkoutCategory = "back" | "legs" | "chest" | "shoulders";
+/** 背／腿／胸／肩／核心／小臂，或自訂分類名稱 */
+export type WorkoutCategory = string;
 
 export interface FavoriteWorkoutExercise {
   exerciseName: string;
@@ -187,7 +188,7 @@ export interface DailyDietSettlement {
   };
 }
 
-export type RankGrade = "S" | "A" | "B" | "C" | "D";
+export type RankGrade = "SSS+" | "SSS" | "SS" | "S" | "A" | "B" | "C" | "D";
 
 export interface WeeklyGrade {
   weekLabel: string;

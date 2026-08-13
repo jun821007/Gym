@@ -43,6 +43,7 @@ import {
   effectiveWorkoutVolumeGoalKg,
   suggestWorkoutVolumeGoalKg,
 } from "@/lib/workout-volume-goal";
+import { RANK_GRADE_BADGE } from "@/lib/rank-grade";
 import { cn } from "@/lib/utils";
 
 interface DungeonTabProps {
@@ -55,6 +56,14 @@ interface DungeonTabProps {
   onSaveFavoriteWorkout?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   onDeleteFavoriteWorkout?: (id: string) => void | Promise<void>;
   onRenameFavoriteWorkout?: (id: string, name: string) => void | Promise<void>;
+  onUpdateFavoriteWorkout?: (
+    id: string,
+    patch: {
+      name?: string;
+      category?: string | null;
+      exercises?: FavoriteWorkout["exercises"];
+    },
+  ) => void | Promise<void>;
   onSettlementSaved: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onDeleteSettlement?: (s: DailyWorkoutSettlement) => void | Promise<void>;
   onVolumeGoalChange: (goalKg: number) => void | Promise<void>;
@@ -65,13 +74,6 @@ interface DungeonTabProps {
   onRefresh?: () => void | Promise<void>;
 }
 
-const GRADE_BADGE: Record<DailyWorkoutSettlement["grade"], string> = {
-  S: "bg-accent/30 text-accent-light border-accent-light",
-  A: "bg-accent/20 text-accent border-accent",
-  B: "bg-sky-500/20 text-sky-300 border-sky-400",
-  C: "bg-bg-elevated text-text-muted border-border",
-  D: "bg-danger/15 text-danger border-danger",
-};
 
 export function DungeonTab({
   profile,
@@ -83,6 +85,7 @@ export function DungeonTab({
   onSaveFavoriteWorkout,
   onDeleteFavoriteWorkout,
   onRenameFavoriteWorkout,
+  onUpdateFavoriteWorkout,
   onSettlementSaved,
   onDeleteSettlement,
   onVolumeGoalChange,
@@ -102,6 +105,14 @@ export function DungeonTab({
   );
 
   const [prefill, setPrefill] = useState<WorkoutFormPrefill | null>(null);
+  const [menuQueue, setMenuQueue] = useState<{
+    name: string;
+    exercises: FavoriteWorkoutExercise[];
+    index: number;
+  } | null>(null);
+  const menuQueueRef = useRef(menuQueue);
+  menuQueueRef.current = menuQueue;
+  const clearPrefill = useCallback(() => setPrefill(null), []);
   const [logsHistoryOpen, setLogsHistoryOpen] = useState(false);
   const [expandedHistoryDays, setExpandedHistoryDays] = useState<Set<string>>(
     () => new Set(),
@@ -284,11 +295,37 @@ export function DungeonTab({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function applyMenuExercise(ex: FavoriteWorkoutExercise) {
-    setPrefill(exerciseToPrefill(ex));
+  function startMenuQueue(menu: FavoriteWorkout) {
+    if (menu.exercises.length === 0) {
+      alert("這份菜單沒有動作");
+      return;
+    }
+    setMenuQueue({
+      name: menu.name,
+      exercises: menu.exercises,
+      index: 0,
+    });
+    setPrefill(exerciseToPrefill(menu.exercises[0]));
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function advanceMenuQueue() {
+    const q = menuQueueRef.current;
+    if (!q) return;
+    const nextIndex = q.index + 1;
+    if (nextIndex >= q.exercises.length) {
+      setMenuQueue(null);
+      return;
+    }
+    setMenuQueue({ ...q, index: nextIndex });
+    setPrefill(exerciseToPrefill(q.exercises[nextIndex]));
+  }
+
+  async function handleWorkoutSave(log: Omit<WorkoutLog, "id">) {
+    await onAddWorkout(log);
+    advanceMenuQueue();
   }
 
   async function addHistoryDayAsMenu(dateKey: string, items: WorkoutLog[]) {
@@ -471,25 +508,54 @@ export function DungeonTab({
           onApply={applyFavorite}
           onDelete={onDeleteFavoriteWorkout}
           onCreate={onSaveFavoriteWorkout}
+          onUpdate={onUpdateFavoriteWorkout}
         />
       )}
 
       {workoutMenus.length > 0 && onDeleteFavoriteWorkout && (
         <WorkoutMenusPanel
           menus={workoutMenus}
-          onApplyExercise={applyMenuExercise}
+          onApplyMenu={startMenuQueue}
           onDelete={onDeleteFavoriteWorkout}
           onRename={onRenameFavoriteWorkout}
         />
       )}
 
       <div id="workout-add-form">
+        {menuQueue && (
+          <div className="mb-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
+            <p className="text-xs font-semibold text-accent-light">
+              菜單「{menuQueue.name}」{menuQueue.index + 1}/
+              {menuQueue.exercises.length}：
+              {menuQueue.exercises[menuQueue.index]?.exerciseName}
+            </p>
+            <p className="mt-0.5 text-[11px] text-text-muted">
+              打卡後自動帶入下一動作；次數／重量請自行填。
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={advanceMenuQueue}
+                className="rounded-lg border border-border px-2.5 py-1 text-[11px] text-text-muted"
+              >
+                跳過此動作
+              </button>
+              <button
+                type="button"
+                onClick={() => setMenuQueue(null)}
+                className="rounded-lg border border-border px-2.5 py-1 text-[11px] text-text-muted"
+              >
+                結束菜單
+              </button>
+            </div>
+          </div>
+        )}
         <WorkoutAddForm
           profile={profile}
           workouts={workouts}
           prefill={prefill}
-          onPrefillConsumed={() => setPrefill(null)}
-          onSave={onAddWorkout}
+          onPrefillConsumed={clearPrefill}
+          onSave={handleWorkoutSave}
         />
       </div>
 
@@ -564,7 +630,7 @@ export function DungeonTab({
             <span
               className={cn(
                 "flex h-14 w-14 shrink-0 items-center justify-center border-[4px] border-solid font-pixel text-3xl",
-                GRADE_BADGE[settlement.grade],
+                RANK_GRADE_BADGE[settlement.grade] ?? RANK_GRADE_BADGE.S,
               )}
             >
               {settlement.grade}

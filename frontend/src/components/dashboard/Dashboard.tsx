@@ -328,6 +328,18 @@ export function Dashboard({
     setFavorites((prev) => prev.map((f) => map.get(f.id) ?? f));
   }
 
+  async function handleFavoriteRemoveFromBundle(ids: string[]) {
+    const updatedList: FavoriteMeal[] = [];
+    for (const id of ids) {
+      const updated = await updateFavoriteMeal(supabase, userId, id, {
+        bundleName: null,
+      });
+      updatedList.push(updated);
+    }
+    const map = new Map(updatedList.map((f) => [f.id, f]));
+    setFavorites((prev) => prev.map((f) => map.get(f.id) ?? f));
+  }
+
   async function handleChatUpdate(
     data: unknown,
     context?: { userMessage?: string },
@@ -400,6 +412,20 @@ export function Dashboard({
 
   async function handleWorkoutFavoriteRename(id: string, name: string) {
     const updated = await updateFavoriteWorkout(supabase, userId, id, { name });
+    setWorkoutFavorites((prev) =>
+      prev.map((f) => (f.id === id ? updated : f)),
+    );
+  }
+
+  async function handleWorkoutFavoriteUpdate(
+    id: string,
+    patch: {
+      name?: string;
+      category?: string | null;
+      exercises?: FavoriteWorkout["exercises"];
+    },
+  ) {
+    const updated = await updateFavoriteWorkout(supabase, userId, id, patch);
     setWorkoutFavorites((prev) =>
       prev.map((f) => (f.id === id ? updated : f)),
     );
@@ -554,6 +580,7 @@ export function Dashboard({
             onSaveFavoriteWorkout={handleWorkoutFavoriteSave}
             onDeleteFavoriteWorkout={handleWorkoutFavoriteDelete}
             onRenameFavoriteWorkout={handleWorkoutFavoriteRename}
+            onUpdateFavoriteWorkout={handleWorkoutFavoriteUpdate}
             onSettlementSaved={handleWorkoutSettlementSaved}
             onDeleteSettlement={handleWorkoutSettlementDelete}
             onVolumeGoalChange={handleWorkoutVolumeGoalChange}
@@ -579,6 +606,7 @@ export function Dashboard({
             onFavoriteDelete={handleFavoriteDelete}
             onFavoriteDeleteMany={handleFavoriteDeleteMany}
             onFavoriteAssignToBundle={handleFavoriteAssignToBundle}
+            onFavoriteRemoveFromBundle={handleFavoriteRemoveFromBundle}
             onWaterSetTotal={handleWaterSetTotal}
             onSettlementSaved={handleDietSettlementSaved}
             onDeleteSettlement={handleDietSettlementDelete}

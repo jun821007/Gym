@@ -365,15 +365,43 @@ export async function updateFavoriteWorkout(
   supabase: SupabaseClient,
   userId: string,
   id: string,
-  patch: { name: string },
+  patch: {
+    name?: string;
+    category?: string | null;
+    exercises?: FavoriteWorkout["exercises"];
+  },
 ): Promise<FavoriteWorkout> {
-  const { data, error } = await supabase
+  const update: Record<string, unknown> = {};
+  if (patch.name !== undefined) update.name = patch.name.trim();
+  if (patch.category !== undefined) {
+    update.category = patch.category?.trim() || null;
+  }
+  if (patch.exercises !== undefined) update.exercises = patch.exercises;
+
+  let { data, error } = await supabase
     .from("favorite_workouts")
-    .update({ name: patch.name.trim() })
+    .update(update)
     .eq("id", id)
     .eq("user_id", userId)
     .select()
     .single();
+
+  if (error?.message?.includes("category")) {
+    const { category: _c, ...withoutCategory } = update;
+    if (Object.keys(withoutCategory).length === 0) {
+      throw new Error("請先在 Supabase 執行 019_workout_grades_and_free_category.sql");
+    }
+    const retry = await supabase
+      .from("favorite_workouts")
+      .update(withoutCategory)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw error;
   return rowToFavoriteWorkout(data);
 }

@@ -9,6 +9,21 @@ const GRADE_STYLE: Record<
   RankGrade,
   { ring: string; glow: string; label: string }
 > = {
+  "SSS+": {
+    ring: "border-accent-light text-accent-light",
+    glow: "shadow-[0_0_40px_rgba(110,231,160,0.55)]",
+    label: "完美補給",
+  },
+  SSS: {
+    ring: "border-accent-light text-accent-light",
+    glow: "shadow-[0_0_40px_rgba(110,231,160,0.55)]",
+    label: "完美補給",
+  },
+  SS: {
+    ring: "border-accent-light text-accent-light",
+    glow: "shadow-[0_0_40px_rgba(110,231,160,0.55)]",
+    label: "完美補給",
+  },
   S: {
     ring: "border-accent-light text-accent-light",
     glow: "shadow-[0_0_40px_rgba(110,231,160,0.55)]",
