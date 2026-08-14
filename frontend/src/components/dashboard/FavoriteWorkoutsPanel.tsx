@@ -207,10 +207,12 @@ export function FavoriteWorkoutsPanel({
         >
           <div>
             <span className="card-title mb-0">常用訓練</span>
-            <p className="mt-1 text-xs text-text-muted">
-              {totalCount} 項
-              {summaryParts.length > 0 && ` · ${summaryParts.join(" · ")}`}
-            </p>
+            {open && (
+              <p className="mt-1 text-xs text-text-muted">
+                {totalCount} 項
+                {summaryParts.length > 0 && ` · ${summaryParts.join(" · ")}`}
+              </p>
+            )}
           </div>
           <span className="text-sm text-text-muted">{open ? "收起" : "展開"}</span>
         </button>

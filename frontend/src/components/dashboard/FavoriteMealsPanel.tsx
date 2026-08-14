@@ -202,13 +202,19 @@ export function FavoriteMealsPanel({
     if (!pendingBundle) return;
     const ids = pendingBundle.items.map((i) => i.id);
     try {
-      if (onDeleteMany) {
-        await onDeleteMany(ids);
+      if (onRemoveFromBundle) {
+        await onRemoveFromBundle(ids);
+      } else if (onAssignToBundle) {
+        // fallback：清掉套餐名，保留單品
+        await onAssignToBundle(ids, {
+          bundleName: "",
+          defaultMealType: pendingBundle.mealType,
+        });
       } else {
-        for (const id of ids) await onDelete(id);
+        alert("無法解散套餐：缺少更新介面");
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "刪除失敗");
+      alert(e instanceof Error ? e.message : "解散套餐失敗");
     } finally {
       setPendingBundle(null);
     }
@@ -373,7 +379,7 @@ export function FavoriteMealsPanel({
                       onClick={() => setPendingBundle(bundle)}
                       className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
                     >
-                      刪除套餐
+                      解散套餐
                     </button>
                   </div>
                 </div>
@@ -519,10 +525,11 @@ export function FavoriteMealsPanel({
             role="dialog"
             className="w-full max-w-sm rounded-2xl border border-border bg-bg-card p-4"
           >
-            <h3 className="text-sm font-bold text-accent-light">刪除整份套餐？</h3>
+            <h3 className="text-sm font-bold text-accent-light">解散套餐？</h3>
             <p className="mt-2 text-sm text-text-muted">
-              確定刪除「{pendingBundle.name}」共 {pendingBundle.items.length}{" "}
-              品？此動作無法復原。
+              確定解散「{pendingBundle.name}」？共{" "}
+              {pendingBundle.items.length}{" "}
+              品會回到「已加入的單品」，不會刪除常吃資料。
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -537,7 +544,7 @@ export function FavoriteMealsPanel({
                 onClick={() => void confirmDeleteBundle()}
                 className="min-h-[44px] flex-1 rounded-xl bg-danger text-sm font-bold text-white"
               >
-                確認刪除
+                確認解散
               </button>
             </div>
           </div>
