@@ -274,11 +274,12 @@ export function WorkoutMenusPanel({
     setShowCreate(true);
   }
 
-  function togglePick(id: string) {
-    setSelectedFavIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      return [...prev, id];
-    });
+  function addPick(id: string) {
+    setSelectedFavIds((prev) => [...prev, id]);
+  }
+
+  function removePickAt(index: number) {
+    setSelectedFavIds((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function submitCreate() {
@@ -289,7 +290,7 @@ export function WorkoutMenusPanel({
       return;
     }
     if (selectedFavIds.length === 0) {
-      alert("請至少勾選一個常用訓練動作");
+      alert("請至少加入一個常用訓練動作");
       return;
     }
     const exercises: FavoriteWorkoutExercise[] = [];
@@ -303,7 +304,7 @@ export function WorkoutMenusPanel({
       });
     }
     if (exercises.length === 0) {
-      alert("勾選的動作無效，請重試");
+      alert("加入的動作無效，請重試");
       return;
     }
     setCreating(true);
@@ -398,7 +399,7 @@ export function WorkoutMenusPanel({
 
             {sorted.length === 0 ? (
               <p className="py-3 text-center text-sm text-text-muted">
-                尚無菜單。可勾選常用訓練新增，或從歷史紀錄加入。
+                尚無菜單。可從常用訓練加入（可重複），或從歷史紀錄加入。
               </p>
             ) : (
               sorted.map((menu) => {
@@ -483,7 +484,7 @@ export function WorkoutMenusPanel({
             >
               <h3 className="text-sm font-bold text-accent-light">新增訓練菜單</h3>
               <p className="mt-1 text-xs text-text-muted">
-                勾選順序＝帶入順序，之後還可拖曳調整。
+                同一動作可多次加入（例如熱身＋正式）。加入順序＝帶入順序。
               </p>
 
               <label className="mt-3 block text-xs text-text-muted">
@@ -538,46 +539,72 @@ export function WorkoutMenusPanel({
                     })}
                   </div>
 
-                  <p className="mt-2 text-[11px] text-text-muted">
-                    已選 {selectedFavIds.length} 項
-                    {selectedFavIds.length > 0 &&
-                      `：${selectedFavIds
-                        .map((id) => favById.get(id)?.name)
-                        .filter(Boolean)
-                        .join(" → ")}`}
-                  </p>
+                  <div className="mt-3 rounded-xl border border-border bg-bg-elevated p-2.5">
+                    <p className="text-xs font-semibold text-text-muted">
+                      已排入（{selectedFavIds.length}）
+                    </p>
+                    {selectedFavIds.length === 0 ? (
+                      <p className="mt-1 text-[11px] text-text-muted">
+                        下方按「加入」；熱身組可再按一次同一動作。
+                      </p>
+                    ) : (
+                      <ul className="mt-1.5 max-h-28 space-y-1 overflow-y-auto">
+                        {selectedFavIds.map((id, i) => {
+                          const fav = favById.get(id);
+                          return (
+                            <li
+                              key={`${id}-${i}`}
+                              className="flex items-center gap-2 rounded-lg bg-bg-app px-2 py-1.5"
+                            >
+                              <span className="w-5 shrink-0 text-center text-[11px] tabular-nums text-text-muted">
+                                {i + 1}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+                                {fav?.name ?? "（已刪除）"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removePickAt(i)}
+                                className="shrink-0 rounded border border-border px-2 py-0.5 text-[11px] text-text-muted"
+                              >
+                                移除
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
 
-                  <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+                  <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
                     {visiblePickable.map((fav) => {
-                      const checked = selectedFavIds.includes(fav.id);
-                      const order = checked
-                        ? selectedFavIds.indexOf(fav.id) + 1
-                        : null;
+                      const addedCount = selectedFavIds.filter(
+                        (id) => id === fav.id,
+                      ).length;
                       const load =
                         fav.exercises[0]?.loadType ?? "bilateral";
                       return (
-                        <li key={fav.id}>
-                          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => togglePick(fav.id)}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-semibold text-text">
-                                {fav.name}
-                              </span>
-                              <span className="text-[11px] text-text-muted">
-                                {workoutCategoryLabel(fav.category)} ·{" "}
-                                {loadTypeLabel(load)}
-                              </span>
+                        <li
+                          key={fav.id}
+                          className="flex items-center gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-text">
+                              {fav.name}
                             </span>
-                            {order != null && (
-                              <span className="shrink-0 rounded bg-accent/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-light">
-                                {order}
-                              </span>
-                            )}
-                          </label>
+                            <span className="text-[11px] text-text-muted">
+                              {workoutCategoryLabel(fav.category)} ·{" "}
+                              {loadTypeLabel(load)}
+                              {addedCount > 0 ? ` · 已加 ${addedCount}` : ""}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => addPick(fav.id)}
+                            className="min-h-[36px] shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 text-xs font-semibold text-accent-light"
+                          >
+                            加入
+                          </button>
                         </li>
                       );
                     })}
