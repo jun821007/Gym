@@ -42,9 +42,20 @@ function sameExercises(
   if (a.length !== b.length) return false;
   return a.every(
     (x, i) =>
-      x.exerciseName === b[i]?.exerciseName && x.loadType === b[i]?.loadType,
+      x.exerciseName === b[i]?.exerciseName &&
+      x.loadType === b[i]?.loadType &&
+      (x.sets ?? 1) === (b[i]?.sets ?? 1),
   );
 }
+
+const DEFAULT_MENU_SETS = 3;
+
+function clampSets(n: number) {
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(20, Math.round(n));
+}
+
+type MenuPick = { favId: string; sets: number };
 
 function reorderExercises(
   list: FavoriteWorkoutExercise[],
@@ -61,11 +72,11 @@ function reorderExercises(
 function MenuExerciseList({
   exercises,
   disabled,
-  onReorder,
+  onChange,
 }: {
   exercises: FavoriteWorkoutExercise[];
   disabled?: boolean;
-  onReorder?: (next: FavoriteWorkoutExercise[]) => void | Promise<void>;
+  onChange?: (next: FavoriteWorkoutExercise[]) => void | Promise<void>;
 }) {
   const [draft, setDraft] = useState(exercises);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -77,7 +88,7 @@ function MenuExerciseList({
   const draftRef = useRef(draft);
   const startY = useRef(0);
   const moved = useRef(false);
-  const canDrag = Boolean(onReorder) && !disabled;
+  const canEdit = Boolean(onChange) && !disabled;
   draftRef.current = draft;
 
   useEffect(() => {
@@ -99,7 +110,7 @@ function MenuExerciseList({
   }
 
   function onPointerDown(e: ReactPointerEvent<HTMLSpanElement>, index: number) {
-    if (!canDrag || e.button !== 0) return;
+    if (!canEdit || e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -137,9 +148,23 @@ function MenuExerciseList({
     fromRef.current = null;
     overRef.current = null;
     setDragIndex(null);
-    if (!moved.current || !onReorder || sameExercises(next, exercises)) return;
+    if (!moved.current || !onChange || sameExercises(next, exercises)) return;
     try {
-      await onReorder(next);
+      await onChange(next);
+    } catch {
+      setDraft(exercises);
+    }
+  }
+
+  async function changeSets(index: number, sets: number) {
+    if (!onChange) return;
+    const next = draft.map((ex, i) =>
+      i === index ? { ...ex, sets: clampSets(sets) } : ex,
+    );
+    setDraft(next);
+    draftRef.current = next;
+    try {
+      await onChange(next);
     } catch {
       setDraft(exercises);
     }
@@ -177,7 +202,29 @@ function MenuExerciseList({
               {loadTypeLabel(ex.loadType)}
             </p>
           </div>
-          {canDrag && (
+          {canEdit && (
+            <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
+              組
+              <input
+                type="number"
+                min={1}
+                max={20}
+                inputMode="numeric"
+                value={ex.sets ?? DEFAULT_MENU_SETS}
+                disabled={disabled}
+                onChange={(e) =>
+                  void changeSets(i, Number(e.target.value) || 1)
+                }
+                className="h-8 w-12 rounded-lg border border-border bg-bg-elevated px-1 text-center text-xs tabular-nums outline-none focus:border-accent"
+              />
+            </label>
+          )}
+          {!canEdit && (
+            <span className="shrink-0 text-[11px] tabular-nums text-text-muted">
+              {ex.sets ?? DEFAULT_MENU_SETS} 組
+            </span>
+          )}
+          {canEdit && (
             <span
               role="button"
               tabIndex={0}
@@ -221,9 +268,10 @@ export function WorkoutMenusPanel({
   const [renameSaving, setRenameSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
-  const [selectedFavIds, setSelectedFavIds] = useState<string[]>([]);
+  const [selectedPicks, setSelectedPicks] = useState<MenuPick[]>([]);
   const [createFilterCat, setCreateFilterCat] = useState<string>("__all__");
   const [creating, setCreating] = useState(false);
+  const [defaultSets, setDefaultSets] = useState(DEFAULT_MENU_SETS);
 
   const sorted = useMemo(
     () => [...menus].filter((m) => (m.kind ?? "exercise") === "menu"),
@@ -269,17 +317,29 @@ export function WorkoutMenusPanel({
 
   function openCreate() {
     setCreateName("");
-    setSelectedFavIds([]);
+    setSelectedPicks([]);
+    setDefaultSets(DEFAULT_MENU_SETS);
     setCreateFilterCat("__all__");
     setShowCreate(true);
   }
 
   function addPick(id: string) {
-    setSelectedFavIds((prev) => [...prev, id]);
+    setSelectedPicks((prev) => [
+      ...prev,
+      { favId: id, sets: clampSets(defaultSets) },
+    ]);
   }
 
   function removePickAt(index: number) {
-    setSelectedFavIds((prev) => prev.filter((_, i) => i !== index));
+    setSelectedPicks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updatePickSets(index: number, sets: number) {
+    setSelectedPicks((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, sets: clampSets(sets) } : p,
+      ),
+    );
   }
 
   async function submitCreate() {
@@ -289,18 +349,19 @@ export function WorkoutMenusPanel({
       alert("請輸入菜單名稱");
       return;
     }
-    if (selectedFavIds.length === 0) {
+    if (selectedPicks.length === 0) {
       alert("請至少加入一個常用訓練動作");
       return;
     }
     const exercises: FavoriteWorkoutExercise[] = [];
-    for (const id of selectedFavIds) {
-      const fav = favById.get(id);
+    for (const pick of selectedPicks) {
+      const fav = favById.get(pick.favId);
       if (!fav) continue;
       const ex = fav.exercises[0];
       exercises.push({
         exerciseName: ex?.exerciseName || fav.name,
         loadType: ex?.loadType ?? "bilateral",
+        sets: clampSets(pick.sets),
       });
     }
     if (exercises.length === 0) {
@@ -316,7 +377,7 @@ export function WorkoutMenusPanel({
       });
       setShowCreate(false);
       setCreateName("");
-      setSelectedFavIds([]);
+      setSelectedPicks([]);
     } catch (e) {
       alert(e instanceof Error ? e.message : "新增菜單失敗");
     } finally {
@@ -425,7 +486,11 @@ export function WorkoutMenusPanel({
                         </p>
                         <p className="mt-0.5 text-xs text-text-muted">
                           {menu.exercises.length} 個動作 ·{" "}
-                          {expanded ? "點此收合" : "點開拖曳排序"}
+                          {menu.exercises.reduce(
+                            (s, ex) => s + (ex.sets ?? DEFAULT_MENU_SETS),
+                            0,
+                          )}{" "}
+                          組 · {expanded ? "點此收合" : "點開調組／拖曳"}
                         </p>
                       </button>
                       <button
@@ -458,7 +523,7 @@ export function WorkoutMenusPanel({
                         <MenuExerciseList
                           exercises={menu.exercises}
                           disabled={busy}
-                          onReorder={
+                          onChange={
                             onUpdate
                               ? (next) => persistOrder(menu, next)
                               : undefined
@@ -484,7 +549,7 @@ export function WorkoutMenusPanel({
             >
               <h3 className="text-sm font-bold text-accent-light">新增訓練菜單</h3>
               <p className="mt-1 text-xs text-text-muted">
-                同一動作可多次加入（例如熱身＋正式）。加入順序＝帶入順序。
+                同一動作可多次加入（熱身＋正式）。可先設預設組數再加入。
               </p>
 
               <label className="mt-3 block text-xs text-text-muted">
@@ -496,6 +561,21 @@ export function WorkoutMenusPanel({
                   className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm outline-none focus:border-accent"
                   placeholder="例如：拉背日"
                   autoFocus
+                />
+              </label>
+
+              <label className="mt-2 flex items-center gap-2 text-xs text-text-muted">
+                預設組數（加入時套用）
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  inputMode="numeric"
+                  value={defaultSets}
+                  onChange={(e) =>
+                    setDefaultSets(clampSets(Number(e.target.value) || 1))
+                  }
+                  className="h-9 w-14 rounded-lg border border-border bg-bg-app px-1 text-center text-sm tabular-nums outline-none focus:border-accent"
                 />
               </label>
 
@@ -541,19 +621,19 @@ export function WorkoutMenusPanel({
 
                   <div className="mt-3 rounded-xl border border-border bg-bg-elevated p-2.5">
                     <p className="text-xs font-semibold text-text-muted">
-                      已排入（{selectedFavIds.length}）
+                      已排入（{selectedPicks.length}）
                     </p>
-                    {selectedFavIds.length === 0 ? (
+                    {selectedPicks.length === 0 ? (
                       <p className="mt-1 text-[11px] text-text-muted">
-                        下方按「加入」；熱身組可再按一次同一動作。
+                        下方按「加入」；熱身可先把預設組數改成 1～2 再加入。
                       </p>
                     ) : (
-                      <ul className="mt-1.5 max-h-28 space-y-1 overflow-y-auto">
-                        {selectedFavIds.map((id, i) => {
-                          const fav = favById.get(id);
+                      <ul className="mt-1.5 max-h-32 space-y-1 overflow-y-auto">
+                        {selectedPicks.map((pick, i) => {
+                          const fav = favById.get(pick.favId);
                           return (
                             <li
-                              key={`${id}-${i}`}
+                              key={`${pick.favId}-${i}`}
                               className="flex items-center gap-2 rounded-lg bg-bg-app px-2 py-1.5"
                             >
                               <span className="w-5 shrink-0 text-center text-[11px] tabular-nums text-text-muted">
@@ -562,6 +642,23 @@ export function WorkoutMenusPanel({
                               <span className="min-w-0 flex-1 truncate text-xs font-semibold">
                                 {fav?.name ?? "（已刪除）"}
                               </span>
+                              <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
+                                組
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={20}
+                                  inputMode="numeric"
+                                  value={pick.sets}
+                                  onChange={(e) =>
+                                    updatePickSets(
+                                      i,
+                                      Number(e.target.value) || 1,
+                                    )
+                                  }
+                                  className="h-7 w-11 rounded border border-border bg-bg-elevated px-1 text-center text-[11px] tabular-nums"
+                                />
+                              </label>
                               <button
                                 type="button"
                                 onClick={() => removePickAt(i)}
@@ -578,8 +675,8 @@ export function WorkoutMenusPanel({
 
                   <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
                     {visiblePickable.map((fav) => {
-                      const addedCount = selectedFavIds.filter(
-                        (id) => id === fav.id,
+                      const addedCount = selectedPicks.filter(
+                        (p) => p.favId === fav.id,
                       ).length;
                       const load =
                         fav.exercises[0]?.loadType ?? "bilateral";
@@ -603,7 +700,7 @@ export function WorkoutMenusPanel({
                             onClick={() => addPick(fav.id)}
                             className="min-h-[36px] shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 text-xs font-semibold text-accent-light"
                           >
-                            加入
+                            加入×{defaultSets}
                           </button>
                         </li>
                       );

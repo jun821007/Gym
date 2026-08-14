@@ -262,12 +262,13 @@ export function DungeonTab({
   }
 
   function exerciseToPrefill(ex: FavoriteWorkoutExercise): WorkoutFormPrefill {
+    const sets = Math.max(1, Math.min(20, ex.sets ?? 1));
     return {
       exerciseName: ex.exerciseName,
       loadType: ex.loadType ?? "bilateral",
       weightKg: 0,
       reps: 0,
-      sets: 1,
+      sets,
     };
   }
 
@@ -354,6 +355,7 @@ export function DungeonTab({
       exercises.push({
         exerciseName: w.exerciseName,
         loadType: w.loadType,
+        sets: Math.max(1, w.sets || w.setDetails?.length || 1),
       });
     }
 
