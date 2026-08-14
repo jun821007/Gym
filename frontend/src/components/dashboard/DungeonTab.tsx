@@ -512,13 +512,16 @@ export function DungeonTab({
         />
       )}
 
-      {workoutMenus.length > 0 && onDeleteFavoriteWorkout && (
+      {(workoutMenus.length > 0 || onSaveFavoriteWorkout) &&
+        onDeleteFavoriteWorkout && (
         <WorkoutMenusPanel
           menus={workoutMenus}
+          exerciseFavorites={exerciseFavorites}
           onApplyMenu={startMenuQueue}
           onDelete={onDeleteFavoriteWorkout}
           onRename={onRenameFavoriteWorkout}
           onUpdate={onUpdateFavoriteWorkout}
+          onCreate={onSaveFavoriteWorkout}
         />
       )}
 

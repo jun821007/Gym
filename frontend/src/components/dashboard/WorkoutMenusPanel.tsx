@@ -9,12 +9,17 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/Card";
+import {
+  collectWorkoutCategories,
+  workoutCategoryLabel,
+} from "@/lib/workout-categories";
 import type { FavoriteWorkout, FavoriteWorkoutExercise } from "@/lib/types";
 import { LOAD_TYPE_OPTIONS } from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
 
 interface WorkoutMenusPanelProps {
   menus: FavoriteWorkout[];
+  exerciseFavorites: FavoriteWorkout[];
   onApplyMenu: (menu: FavoriteWorkout) => void;
   onDelete: (id: string) => void | Promise<void>;
   onRename?: (id: string, name: string) => void | Promise<void>;
@@ -22,6 +27,7 @@ interface WorkoutMenusPanelProps {
     id: string,
     patch: { exercises: FavoriteWorkoutExercise[] },
   ) => void | Promise<void>;
+  onCreate?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   defaultOpen?: boolean;
 }
 
@@ -196,10 +202,12 @@ function MenuExerciseList({
 
 export function WorkoutMenusPanel({
   menus,
+  exerciseFavorites,
   onApplyMenu,
   onDelete,
   onRename,
   onUpdate,
+  onCreate,
   defaultOpen = true,
 }: WorkoutMenusPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -211,15 +219,108 @@ export function WorkoutMenusPanel({
   const [renaming, setRenaming] = useState<FavoriteWorkout | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [selectedFavIds, setSelectedFavIds] = useState<string[]>([]);
+  const [createFilterCat, setCreateFilterCat] = useState<string>("__all__");
+  const [creating, setCreating] = useState(false);
 
   const sorted = useMemo(
     () => [...menus].filter((m) => (m.kind ?? "exercise") === "menu"),
     [menus],
   );
 
+  const pickable = useMemo(
+    () => exerciseFavorites.filter((f) => (f.kind ?? "exercise") !== "menu"),
+    [exerciseFavorites],
+  );
+
+  const pickCategories = useMemo(
+    () => collectWorkoutCategories(pickable),
+    [pickable],
+  );
+
+  const pickableByCat = useMemo(() => {
+    const map = new Map<string, FavoriteWorkout[]>();
+    for (const cat of pickCategories) map.set(cat, []);
+    for (const fav of pickable) {
+      const cat = fav.category?.trim() || "";
+      const list = map.get(cat) ?? [];
+      list.push(fav);
+      map.set(cat, list);
+    }
+    return map;
+  }, [pickable, pickCategories]);
+
+  const visiblePickable = useMemo(() => {
+    if (createFilterCat === "__all__") return pickable;
+    return pickableByCat.get(createFilterCat) ?? [];
+  }, [createFilterCat, pickable, pickableByCat]);
+
+  const favById = useMemo(
+    () => new Map(pickable.map((f) => [f.id, f])),
+    [pickable],
+  );
+
   function openRename(menu: FavoriteWorkout) {
     setRenaming(menu);
     setRenameDraft(menu.name);
+  }
+
+  function openCreate() {
+    setCreateName("");
+    setSelectedFavIds([]);
+    setCreateFilterCat("__all__");
+    setShowCreate(true);
+  }
+
+  function togglePick(id: string) {
+    setSelectedFavIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
+  }
+
+  async function submitCreate() {
+    if (!onCreate) return;
+    const name = createName.trim();
+    if (!name) {
+      alert("請輸入菜單名稱");
+      return;
+    }
+    if (selectedFavIds.length === 0) {
+      alert("請至少勾選一個常用訓練動作");
+      return;
+    }
+    const exercises: FavoriteWorkoutExercise[] = [];
+    for (const id of selectedFavIds) {
+      const fav = favById.get(id);
+      if (!fav) continue;
+      const ex = fav.exercises[0];
+      exercises.push({
+        exerciseName: ex?.exerciseName || fav.name,
+        loadType: ex?.loadType ?? "bilateral",
+      });
+    }
+    if (exercises.length === 0) {
+      alert("勾選的動作無效，請重試");
+      return;
+    }
+    setCreating(true);
+    try {
+      await onCreate({
+        name,
+        kind: "menu",
+        exercises,
+      });
+      setShowCreate(false);
+      setCreateName("");
+      setSelectedFavIds([]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "新增菜單失敗");
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function submitRename() {
@@ -260,7 +361,7 @@ export function WorkoutMenusPanel({
     }
   }
 
-  if (sorted.length === 0) return null;
+  if (sorted.length === 0 && !onCreate) return null;
 
   return (
     <>
@@ -272,83 +373,240 @@ export function WorkoutMenusPanel({
         >
           <div>
             <span className="card-title mb-0">訓練菜單</span>
-            <p className="mt-1 text-xs text-text-muted">
-              {sorted.length} 份 · 點開後拖曳排序，帶入後依序打卡
-            </p>
+            {open && (
+              <p className="mt-1 text-xs text-text-muted">
+                {sorted.length} 份 · 點開後拖曳排序，帶入後依序打卡
+              </p>
+            )}
           </div>
           <span className="text-sm text-text-muted">{open ? "收起" : "展開"}</span>
         </button>
 
         {open && (
           <div className="mt-3 space-y-2">
-            {sorted.map((menu) => {
-              const expanded = expandedId === menu.id;
-              const busy = reorderingId === menu.id;
-              return (
-                <div
-                  key={menu.id}
-                  className="rounded-xl border border-border bg-bg-elevated"
+            {onCreate && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent-light"
                 >
-                  <div className="flex items-center gap-2 p-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedId((id) => (id === menu.id ? null : menu.id))
-                      }
-                      className="min-w-0 flex-1 text-left active:scale-[0.99]"
-                    >
-                      <p className="text-sm font-semibold text-accent-light">
-                        {menu.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-text-muted">
-                        {menu.exercises.length} 個動作 ·{" "}
-                        {expanded ? "點此收合" : "點開拖曳排序"}
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onApplyMenu(menu)}
-                      className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
-                    >
-                      帶入
-                    </button>
-                    {onRename && (
+                  + 新增菜單
+                </button>
+              </div>
+            )}
+
+            {sorted.length === 0 ? (
+              <p className="py-3 text-center text-sm text-text-muted">
+                尚無菜單。可勾選常用訓練新增，或從歷史紀錄加入。
+              </p>
+            ) : (
+              sorted.map((menu) => {
+                const expanded = expandedId === menu.id;
+                const busy = reorderingId === menu.id;
+                return (
+                  <div
+                    key={menu.id}
+                    className="rounded-xl border border-border bg-bg-elevated"
+                  >
+                    <div className="flex items-center gap-2 p-3">
                       <button
                         type="button"
-                        onClick={() => openRename(menu)}
+                        onClick={() =>
+                          setExpandedId((id) =>
+                            id === menu.id ? null : menu.id,
+                          )
+                        }
+                        className="min-w-0 flex-1 text-left active:scale-[0.99]"
+                      >
+                        <p className="text-sm font-semibold text-accent-light">
+                          {menu.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-text-muted">
+                          {menu.exercises.length} 個動作 ·{" "}
+                          {expanded ? "點此收合" : "點開拖曳排序"}
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onApplyMenu(menu)}
                         className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
                       >
-                        改名
+                        帶入
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(menu)}
-                      className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
-                    >
-                      刪除
-                    </button>
-                  </div>
-
-                  {expanded && (
-                    <div className="border-t border-border/60 px-3 py-2">
-                      <MenuExerciseList
-                        exercises={menu.exercises}
-                        disabled={busy}
-                        onReorder={
-                          onUpdate
-                            ? (next) => persistOrder(menu, next)
-                            : undefined
-                        }
-                      />
+                      {onRename && (
+                        <button
+                          type="button"
+                          onClick={() => openRename(menu)}
+                          className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                        >
+                          改名
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(menu)}
+                        className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                      >
+                        刪除
+                      </button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {expanded && (
+                      <div className="border-t border-border/60 px-3 py-2">
+                        <MenuExerciseList
+                          exercises={menu.exercises}
+                          disabled={busy}
+                          onReorder={
+                            onUpdate
+                              ? (next) => persistOrder(menu, next)
+                              : undefined
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </Card>
+
+      {showCreate &&
+        createPortal(
+          <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+            <div
+              role="dialog"
+              className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-2xl border border-border bg-bg-card p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-sm font-bold text-accent-light">新增訓練菜單</h3>
+              <p className="mt-1 text-xs text-text-muted">
+                勾選順序＝帶入順序，之後還可拖曳調整。
+              </p>
+
+              <label className="mt-3 block text-xs text-text-muted">
+                菜單名稱
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm outline-none focus:border-accent"
+                  placeholder="例如：拉背日"
+                  autoFocus
+                />
+              </label>
+
+              {pickable.length === 0 ? (
+                <p className="mt-3 py-4 text-center text-sm text-text-muted">
+                  尚無常用訓練動作，請先在上方新增。
+                </p>
+              ) : (
+                <>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCreateFilterCat("__all__")}
+                      className={cn(
+                        "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
+                        createFilterCat === "__all__"
+                          ? "border-accent bg-accent/20 text-accent-light"
+                          : "border-border bg-bg-elevated text-text-muted",
+                      )}
+                    >
+                      全部({pickable.length})
+                    </button>
+                    {pickCategories.map((cat) => {
+                      const count = pickableByCat.get(cat)?.length ?? 0;
+                      if (count === 0) return null;
+                      return (
+                        <button
+                          key={cat || "__empty__"}
+                          type="button"
+                          onClick={() => setCreateFilterCat(cat)}
+                          className={cn(
+                            "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
+                            createFilterCat === cat
+                              ? "border-accent bg-accent/20 text-accent-light"
+                              : "border-border bg-bg-elevated text-text-muted",
+                          )}
+                        >
+                          {workoutCategoryLabel(cat)}({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="mt-2 text-[11px] text-text-muted">
+                    已選 {selectedFavIds.length} 項
+                    {selectedFavIds.length > 0 &&
+                      `：${selectedFavIds
+                        .map((id) => favById.get(id)?.name)
+                        .filter(Boolean)
+                        .join(" → ")}`}
+                  </p>
+
+                  <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+                    {visiblePickable.map((fav) => {
+                      const checked = selectedFavIds.includes(fav.id);
+                      const order = checked
+                        ? selectedFavIds.indexOf(fav.id) + 1
+                        : null;
+                      const load =
+                        fav.exercises[0]?.loadType ?? "bilateral";
+                      return (
+                        <li key={fav.id}>
+                          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => togglePick(fav.id)}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-text">
+                                {fav.name}
+                              </span>
+                              <span className="text-[11px] text-text-muted">
+                                {workoutCategoryLabel(fav.category)} ·{" "}
+                                {loadTypeLabel(load)}
+                              </span>
+                            </span>
+                            {order != null && (
+                              <span className="shrink-0 rounded bg-accent/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-accent-light">
+                                {order}
+                              </span>
+                            )}
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  disabled={creating}
+                  onClick={() => setShowCreate(false)}
+                  className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  disabled={creating || pickable.length === 0}
+                  onClick={() => void submitCreate()}
+                  className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
+                >
+                  {creating ? "新增中…" : "確認新增"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {renaming &&
         createPortal(
