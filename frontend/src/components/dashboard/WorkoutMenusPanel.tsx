@@ -55,6 +55,55 @@ function clampSets(n: number) {
   return Math.min(20, Math.round(n));
 }
 
+/** 組數輸入：編輯中可清空，失焦／Enter 才寫回，避免刪字立刻跳回 1 */
+function SetsInput({
+  value,
+  disabled,
+  className,
+  onCommit,
+}: {
+  value: number;
+  disabled?: boolean;
+  className?: string;
+  onCommit: (sets: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setText(String(value));
+  }, [value]);
+
+  function commit() {
+    focused.current = false;
+    const next = clampSets(Number(text));
+    setText(String(next));
+    if (next !== value) onCommit(next);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      disabled={disabled}
+      value={text}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ""))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className={className}
+    />
+  );
+}
+
 type MenuPick = { favId: string; sets: number };
 
 function reorderExercises(
@@ -205,16 +254,10 @@ function MenuExerciseList({
           {canEdit && (
             <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
               組
-              <input
-                type="number"
-                min={1}
-                max={20}
-                inputMode="numeric"
+              <SetsInput
                 value={ex.sets ?? DEFAULT_MENU_SETS}
                 disabled={disabled}
-                onChange={(e) =>
-                  void changeSets(i, Number(e.target.value) || 1)
-                }
+                onCommit={(sets) => void changeSets(i, sets)}
                 className="h-8 w-12 rounded-lg border border-border bg-bg-elevated px-1 text-center text-xs tabular-nums outline-none focus:border-accent"
               />
             </label>
@@ -566,15 +609,9 @@ export function WorkoutMenusPanel({
 
               <label className="mt-2 flex items-center gap-2 text-xs text-text-muted">
                 預設組數（加入時套用）
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  inputMode="numeric"
+                <SetsInput
                   value={defaultSets}
-                  onChange={(e) =>
-                    setDefaultSets(clampSets(Number(e.target.value) || 1))
-                  }
+                  onCommit={setDefaultSets}
                   className="h-9 w-14 rounded-lg border border-border bg-bg-app px-1 text-center text-sm tabular-nums outline-none focus:border-accent"
                 />
               </label>
@@ -644,19 +681,10 @@ export function WorkoutMenusPanel({
                               </span>
                               <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
                                 組
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={20}
-                                  inputMode="numeric"
+                                <SetsInput
                                   value={pick.sets}
-                                  onChange={(e) =>
-                                    updatePickSets(
-                                      i,
-                                      Number(e.target.value) || 1,
-                                    )
-                                  }
-                                  className="h-7 w-11 rounded border border-border bg-bg-elevated px-1 text-center text-[11px] tabular-nums"
+                                  onCommit={(sets) => updatePickSets(i, sets)}
+                                  className="h-7 w-11 rounded border border-border bg-bg-elevated px-1 text-center text-[11px] tabular-nums outline-none focus:border-accent"
                                 />
                               </label>
                               <button
