@@ -13,7 +13,11 @@ import {
   collectWorkoutCategories,
   workoutCategoryLabel,
 } from "@/lib/workout-categories";
-import type { FavoriteWorkout, FavoriteWorkoutExercise } from "@/lib/types";
+import type {
+  FavoriteWorkout,
+  FavoriteWorkoutExercise,
+  WorkoutLoadType,
+} from "@/lib/types";
 import { LOAD_TYPE_OPTIONS } from "@/lib/workout-volume";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +29,10 @@ interface WorkoutMenusPanelProps {
   onRename?: (id: string, name: string) => void | Promise<void>;
   onUpdate?: (
     id: string,
-    patch: { exercises: FavoriteWorkoutExercise[] },
+    patch: {
+      name?: string;
+      exercises: FavoriteWorkoutExercise[];
+    },
   ) => void | Promise<void>;
   onCreate?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   defaultOpen?: boolean;
@@ -104,7 +111,12 @@ function SetsInput({
   );
 }
 
-type MenuPick = { favId: string; sets: number };
+type MenuPick = {
+  favId: string;
+  exerciseName: string;
+  loadType: WorkoutLoadType;
+  sets: number;
+};
 
 function reorderExercises(
   list: FavoriteWorkoutExercise[],
@@ -219,6 +231,18 @@ function MenuExerciseList({
     }
   }
 
+  async function removeAt(index: number) {
+    if (!onChange) return;
+    const next = draft.filter((_, i) => i !== index);
+    setDraft(next);
+    draftRef.current = next;
+    try {
+      await onChange(next);
+    } catch {
+      setDraft(exercises);
+    }
+  }
+
   if (exercises.length === 0) {
     return (
       <p className="py-2 text-center text-xs text-text-muted">
@@ -268,6 +292,16 @@ function MenuExerciseList({
             </span>
           )}
           {canEdit && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => void removeAt(i)}
+              className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted disabled:opacity-40"
+            >
+              移除
+            </button>
+          )}
+          {canEdit && (
             <span
               role="button"
               tabIndex={0}
@@ -310,6 +344,7 @@ export function WorkoutMenusPanel({
   const [renameDraft, setRenameDraft] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingMenu, setEditingMenu] = useState<FavoriteWorkout | null>(null);
   const [createName, setCreateName] = useState("");
   const [selectedPicks, setSelectedPicks] = useState<MenuPick[]>([]);
   const [createFilterCat, setCreateFilterCat] = useState<string>("__all__");
@@ -353,12 +388,42 @@ export function WorkoutMenusPanel({
     [pickable],
   );
 
+  function matchFavId(ex: FavoriteWorkoutExercise): string {
+    const hit = pickable.find((f) => {
+      const e = f.exercises[0];
+      const name = e?.exerciseName || f.name;
+      const load = e?.loadType ?? "bilateral";
+      return (
+        name === ex.exerciseName && load === (ex.loadType ?? "bilateral")
+      );
+    });
+    return hit?.id ?? "";
+  }
+
+  function pickFromFav(fav: FavoriteWorkout, sets: number): MenuPick {
+    const ex = fav.exercises[0];
+    return {
+      favId: fav.id,
+      exerciseName: ex?.exerciseName || fav.name,
+      loadType: ex?.loadType ?? "bilateral",
+      sets: clampSets(sets),
+    };
+  }
+
   function openRename(menu: FavoriteWorkout) {
     setRenaming(menu);
     setRenameDraft(menu.name);
   }
 
+  function closeEditor() {
+    setShowCreate(false);
+    setEditingMenu(null);
+    setCreateName("");
+    setSelectedPicks([]);
+  }
+
   function openCreate() {
+    setEditingMenu(null);
     setCreateName("");
     setSelectedPicks([]);
     setDefaultSets(DEFAULT_MENU_SETS);
@@ -366,11 +431,26 @@ export function WorkoutMenusPanel({
     setShowCreate(true);
   }
 
+  function openEdit(menu: FavoriteWorkout) {
+    setEditingMenu(menu);
+    setCreateName(menu.name);
+    setSelectedPicks(
+      menu.exercises.map((ex) => ({
+        favId: matchFavId(ex),
+        exerciseName: ex.exerciseName,
+        loadType: ex.loadType ?? "bilateral",
+        sets: clampSets(ex.sets ?? DEFAULT_MENU_SETS),
+      })),
+    );
+    setDefaultSets(DEFAULT_MENU_SETS);
+    setCreateFilterCat("__all__");
+    setShowCreate(true);
+  }
+
   function addPick(id: string) {
-    setSelectedPicks((prev) => [
-      ...prev,
-      { favId: id, sets: clampSets(defaultSets) },
-    ]);
+    const fav = favById.get(id);
+    if (!fav) return;
+    setSelectedPicks((prev) => [...prev, pickFromFav(fav, defaultSets)]);
   }
 
   function removePickAt(index: number) {
@@ -385,8 +465,7 @@ export function WorkoutMenusPanel({
     );
   }
 
-  async function submitCreate() {
-    if (!onCreate) return;
+  async function submitEditor() {
     const name = createName.trim();
     if (!name) {
       alert("請輸入菜單名稱");
@@ -396,33 +475,36 @@ export function WorkoutMenusPanel({
       alert("請至少加入一個常用訓練動作");
       return;
     }
-    const exercises: FavoriteWorkoutExercise[] = [];
-    for (const pick of selectedPicks) {
-      const fav = favById.get(pick.favId);
-      if (!fav) continue;
-      const ex = fav.exercises[0];
-      exercises.push({
-        exerciseName: ex?.exerciseName || fav.name,
-        loadType: ex?.loadType ?? "bilateral",
-        sets: clampSets(pick.sets),
-      });
-    }
-    if (exercises.length === 0) {
-      alert("加入的動作無效，請重試");
-      return;
-    }
+    const exercises: FavoriteWorkoutExercise[] = selectedPicks.map((pick) => ({
+      exerciseName: pick.exerciseName,
+      loadType: pick.loadType,
+      sets: clampSets(pick.sets),
+    }));
     setCreating(true);
     try {
-      await onCreate({
-        name,
-        kind: "menu",
-        exercises,
-      });
-      setShowCreate(false);
-      setCreateName("");
-      setSelectedPicks([]);
+      if (editingMenu) {
+        if (!onUpdate) {
+          alert("無法更新菜單");
+          return;
+        }
+        await onUpdate(editingMenu.id, { name, exercises });
+      } else {
+        if (!onCreate) return;
+        await onCreate({
+          name,
+          kind: "menu",
+          exercises,
+        });
+      }
+      closeEditor();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "新增菜單失敗");
+      alert(
+        e instanceof Error
+          ? e.message
+          : editingMenu
+            ? "更新菜單失敗"
+            : "新增菜單失敗",
+      );
     } finally {
       setCreating(false);
     }
@@ -543,6 +625,15 @@ export function WorkoutMenusPanel({
                       >
                         帶入
                       </button>
+                      {onUpdate && (
+                        <button
+                          type="button"
+                          onClick={() => openEdit(menu)}
+                          className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                        >
+                          編輯
+                        </button>
+                      )}
                       {onRename && (
                         <button
                           type="button"
@@ -590,7 +681,9 @@ export function WorkoutMenusPanel({
               className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-2xl border border-border bg-bg-card p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-sm font-bold text-accent-light">新增訓練菜單</h3>
+              <h3 className="text-sm font-bold text-accent-light">
+                {editingMenu ? "編輯訓練菜單" : "新增訓練菜單"}
+              </h3>
               <p className="mt-1 text-xs text-text-muted">
                 同一動作可多次加入（熱身＋正式）。可先設預設組數再加入。
               </p>
@@ -616,12 +709,13 @@ export function WorkoutMenusPanel({
                 />
               </label>
 
-              {pickable.length === 0 ? (
+              {pickable.length === 0 && selectedPicks.length === 0 ? (
                 <p className="mt-3 py-4 text-center text-sm text-text-muted">
                   尚無常用訓練動作，請先在上方新增。
                 </p>
               ) : (
                 <>
+                  {pickable.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <button
                       type="button"
@@ -655,6 +749,7 @@ export function WorkoutMenusPanel({
                       );
                     })}
                   </div>
+                  )}
 
                   <div className="mt-3 rounded-xl border border-border bg-bg-elevated p-2.5">
                     <p className="text-xs font-semibold text-text-muted">
@@ -666,18 +761,16 @@ export function WorkoutMenusPanel({
                       </p>
                     ) : (
                       <ul className="mt-1.5 max-h-32 space-y-1 overflow-y-auto">
-                        {selectedPicks.map((pick, i) => {
-                          const fav = favById.get(pick.favId);
-                          return (
+                        {selectedPicks.map((pick, i) => (
                             <li
-                              key={`${pick.favId}-${i}`}
+                              key={`${pick.favId}-${pick.exerciseName}-${i}`}
                               className="flex items-center gap-2 rounded-lg bg-bg-app px-2 py-1.5"
                             >
                               <span className="w-5 shrink-0 text-center text-[11px] tabular-nums text-text-muted">
                                 {i + 1}
                               </span>
                               <span className="min-w-0 flex-1 truncate text-xs font-semibold">
-                                {fav?.name ?? "（已刪除）"}
+                                {pick.exerciseName || "（已刪除）"}
                               </span>
                               <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
                                 組
@@ -695,12 +788,12 @@ export function WorkoutMenusPanel({
                                 移除
                               </button>
                             </li>
-                          );
-                        })}
+                        ))}
                       </ul>
                     )}
                   </div>
 
+                  {pickable.length > 0 && (
                   <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
                     {visiblePickable.map((fav) => {
                       const addedCount = selectedPicks.filter(
@@ -734,6 +827,7 @@ export function WorkoutMenusPanel({
                       );
                     })}
                   </ul>
+                  )}
                 </>
               )}
 
@@ -741,18 +835,27 @@ export function WorkoutMenusPanel({
                 <button
                   type="button"
                   disabled={creating}
-                  onClick={() => setShowCreate(false)}
+                  onClick={closeEditor}
                   className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   type="button"
-                  disabled={creating || pickable.length === 0}
-                  onClick={() => void submitCreate()}
+                  disabled={
+                    creating ||
+                    (pickable.length === 0 && selectedPicks.length === 0)
+                  }
+                  onClick={() => void submitEditor()}
                   className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
                 >
-                  {creating ? "新增中…" : "確認新增"}
+                  {creating
+                    ? editingMenu
+                      ? "儲存中…"
+                      : "新增中…"
+                    : editingMenu
+                      ? "儲存修改"
+                      : "確認新增"}
                 </button>
               </div>
             </div>

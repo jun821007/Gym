@@ -538,7 +538,7 @@ export function DungeonTab({
             <p className="mt-0.5 text-[11px] text-text-muted">
               打卡後自動帶入下一動作；次數／重量請自行填。
             </p>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={advanceMenuQueue}
@@ -553,6 +553,17 @@ export function DungeonTab({
               >
                 結束菜單
               </button>
+              {menuQueue.index + 1 < menuQueue.exercises.length ? (
+                <span className="text-[11px] text-text-muted">
+                  下一動：
+                  {menuQueue.exercises[menuQueue.index + 1]?.exerciseName}
+                  {menuQueue.exercises[menuQueue.index + 1]?.sets
+                    ? ` · ${menuQueue.exercises[menuQueue.index + 1]?.sets}組`
+                    : ""}
+                </span>
+              ) : (
+                <span className="text-[11px] text-text-muted">已是最後一動</span>
+              )}
             </div>
           </div>
         )}

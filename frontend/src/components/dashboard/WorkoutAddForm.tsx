@@ -138,20 +138,34 @@ export function WorkoutAddForm({
     return type === "bilateral" || type === "unilateral";
   }
 
+  function copySetFields(from: SetRow, to: SetRow): SetRow {
+    return {
+      ...to,
+      weightKg: from.weightKg,
+      strap: from.strap,
+      belt: from.belt,
+      knee: from.knee,
+      wrist: from.wrist,
+    };
+  }
+
   function copyToNextSet(index: number) {
     setSetRows((rows) => {
       if (index < 0 || index >= rows.length - 1) return rows;
       const current = rows[index];
-      const next = rows[index + 1];
-      const copy: SetRow = {
-        ...next,
-        weightKg: current.weightKg,
-        strap: current.strap,
-        belt: current.belt,
-        knee: current.knee,
-        wrist: current.wrist,
-      };
-      return rows.map((r, i) => (i === index + 1 ? copy : r));
+      return rows.map((r, i) =>
+        i === index + 1 ? copySetFields(current, r) : r,
+      );
+    });
+  }
+
+  function copyToRemainingSets(index: number) {
+    setSetRows((rows) => {
+      if (index < 0 || index >= rows.length - 1) return rows;
+      const current = rows[index];
+      return rows.map((r, i) =>
+        i > index ? copySetFields(current, r) : r,
+      );
     });
   }
 
@@ -332,13 +346,24 @@ export function WorkoutAddForm({
                   </p>
                   <div className="flex items-center gap-2">
                     {i < setRows.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={() => copyToNextSet(i)}
-                        className="rounded-lg border border-border px-2 py-0.5 text-xs text-text-muted"
-                      >
-                        帶入下組
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => copyToNextSet(i)}
+                          className="rounded-lg border border-border px-2 py-0.5 text-xs text-text-muted"
+                        >
+                          帶入下組
+                        </button>
+                        {i < setRows.length - 2 && (
+                          <button
+                            type="button"
+                            onClick={() => copyToRemainingSets(i)}
+                            className="rounded-lg border border-border px-2 py-0.5 text-xs text-text-muted"
+                          >
+                            全部帶入
+                          </button>
+                        )}
+                      </>
                     )}
                     {setRows.length > 1 && (
                       <button
