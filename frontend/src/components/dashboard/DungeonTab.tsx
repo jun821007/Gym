@@ -553,18 +553,20 @@ export function DungeonTab({
               >
                 結束菜單
               </button>
-              {menuQueue.index + 1 < menuQueue.exercises.length ? (
-                <span className="text-[11px] text-text-muted">
-                  下一動：
-                  {menuQueue.exercises[menuQueue.index + 1]?.exerciseName}
-                  {menuQueue.exercises[menuQueue.index + 1]?.sets
-                    ? ` · ${menuQueue.exercises[menuQueue.index + 1]?.sets}組`
-                    : ""}
-                </span>
-              ) : (
-                <span className="text-[11px] text-text-muted">已是最後一動</span>
-              )}
             </div>
+            {menuQueue.index + 1 < menuQueue.exercises.length ? (
+              <p className="mt-2 text-base font-bold leading-snug text-accent-light">
+                下一動：
+                {menuQueue.exercises[menuQueue.index + 1]?.exerciseName}
+                {menuQueue.exercises[menuQueue.index + 1]?.sets
+                  ? ` · ${menuQueue.exercises[menuQueue.index + 1]?.sets}組`
+                  : ""}
+              </p>
+            ) : (
+              <p className="mt-2 text-base font-bold text-text-muted">
+                已是最後一動
+              </p>
+            )}
           </div>
         )}
         <WorkoutAddForm

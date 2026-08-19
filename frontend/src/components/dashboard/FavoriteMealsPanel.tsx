@@ -25,6 +25,7 @@ type MealBundle = {
 
 interface FavoriteMealsPanelProps {
   favorites: FavoriteMeal[];
+  historyLogs?: DietLog[];
   recordDate: string;
   onQuickAddMany: (logs: Omit<DietLog, "id">[]) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
@@ -45,8 +46,21 @@ function resolveMealType(
   return fav.defaultMealType ?? "lunch";
 }
 
+function mealFingerprint(
+  name: string,
+  calories: number,
+  proteinG: number,
+) {
+  return `${name.trim().toLowerCase()}|${Math.round(calories)}|${Math.round(proteinG)}`;
+}
+
+function isHistoryItemId(id: string) {
+  return id.startsWith("hist:");
+}
+
 export function FavoriteMealsPanel({
   favorites,
+  historyLogs = [],
   recordDate,
   onQuickAddMany,
   onDelete,
@@ -99,11 +113,33 @@ export function FavoriteMealsPanel({
     return { bundles: allBundles };
   }, [favorites]);
 
-  const allItems = useMemo(
-    () =>
-      [...favorites].sort((a, b) => a.name.localeCompare(b.name, "zh-TW")),
-    [favorites],
-  );
+  const allItems = useMemo(() => {
+    const favs = [...favorites].sort((a, b) =>
+      a.name.localeCompare(b.name, "zh-TW"),
+    );
+    const seen = new Set(
+      favs.map((f) => mealFingerprint(f.name, f.calories, f.proteinG)),
+    );
+    const fromHistory: FavoriteMeal[] = [];
+    for (const log of historyLogs) {
+      const key = mealFingerprint(log.foodName, log.calories, log.proteinG);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fromHistory.push({
+        id: `hist:${log.id}`,
+        name: log.foodName,
+        calories: log.calories,
+        proteinG: log.proteinG,
+        carbsG: log.carbsG,
+        fatG: log.fatG,
+        sodiumMg: log.sodiumMg ?? 0,
+        fiberG: log.fiberG ?? 0,
+        defaultMealType: log.mealType,
+      });
+    }
+    fromHistory.sort((a, b) => a.name.localeCompare(b.name, "zh-TW"));
+    return [...favs, ...fromHistory];
+  }, [favorites, historyLogs]);
 
   const mealBundles = useMemo(
     () => bundles.filter((b) => b.mealType === mealType),
@@ -143,7 +179,7 @@ export function FavoriteMealsPanel({
     return map;
   }, [bundles]);
 
-  if (favorites.length === 0) return null;
+  if (favorites.length === 0 && historyLogs.length === 0) return null;
 
   async function addBundle(bundle: MealBundle) {
     const key = `${bundle.mealType}::${bundle.name}`;
@@ -429,8 +465,8 @@ export function FavoriteMealsPanel({
                 </p>
                 <p className="mt-0.5 text-[11px] text-text-muted">
                   {itemsOpen
-                    ? "可單點新增；勾選後可納入／改套餐"
-                    : "點此展開全部常吃單品"}
+                    ? "含歷史紀錄餐點，可再新增；勾選後可納入套餐"
+                    : "點此展開常吃與歷史餐點"}
                 </p>
               </button>
               <div className="flex shrink-0 items-center gap-1.5">
@@ -458,6 +494,7 @@ export function FavoriteMealsPanel({
             {itemsOpen && (
               <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
                 {allItems.map((fav) => {
+                  const fromHistory = isHistoryItemId(fav.id);
                   const bundleLabel = fav.bundleName?.trim();
                   return (
                     <div
@@ -478,9 +515,11 @@ export function FavoriteMealsPanel({
                           </p>
                           <p className="text-[11px] tabular-nums text-text-muted">
                             {fav.calories} kcal · P{fav.proteinG}
-                            {bundleLabel
-                              ? ` · ${bundleLabel}`
-                              : " · 未入套餐"}
+                            {fromHistory
+                              ? " · 歷史"
+                              : bundleLabel
+                                ? ` · ${bundleLabel}`
+                                : " · 未入套餐"}
                           </p>
                         </div>
                       </label>
@@ -502,13 +541,15 @@ export function FavoriteMealsPanel({
                         >
                           新增
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setPendingSingle(fav)}
-                          className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
-                        >
-                          刪除
-                        </button>
+                        {!fromHistory && (
+                          <button
+                            type="button"
+                            onClick={() => setPendingSingle(fav)}
+                            className="rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted"
+                          >
+                            刪除
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -584,93 +625,97 @@ export function FavoriteMealsPanel({
         </div>
       )}
       {editingKey && editingBundle && (
-        <div className="fixed inset-0 z-[210] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 px-4 pb-24 pt-8">
           <div
             role="dialog"
-            className="max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-bg-card p-4"
+            className="flex max-h-[72dvh] w-full max-w-sm flex-col rounded-2xl border border-border bg-bg-card p-4"
           >
-            <h3 className="text-sm font-bold text-accent-light">
+            <h3 className="shrink-0 text-sm font-bold text-accent-light">
               編輯套餐「{editingBundle.name}」
             </h3>
-            <p className="mt-1 text-xs text-text-muted">
-              移出後單品仍在「已加入的單品」；可從下方加入其他常吃。
+            <p className="mt-1 shrink-0 text-xs text-text-muted">
+              移出後單品仍在「已加入的單品」；可從下方加入其他常吃／歷史。
             </p>
 
-            <p className="mt-3 text-xs font-semibold text-text-muted">
-              目前品項（{editingBundle.items.length}）
-            </p>
-            <ul className="mt-1.5 space-y-1.5">
-              {editingBundle.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold">{item.name}</p>
-                    <p className="text-[11px] tabular-nums text-text-muted">
-                      {item.calories} kcal · P{item.proteinG}
-                    </p>
-                  </div>
-                  {onRemoveFromBundle && (
-                    <button
-                      type="button"
-                      disabled={editBusyId === item.id}
-                      onClick={() => void removeFromEditing(item.id)}
-                      className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted disabled:opacity-40"
-                    >
-                      移出
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-
-            {onAssignToBundle && (
-              <>
-                <p className="mt-4 text-xs font-semibold text-text-muted">
-                  加入單品
-                </p>
-                {addableToEditing.length === 0 ? (
-                  <p className="mt-1.5 text-xs text-text-muted">
-                    沒有可加入的其他常吃單品
-                  </p>
-                ) : (
-                  <ul className="mt-1.5 max-h-40 space-y-1.5 overflow-y-auto">
-                    {addableToEditing.map((fav) => (
-                      <li
-                        key={fav.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-2"
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
+              <p className="text-xs font-semibold text-text-muted">
+                目前品項（{editingBundle.items.length}）
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                {editingBundle.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold">{item.name}</p>
+                      <p className="text-[11px] tabular-nums text-text-muted">
+                        {item.calories} kcal · P{item.proteinG}
+                      </p>
+                    </div>
+                    {onRemoveFromBundle && (
+                      <button
+                        type="button"
+                        disabled={editBusyId === item.id}
+                        onClick={() => void removeFromEditing(item.id)}
+                        className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted disabled:opacity-40"
                       >
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold">
-                            {fav.name}
-                          </p>
-                          <p className="text-[11px] tabular-nums text-text-muted">
-                            {fav.calories} kcal
-                            {fav.bundleName?.trim()
-                              ? ` · 目前：${fav.bundleName}`
-                              : " · 未入套餐"}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={editBusyId === fav.id}
-                          onClick={() => void addToEditing(fav.id)}
-                          className="shrink-0 rounded-lg bg-accent/15 px-2 py-1 text-[11px] font-bold text-accent-light disabled:opacity-40"
+                        移出
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {onAssignToBundle && (
+                <>
+                  <p className="mt-4 text-xs font-semibold text-text-muted">
+                    加入單品
+                  </p>
+                  {addableToEditing.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-text-muted">
+                      沒有可加入的其他常吃單品
+                    </p>
+                  ) : (
+                    <ul className="mt-1.5 space-y-1.5">
+                      {addableToEditing.map((fav) => (
+                        <li
+                          key={fav.id}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border px-2.5 py-2"
                         >
-                          加入
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold">
+                              {fav.name}
+                            </p>
+                            <p className="text-[11px] tabular-nums text-text-muted">
+                              {fav.calories} kcal
+                              {isHistoryItemId(fav.id)
+                                ? " · 歷史"
+                                : fav.bundleName?.trim()
+                                  ? ` · 目前：${fav.bundleName}`
+                                  : " · 未入套餐"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={editBusyId === fav.id}
+                            onClick={() => void addToEditing(fav.id)}
+                            className="shrink-0 rounded-lg bg-accent/15 px-2 py-1 text-[11px] font-bold text-accent-light disabled:opacity-40"
+                          >
+                            加入
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
 
             <button
               type="button"
               onClick={() => setEditingKey(null)}
-              className="mt-4 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated text-sm font-semibold"
+              className="mt-3 min-h-[44px] w-full shrink-0 rounded-xl border border-border bg-bg-elevated text-sm font-semibold"
             >
               完成
             </button>

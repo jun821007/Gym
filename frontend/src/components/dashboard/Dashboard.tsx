@@ -317,7 +317,26 @@ export function Dashboard({
     },
   ) {
     const updatedList: FavoriteMeal[] = [];
+    const inserted: FavoriteMeal[] = [];
     for (const id of ids) {
+      if (id.startsWith("hist:")) {
+        const dietId = id.slice("hist:".length);
+        const log = diets.find((d) => d.id === dietId);
+        if (!log) continue;
+        const fav = await insertFavoriteMeal(supabase, userId, {
+          name: log.foodName,
+          bundleName: patch.bundleName,
+          calories: log.calories,
+          proteinG: log.proteinG,
+          carbsG: log.carbsG,
+          fatG: log.fatG,
+          sodiumMg: log.sodiumMg ?? 0,
+          fiberG: log.fiberG ?? 0,
+          defaultMealType: patch.defaultMealType,
+        });
+        inserted.push(fav);
+        continue;
+      }
       const updated = await updateFavoriteMeal(supabase, userId, id, {
         bundleName: patch.bundleName,
         defaultMealType: patch.defaultMealType,
@@ -325,7 +344,10 @@ export function Dashboard({
       updatedList.push(updated);
     }
     const map = new Map(updatedList.map((f) => [f.id, f]));
-    setFavorites((prev) => prev.map((f) => map.get(f.id) ?? f));
+    setFavorites((prev) => [
+      ...inserted,
+      ...prev.map((f) => map.get(f.id) ?? f),
+    ]);
   }
 
   async function handleFavoriteRemoveFromBundle(ids: string[]) {

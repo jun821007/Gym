@@ -522,6 +522,7 @@ export function TavernTab({
 
       <FavoriteMealsPanel
         favorites={favorites}
+        historyLogs={diets}
         recordDate={recordDate}
         onQuickAddMany={async (logs) => {
           for (const log of logs) {
