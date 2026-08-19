@@ -252,7 +252,7 @@ function MenuExerciseList({
   }
 
   return (
-    <ul className="space-y-1.5">
+    <ul className="space-y-1">
       {draft.map((ex, i) => (
         <li
           key={`${ex.exerciseName}-${ex.loadType}-${i}`}
@@ -260,34 +260,32 @@ function MenuExerciseList({
             itemRefs.current[i] = el;
           }}
           className={cn(
-            "flex items-center gap-2 rounded-lg bg-bg-app px-2.5 py-2",
+            "flex items-center gap-1.5 rounded-lg bg-bg-app px-2 py-1.5",
             dragIndex === i && "ring-1 ring-accent/50 shadow-md",
           )}
         >
-          <span className="w-5 shrink-0 text-center text-[11px] tabular-nums text-text-muted">
+          <span className="w-4 shrink-0 text-center text-[10px] tabular-nums text-text-muted">
             {i + 1}
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-text">
-              {ex.exerciseName}
-            </p>
-            <p className="text-[11px] text-text-muted">
+          <p className="min-w-0 flex-1 truncate text-xs font-semibold text-text">
+            {ex.exerciseName} ·{" "}
+            <span className="font-normal text-text-muted">
               {loadTypeLabel(ex.loadType)}
-            </p>
-          </div>
+            </span>
+          </p>
           {canEdit && (
-            <label className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
+            <label className="flex shrink-0 items-center gap-1 text-[10px] text-text-muted">
               組
               <SetsInput
                 value={ex.sets ?? DEFAULT_MENU_SETS}
                 disabled={disabled}
                 onCommit={(sets) => void changeSets(i, sets)}
-                className="h-8 w-12 rounded-lg border border-border bg-bg-elevated px-1 text-center text-xs tabular-nums outline-none focus:border-accent"
+                className="h-7 w-10 rounded-md border border-border bg-bg-elevated px-1 text-center text-[11px] tabular-nums outline-none focus:border-accent"
               />
             </label>
           )}
           {!canEdit && (
-            <span className="shrink-0 text-[11px] tabular-nums text-text-muted">
+            <span className="shrink-0 text-[10px] tabular-nums text-text-muted">
               {ex.sets ?? DEFAULT_MENU_SETS} 組
             </span>
           )}
@@ -296,7 +294,7 @@ function MenuExerciseList({
               type="button"
               disabled={disabled}
               onClick={() => void removeAt(i)}
-              className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-text-muted disabled:opacity-40"
+              className="shrink-0 rounded-md border border-border px-1.5 py-0.5 text-[10px] text-text-muted disabled:opacity-40"
             >
               移除
             </button>
@@ -311,7 +309,7 @@ function MenuExerciseList({
               onPointerUp={() => void finishDrag()}
               onPointerCancel={() => void finishDrag()}
               className={cn(
-                "flex min-h-[36px] min-w-[36px] shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-lg border border-border text-text-muted",
+                "flex h-7 w-7 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md border border-border text-[11px] text-text-muted",
                 dragIndex === i && "cursor-grabbing bg-accent/15 text-accent-light",
               )}
             >
@@ -350,6 +348,7 @@ export function WorkoutMenusPanel({
   const [createFilterCat, setCreateFilterCat] = useState<string>("__all__");
   const [creating, setCreating] = useState(false);
   const [defaultSets, setDefaultSets] = useState(DEFAULT_MENU_SETS);
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...menus].filter((m) => (m.kind ?? "exercise") === "menu"),
@@ -596,7 +595,7 @@ export function WorkoutMenusPanel({
                     key={menu.id}
                     className="rounded-xl border border-border bg-bg-elevated"
                   >
-                    <div className="flex items-center gap-2 p-3">
+                    <div className="flex items-center gap-2 px-3 py-2">
                       <button
                         type="button"
                         onClick={() =>
@@ -606,51 +605,76 @@ export function WorkoutMenusPanel({
                         }
                         className="min-w-0 flex-1 text-left active:scale-[0.99]"
                       >
-                        <p className="text-sm font-semibold text-accent-light">
+                        <p className="truncate text-sm font-semibold text-accent-light">
                           {menu.name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-text-muted">
-                          {menu.exercises.length} 個動作 ·{" "}
-                          {menu.exercises.reduce(
-                            (s, ex) => s + (ex.sets ?? DEFAULT_MENU_SETS),
-                            0,
-                          )}{" "}
-                          組 · {expanded ? "點此收合" : "點開調組／拖曳"}
+                          <span className="ml-2 text-[11px] font-normal text-text-muted">
+                            {menu.exercises.length}動 ·{" "}
+                            {menu.exercises.reduce(
+                              (s, ex) => s + (ex.sets ?? DEFAULT_MENU_SETS),
+                              0,
+                            )}
+                            組
+                          </span>
                         </p>
                       </button>
                       <button
                         type="button"
                         onClick={() => onApplyMenu(menu)}
-                        className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                        className="h-8 shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-2.5 text-[11px] font-semibold text-accent-light"
                       >
                         帶入
                       </button>
-                      {onUpdate && (
-                        <button
-                          type="button"
-                          onClick={() => openEdit(menu)}
-                          className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
-                        >
-                          編輯
-                        </button>
-                      )}
-                      {onRename && (
-                        <button
-                          type="button"
-                          onClick={() => openRename(menu)}
-                          className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
-                        >
-                          改名
-                        </button>
-                      )}
                       <button
                         type="button"
-                        onClick={() => setPendingDelete(menu)}
-                        className="min-h-[36px] shrink-0 rounded-lg border border-border px-3 text-xs text-text-muted"
+                        onClick={() =>
+                          setActionMenuId((id) => (id === menu.id ? null : menu.id))
+                        }
+                        className="h-8 w-8 shrink-0 rounded-lg border border-border text-sm text-text-muted"
+                        aria-label="更多操作"
                       >
-                        刪除
+                        ⋯
                       </button>
                     </div>
+                    {actionMenuId === menu.id && (
+                      <div className="border-t border-border/60 px-3 py-1.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {onUpdate && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openEdit(menu);
+                                setActionMenuId(null);
+                              }}
+                              className="h-7 rounded-md border border-border px-2 text-[11px] text-text-muted"
+                            >
+                              編輯
+                            </button>
+                          )}
+                          {onRename && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openRename(menu);
+                                setActionMenuId(null);
+                              }}
+                              className="h-7 rounded-md border border-border px-2 text-[11px] text-text-muted"
+                            >
+                              改名
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPendingDelete(menu);
+                              setActionMenuId(null);
+                            }}
+                            className="h-7 rounded-md border border-danger/50 px-2 text-[11px] text-danger"
+                          >
+                            刪除
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {expanded && (
                       <div className="border-t border-border/60 px-3 py-2">
