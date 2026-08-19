@@ -118,18 +118,22 @@ export function FavoriteMealsPanel({
   }, [favorites]);
 
   const allItems = useMemo(() => {
-    const favs = [...favorites].sort((a, b) =>
-      a.name.localeCompare(b.name, "zh-TW"),
-    );
-    const seen = new Set(
-      favs.map((f) => mealFingerprint(f.name, f.calories, f.proteinG)),
-    );
-    const fromHistory: FavoriteMeal[] = [];
+    // favorites 與 historyLogs 皆由新到舊傳入，這裡維持時間序
+    const seen = new Set<string>();
+    const merged: FavoriteMeal[] = [];
+
+    for (const fav of favorites) {
+      const key = mealFingerprint(fav.name, fav.calories, fav.proteinG);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(fav);
+    }
+
     for (const log of historyLogs) {
       const key = mealFingerprint(log.foodName, log.calories, log.proteinG);
       if (seen.has(key)) continue;
       seen.add(key);
-      fromHistory.push({
+      merged.push({
         id: `hist:${log.id}`,
         name: log.foodName,
         calories: log.calories,
@@ -141,8 +145,8 @@ export function FavoriteMealsPanel({
         defaultMealType: log.mealType,
       });
     }
-    fromHistory.sort((a, b) => a.name.localeCompare(b.name, "zh-TW"));
-    return [...favs, ...fromHistory];
+
+    return merged;
   }, [favorites, historyLogs]);
 
   const mealBundles = useMemo(
