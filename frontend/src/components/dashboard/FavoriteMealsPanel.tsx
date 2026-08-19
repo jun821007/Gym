@@ -21,6 +21,8 @@ type MealBundle = {
   items: FavoriteMeal[];
   calories: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
 };
 
 interface FavoriteMealsPanelProps {
@@ -106,6 +108,8 @@ export function FavoriteMealsPanel({
         items,
         calories: items.reduce((s, x) => s + x.calories, 0),
         proteinG: items.reduce((s, x) => s + x.proteinG, 0),
+        carbsG: items.reduce((s, x) => s + x.carbsG, 0),
+        fatG: items.reduce((s, x) => s + x.fatG, 0),
       });
     }
     allBundles.sort((a, b) => a.name.localeCompare(b.name, "zh-TW"));
@@ -397,7 +401,9 @@ export function FavoriteMealsPanel({
                     </p>
                     <p className="mt-0.5 text-xs tabular-nums text-text-muted">
                       {bundle.items.length} 品 · {Math.round(bundle.calories)}{" "}
-                      kcal · 蛋白 {Math.round(bundle.proteinG)}g
+                      kcal · 蛋白 {Math.round(bundle.proteinG)}g · 碳水{" "}
+                      {Math.round(bundle.carbsG)}g · 脂肪{" "}
+                      {Math.round(bundle.fatG)}g
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">

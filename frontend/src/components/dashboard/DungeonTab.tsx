@@ -93,6 +93,7 @@ export function DungeonTab({
   onRefresh,
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
+  const MENU_DEFAULT_SETS = 3;
   const todayKey = toDateKey();
 
   const exerciseFavorites = useMemo(
@@ -262,7 +263,7 @@ export function DungeonTab({
   }
 
   function exerciseToPrefill(ex: FavoriteWorkoutExercise): WorkoutFormPrefill {
-    const sets = Math.max(1, Math.min(20, ex.sets ?? 1));
+    const sets = Math.max(1, Math.min(20, ex.sets ?? MENU_DEFAULT_SETS));
     return {
       exerciseName: ex.exerciseName,
       loadType: ex.loadType ?? "bilateral",
@@ -301,12 +302,16 @@ export function DungeonTab({
       alert("這份菜單沒有動作");
       return;
     }
+    const normalized = menu.exercises.map((ex) => ({
+      ...ex,
+      sets: Math.max(1, Math.min(20, ex.sets ?? MENU_DEFAULT_SETS)),
+    }));
     setMenuQueue({
       name: menu.name,
-      exercises: menu.exercises,
+      exercises: normalized,
       index: 0,
     });
-    setPrefill(exerciseToPrefill(menu.exercises[0]));
+    setPrefill(exerciseToPrefill(normalized[0]));
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
