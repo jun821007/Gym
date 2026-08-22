@@ -23,6 +23,7 @@ type MealBundle = {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  fiberG: number;
 };
 
 interface FavoriteMealsPanelProps {
@@ -110,6 +111,7 @@ export function FavoriteMealsPanel({
         proteinG: items.reduce((s, x) => s + x.proteinG, 0),
         carbsG: items.reduce((s, x) => s + x.carbsG, 0),
         fatG: items.reduce((s, x) => s + x.fatG, 0),
+        fiberG: items.reduce((s, x) => s + (x.fiberG ?? 0), 0),
       });
     }
     allBundles.sort((a, b) => a.name.localeCompare(b.name, "zh-TW"));
@@ -407,7 +409,8 @@ export function FavoriteMealsPanel({
                       {bundle.items.length} 品 · {Math.round(bundle.calories)}{" "}
                       kcal · 蛋白 {Math.round(bundle.proteinG)}g · 碳水{" "}
                       {Math.round(bundle.carbsG)}g · 脂肪{" "}
-                      {Math.round(bundle.fatG)}g
+                      {Math.round(bundle.fatG)}g · 膳食纖維{" "}
+                      {Math.round(bundle.fiberG)}g
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
