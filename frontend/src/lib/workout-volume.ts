@@ -57,7 +57,10 @@ export function effectiveSetWeightKg(
     case "bodyweight":
       return Math.max(0, bw);
     case "weighted_bw":
-      return Math.max(0, bw + (log.extraWeightKg ?? 0));
+      return Math.max(
+        0,
+        bw + (set.weightKg ?? log.extraWeightKg ?? 0),
+      );
     case "assisted_bw":
       return Math.max(0, bw - (log.assistKg ?? 0));
     case "unilateral":
@@ -83,9 +86,12 @@ export function normalizeSetDetails(log: Omit<WorkoutLog, "id">): WorkoutSetDeta
   if (log.setDetails?.length) return log.setDetails;
   return Array.from({ length: log.sets }, () => ({
     reps: log.reps,
-    weightKg: log.loadType === "bilateral" || log.loadType === "unilateral"
-      ? log.weightKg
-      : undefined,
+    weightKg:
+      log.loadType === "bilateral" || log.loadType === "unilateral"
+        ? log.weightKg
+        : log.loadType === "weighted_bw"
+          ? log.extraWeightKg
+          : undefined,
     gear: [],
   }));
 }
@@ -155,6 +161,13 @@ export function toSettlementWeight(log: WorkoutLog, bodyWeightKg: number | null)
 export function formatGear(gear?: string[]): string {
   if (!gear?.length) return "";
   return gear.map((g) => GEAR_LABELS[g] ?? g).join("、");
+}
+
+export function formatWeightedBwExtra(
+  log: Pick<WorkoutLog, "extraWeightKg">,
+  set: WorkoutSetDetail,
+): number {
+  return set.weightKg ?? log.extraWeightKg ?? 0;
 }
 
 export function formatLoadLabel(

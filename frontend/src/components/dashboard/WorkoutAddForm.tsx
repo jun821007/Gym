@@ -116,14 +116,33 @@ export function WorkoutAddForm({
       prefill.extraWeightKg != null ? String(prefill.extraWeightKg) : "",
     );
     setAssistKg(prefill.assistKg != null ? String(prefill.assistKg) : "");
-    const w = prefill.weightKg ? String(prefill.weightKg) : "";
+    const defaultExtra =
+      prefill.setDetails?.[0]?.weightKg != null
+        ? String(prefill.setDetails[0].weightKg)
+        : prefill.extraWeightKg != null
+          ? String(prefill.extraWeightKg)
+          : "";
+    const defaultBar =
+      prefill.loadType === "bilateral" || prefill.loadType === "unilateral"
+        ? prefill.weightKg
+          ? String(prefill.weightKg)
+          : ""
+        : "";
     if (prefill.setDetails?.length) {
-      setSetRows(prefill.setDetails.map((s) => setRowFromDetail(s, w)));
+      setSetRows(
+        prefill.setDetails.map((s) =>
+          setRowFromDetail(
+            s,
+            prefill.loadType === "weighted_bw" ? defaultExtra : defaultBar,
+          ),
+        ),
+      );
     } else {
       setSetRows(
         Array.from({ length: Math.max(1, prefill.sets) }, () => ({
           reps: prefill.reps > 0 ? String(prefill.reps) : "",
-          weightKg: w,
+          weightKg:
+            prefill.loadType === "weighted_bw" ? defaultExtra : defaultBar,
           strap: false,
           belt: false,
           knee: false,
@@ -134,7 +153,15 @@ export function WorkoutAddForm({
     onPrefillConsumed?.();
   }, [prefill, onPrefillConsumed]);
 
-  function needsWeight(type: WorkoutLoadType) {
+  function needsSetWeightInput(type: WorkoutLoadType) {
+    return (
+      type === "bilateral" ||
+      type === "unilateral" ||
+      type === "weighted_bw"
+    );
+  }
+
+  function requiresPositiveSetWeight(type: WorkoutLoadType) {
     return type === "bilateral" || type === "unilateral";
   }
 
@@ -187,11 +214,13 @@ export function WorkoutAddForm({
         alert(`第 ${i + 1} 組請輸入次數`);
         return null;
       }
-      const setWeight =
-        loadType === "bilateral" || loadType === "unilateral"
-          ? parseWeightKgInput(row.weightKg || weightKg)
-          : undefined;
-      if (needsWeight(loadType) && (!setWeight || setWeight <= 0)) {
+      const setWeight = needsSetWeightInput(loadType)
+        ? parseWeightKgInput(row.weightKg || weightKg)
+        : undefined;
+      if (
+        requiresPositiveSetWeight(loadType) &&
+        (!setWeight || setWeight <= 0)
+      ) {
         alert(`第 ${i + 1} 組請輸入重量`);
         return null;
       }
@@ -208,18 +237,21 @@ export function WorkoutAddForm({
       return null;
     }
 
-    const mainWeight = needsWeight(loadType)
-      ? parseWeightKgInput(setRows[0]?.weightKg || weightKg)
-      : 0;
+    const mainWeight =
+      loadType === "bilateral" || loadType === "unilateral"
+        ? parseWeightKgInput(setRows[0]?.weightKg || weightKg)
+        : 0;
+    const firstExtra =
+      loadType === "weighted_bw"
+        ? parseWeightKgInput(setRows[0]?.weightKg ?? "")
+        : undefined;
 
     return {
       exerciseName: exerciseName.trim(),
       loadType,
       weightKg: mainWeight,
       extraWeightKg:
-        loadType === "weighted_bw"
-          ? parseWeightKgInput(extraWeightKg)
-          : undefined,
+        loadType === "weighted_bw" ? firstExtra : undefined,
       assistKg:
         loadType === "assisted_bw" ? parseWeightKgInput(assistKg) : undefined,
       reps: details[0]?.reps ?? 0,
@@ -293,21 +325,6 @@ export function WorkoutAddForm({
             {effectiveBw != null ? ` → ${effectiveBw}kg` : "（請先在體態頁更新 InBody）"}
           </p>
         )}
-        {hasPreset && loadType === "weighted_bw" && (
-          <label className="block text-sm text-text-muted">
-            額外負重 kg
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              min={0}
-              value={extraWeightKg}
-              onChange={(e) => setExtraWeightKg(e.target.value)}
-              className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 tabular-nums"
-              placeholder="腰帶 +10"
-            />
-          </label>
-        )}
         {hasPreset && loadType === "assisted_bw" && (
           <label className="block text-sm text-text-muted">
             輔助減重 kg
@@ -322,6 +339,13 @@ export function WorkoutAddForm({
               placeholder="例如 10"
             />
           </label>
+        )}
+
+        {hasPreset && loadType === "weighted_bw" && (
+          <p className="text-xs text-text-muted">
+            每組填額外負重；有效負重 ≈ 體重 × {BODYWEIGHT_FACTOR}
+            {effectiveBw != null ? `（${effectiveBw}kg）` : ""} + 額外 kg
+          </p>
         )}
 
         {hasPreset && (
@@ -379,9 +403,13 @@ export function WorkoutAddForm({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {needsWeight(loadType) && (
+                  {needsSetWeightInput(loadType) && (
                     <label className="text-xs text-text-muted">
-                      {loadType === "unilateral" ? "單邊 kg" : "kg"}
+                      {loadType === "unilateral"
+                        ? "單邊 kg"
+                        : loadType === "weighted_bw"
+                          ? "額外 kg"
+                          : "kg"}
                       <input
                         type="number"
                         inputMode="decimal"
@@ -397,7 +425,13 @@ export function WorkoutAddForm({
                           );
                         }}
                         className="mt-1 min-h-[40px] w-full rounded-lg border border-border bg-bg-app px-2 tabular-nums"
-                        placeholder={loadType === "unilateral" ? "15" : "60"}
+                        placeholder={
+                          loadType === "unilateral"
+                            ? "15"
+                            : loadType === "weighted_bw"
+                              ? "10"
+                              : "60"
+                        }
                       />
                     </label>
                   )}

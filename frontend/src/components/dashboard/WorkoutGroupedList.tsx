@@ -5,9 +5,11 @@ import { formatTime } from "@/lib/datetime";
 import type { WorkoutLog, WorkoutSetDetail } from "@/lib/types";
 import { groupWorkoutsByExercise } from "@/lib/workout-grouping";
 import {
+  BODYWEIGHT_FACTOR,
   formatGear,
   formatKg,
   formatLoadLabel,
+  formatWeightedBwExtra,
   normalizeSetDetails,
   storedSetWeightKg,
 } from "@/lib/workout-volume";
@@ -27,11 +29,17 @@ function formatSetLine(
   bodyWeightKg: number | null,
 ): string {
   const gear = set.gear?.length ? ` · ${formatGear(set.gear)}` : "";
-  if (
-    log.loadType === "bodyweight" ||
-    log.loadType === "weighted_bw" ||
-    log.loadType === "assisted_bw"
-  ) {
+  if (log.loadType === "weighted_bw") {
+    const extra = formatWeightedBwExtra(log, set);
+    const bw =
+      bodyWeightKg != null && bodyWeightKg > 0
+        ? Math.round(bodyWeightKg * BODYWEIGHT_FACTOR * 10) / 10
+        : null;
+    const load =
+      bw != null ? `自重+${formatKg(extra)}kg（≈${formatKg(bw + extra)}kg）` : `+${formatKg(extra)}kg`;
+    return `第${setIndex + 1}組 ${load} · ${set.reps}次${gear}`;
+  }
+  if (log.loadType === "bodyweight" || log.loadType === "assisted_bw") {
     return `第${setIndex + 1}組 ${formatLoadLabel(log, bodyWeightKg)} · ${set.reps}次${gear}`;
   }
   const w = storedSetWeightKg(log, set);
