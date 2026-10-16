@@ -294,18 +294,6 @@ html.keyboard-open .chat-fab {
   bottom: calc(var(--safe-bottom) + 0.5rem);
 }
 
-/* 痛點回報 FAB：確保可點擊、可拖曳，預設在底欄上方 */
-#pp-fab {
-  z-index: 2147483646 !important;
-  pointer-events: auto !important;
-  touch-action: none !important;
-}
-
-#pp-overlay {
-  z-index: 2147483647 !important;
-  pointer-events: auto !important;
-}
-
 .chat-fab {
   position: fixed;
   right: 0.75rem;
