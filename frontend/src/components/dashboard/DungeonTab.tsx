@@ -141,6 +141,9 @@ export function DungeonTab({
     () => new Set(),
   );
   const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
+  /** 今日清單預設收合；有打卡後自動展開 */
+  const [todayListOpen, setTodayListOpen] = useState(false);
+  const prevTodayCountRef = useRef(0);
   const [settlement, setSettlement] = useState<DailyWorkoutSettlement | null>(
     null,
   );
@@ -249,6 +252,14 @@ export function DungeonTab({
     () => countWorkoutSets(todayWorkouts),
     [todayWorkouts],
   );
+
+  useEffect(() => {
+    const count = todayWorkouts.length;
+    if (prevTodayCountRef.current === 0 && count > 0) {
+      setTodayListOpen(true);
+    }
+    prevTodayCountRef.current = count;
+  }, [todayWorkouts.length]);
 
   const olderGradeCount = useMemo(
     () =>
@@ -627,46 +638,60 @@ export function DungeonTab({
         />
       </div>
 
-      <Card
-        title={`今日清單 · ${todayExerciseGroups.length} 動作 · ${todayTotalSets} 組`}
-      >
-        <WorkoutVolumeGoalBar
-          currentKg={todayVolume}
-          goalKg={volumeGoalKg}
-          suggestedKg={suggestedVolumeGoal}
-          hasUserGoal={hasUserVolumeGoal}
-          onGoalChange={onVolumeGoalChange}
-        />
-        {todayWorkouts.length === 0 ? (
-          <p className="py-4 text-center text-sm text-text-muted">
-            請先登記今日動作，結算時會一併納入評分
-          </p>
-        ) : (
-          <>
-            <p className="mb-2 text-xs text-accent-light">
-              訓練量 {Math.round(todayVolume)}
-              {bodyMetrics &&
-                ` · 相對體重 ${bodyMetrics.volume_per_body_weight}（÷${bodyMetrics.weight_kg}kg）`}
-            </p>
-            <WorkoutGroupedList
-              workouts={todayWorkouts}
-              bodyWeightKg={bodyWeightKg}
-              onDelete={
-                onDeleteWorkout
-                  ? (id) => {
-                      if (
-                        !confirm(
-                          "確定刪除這筆訓練紀錄？此動作無法復原。",
-                        )
-                      ) {
-                        return;
-                      }
-                      void onDeleteWorkout(id);
-                    }
-                  : undefined
-              }
+      <Card>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={() => setTodayListOpen((o) => !o)}
+        >
+          <span className="card-title mb-0">
+            今日清單 · {todayExerciseGroups.length} 動作 · {todayTotalSets} 組
+          </span>
+          <span className="text-sm text-text-muted">
+            {todayListOpen ? "收起" : "展開"}
+          </span>
+        </button>
+        {todayListOpen && (
+          <div className="mt-3">
+            <WorkoutVolumeGoalBar
+              currentKg={todayVolume}
+              goalKg={volumeGoalKg}
+              suggestedKg={suggestedVolumeGoal}
+              hasUserGoal={hasUserVolumeGoal}
+              onGoalChange={onVolumeGoalChange}
             />
-          </>
+            {todayWorkouts.length === 0 ? (
+              <p className="py-4 text-center text-sm text-text-muted">
+                請先登記今日動作，結算時會一併納入評分
+              </p>
+            ) : (
+              <>
+                <p className="mb-2 text-xs text-accent-light">
+                  訓練量 {Math.round(todayVolume)}
+                  {bodyMetrics &&
+                    ` · 相對體重 ${bodyMetrics.volume_per_body_weight}（÷${bodyMetrics.weight_kg}kg）`}
+                </p>
+                <WorkoutGroupedList
+                  workouts={todayWorkouts}
+                  bodyWeightKg={bodyWeightKg}
+                  onDelete={
+                    onDeleteWorkout
+                      ? (id) => {
+                          if (
+                            !confirm(
+                              "確定刪除這筆訓練紀錄？此動作無法復原。",
+                            )
+                          ) {
+                            return;
+                          }
+                          void onDeleteWorkout(id);
+                        }
+                      : undefined
+                  }
+                />
+              </>
+            )}
+          </div>
         )}
       </Card>
 
