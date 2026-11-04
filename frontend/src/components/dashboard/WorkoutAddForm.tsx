@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
 import { toDateKey } from "@/lib/datetime";
@@ -16,20 +16,21 @@ import type {
   WorkoutSetDetail,
 } from "@/lib/types";
 import {
+  draftHasFormContent,
+  draftSetRowsToDetails,
+  loadWorkoutDraft,
+  patchWorkoutDraft,
+  type WorkoutDraftSetRow,
+  type WorkoutMenuQueueDraft,
+} from "@/lib/workout-draft";
+import {
   BODYWEIGHT_FACTOR,
   LOAD_TYPE_OPTIONS,
   getLatestBodyWeightKg,
   parseWeightKgInput,
 } from "@/lib/workout-volume";
 
-type SetRow = {
-  reps: string;
-  weightKg: string;
-  strap: boolean;
-  belt: boolean;
-  knee: boolean;
-  wrist: boolean;
-};
+type SetRow = WorkoutDraftSetRow;
 
 const emptySet = (): SetRow => ({
   reps: "",
@@ -75,6 +76,12 @@ export interface WorkoutAddFormProps {
   prefill?: WorkoutFormPrefill | null;
   onPrefillConsumed?: () => void;
   onSave: (log: Omit<WorkoutLog, "id">) => void | Promise<void>;
+  /** 目前菜單進度，寫進同一份草稿 */
+  menuQueue?: WorkoutMenuQueueDraft | null;
+  /** 草稿還原成功後回呼（顯示提示） */
+  onDraftRestored?: (info: { exerciseName: string; menuName?: string }) => void;
+  /** 放棄草稿（清表單）時通知父層清菜單進度 */
+  onDiscardDraft?: () => void;
 }
 
 export function WorkoutAddForm({
@@ -83,6 +90,9 @@ export function WorkoutAddForm({
   prefill,
   onPrefillConsumed,
   onSave,
+  menuQueue = null,
+  onDraftRestored,
+  onDiscardDraft,
 }: WorkoutAddFormProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const effectiveBw =
@@ -98,17 +108,50 @@ export function WorkoutAddForm({
   const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
   const [dateKey, setDateKey] = useState(toDateKey);
   const [saving, setSaving] = useState(false);
+  const [restoredBanner, setRestoredBanner] = useState(false);
+
+  const restoredRef = useRef(false);
+  const skipDraftSaveRef = useRef(false);
 
   const hasPreset = exerciseName.trim().length > 0;
 
   const exerciseStats = useMemo(
-    () =>
-      getExerciseHistoryStats(workouts, exerciseName, bodyWeightKg),
+    () => getExerciseHistoryStats(workouts, exerciseName, bodyWeightKg),
     [workouts, exerciseName, bodyWeightKg],
   );
 
+  // 掛載時自動還原草稿（僅一次；若同時有 prefill 則讓 prefill 優先）
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (prefill) return;
+
+    const draft = loadWorkoutDraft();
+    if (!draft || !draftHasFormContent(draft)) return;
+
+    skipDraftSaveRef.current = true;
+    setExerciseName(draft.exerciseName);
+    setLoadType(draft.loadType);
+    setWeightKg(draft.weightKg);
+    setExtraWeightKg(draft.extraWeightKg);
+    setAssistKg(draft.assistKg);
+    setDateKey(draft.dateKey || toDateKey());
+    setSetRows(
+      draft.setRows.length > 0 ? draft.setRows.map((r) => ({ ...r })) : [emptySet()],
+    );
+    setRestoredBanner(true);
+    onDraftRestored?.({
+      exerciseName: draft.exerciseName,
+      menuName: draft.menuQueue?.name,
+    });
+    queueMicrotask(() => {
+      skipDraftSaveRef.current = false;
+    });
+  }, [prefill, onDraftRestored]);
+
   useEffect(() => {
     if (!prefill) return;
+    skipDraftSaveRef.current = true;
     setExerciseName(prefill.exerciseName);
     setLoadType(prefill.loadType);
     setWeightKg(prefill.weightKg ? String(prefill.weightKg) : "");
@@ -150,8 +193,42 @@ export function WorkoutAddForm({
         })),
       );
     }
+    setRestoredBanner(false);
     onPrefillConsumed?.();
+    queueMicrotask(() => {
+      skipDraftSaveRef.current = false;
+    });
   }, [prefill, onPrefillConsumed]);
+
+  // 表單內容變更 → 自動寫入草稿（不覆寫 menuQueue，由下方獨立同步）
+  useEffect(() => {
+    if (skipDraftSaveRef.current) return;
+    const timer = window.setTimeout(() => {
+      patchWorkoutDraft({
+        dateKey,
+        exerciseName,
+        loadType,
+        weightKg,
+        extraWeightKg,
+        assistKg,
+        setRows,
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    dateKey,
+    exerciseName,
+    loadType,
+    weightKg,
+    extraWeightKg,
+    assistKg,
+    setRows,
+  ]);
+
+  // 菜單進度變更 → 同步進同一份草稿
+  useEffect(() => {
+    patchWorkoutDraft({ menuQueue });
+  }, [menuQueue]);
 
   function needsSetWeightInput(type: WorkoutLoadType) {
     return (
@@ -197,8 +274,34 @@ export function WorkoutAddForm({
   }
 
   function normalizeRepsInput(value: string): string {
-    const digits = value.replace(/[^\d]/g, "");
-    return digits;
+    return value.replace(/[^\d]/g, "");
+  }
+
+  function resetFormFields() {
+    skipDraftSaveRef.current = true;
+    setExerciseName("");
+    setLoadType("bilateral");
+    setWeightKg("");
+    setExtraWeightKg("");
+    setAssistKg("");
+    setSetRows([emptySet()]);
+    setRestoredBanner(false);
+    queueMicrotask(() => {
+      skipDraftSaveRef.current = false;
+    });
+  }
+
+  function discardDraft() {
+    resetFormFields();
+    patchWorkoutDraft({
+      exerciseName: "",
+      weightKg: "",
+      extraWeightKg: "",
+      assistKg: "",
+      setRows: [emptySet()],
+      menuQueue: null,
+    });
+    onDiscardDraft?.();
   }
 
   function buildLog(): Omit<WorkoutLog, "id"> | null {
@@ -269,12 +372,15 @@ export function WorkoutAddForm({
     setSaving(true);
     try {
       await onSave(log);
-      setExerciseName("");
-      setLoadType("bilateral");
-      setWeightKg("");
-      setExtraWeightKg("");
-      setAssistKg("");
-      setSetRows([emptySet()]);
+      // 清表單欄位；菜單進度由父層 advance 負責寫回草稿
+      resetFormFields();
+      patchWorkoutDraft({
+        exerciseName: "",
+        weightKg: "",
+        extraWeightKg: "",
+        assistKg: "",
+        setRows: [emptySet()],
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "儲存失敗");
     } finally {
@@ -290,6 +396,21 @@ export function WorkoutAddForm({
           onChange={setDateKey}
           title="紀錄"
         />
+
+        {restoredBanner && hasPreset && (
+          <div className="flex items-start justify-between gap-2 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
+            <p className="text-xs text-accent-light">
+              已還原未完成的打卡（切換 App 也不會丟）
+            </p>
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="shrink-0 text-xs text-text-muted underline"
+            >
+              放棄
+            </button>
+          </div>
+        )}
 
         {!hasPreset ? (
           <p className="rounded-xl border border-border bg-bg-elevated px-3 py-3 text-sm text-text-muted">
@@ -504,4 +625,33 @@ export function WorkoutAddForm({
       </form>
     </Card>
   );
+}
+
+/** 從草稿組出 prefill（父層還原菜單時可用） */
+export function draftToPrefill(draft: {
+  exerciseName: string;
+  loadType: WorkoutLoadType;
+  weightKg: string;
+  extraWeightKg: string;
+  assistKg: string;
+  setRows: WorkoutDraftSetRow[];
+}): WorkoutFormPrefill {
+  const details = draftSetRowsToDetails(draft.setRows);
+  const firstWeight = details.find((d) => d.weightKg != null)?.weightKg ?? 0;
+  return {
+    exerciseName: draft.exerciseName,
+    loadType: draft.loadType,
+    weightKg: Number(draft.weightKg) || firstWeight || 0,
+    extraWeightKg:
+      draft.loadType === "weighted_bw"
+        ? Number(draft.extraWeightKg) || firstWeight || 0
+        : undefined,
+    assistKg:
+      draft.loadType === "assisted_bw"
+        ? Number(draft.assistKg) || undefined
+        : undefined,
+    reps: details[0]?.reps ?? 0,
+    sets: Math.max(1, details.length),
+    setDetails: details,
+  };
 }

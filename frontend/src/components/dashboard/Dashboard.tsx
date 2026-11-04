@@ -189,10 +189,28 @@ export function Dashboard({
     void refreshData();
   }, [tab, refreshData]);
 
+  // 切換 App 回來：短時間不強制刷資料，避免表單體驗像「被重新整理」
   useEffect(() => {
+    let hiddenAt = 0;
+    let lastRefreshAt = 0;
+    const MIN_AWAY_MS = 60_000;
+    const MIN_REFRESH_GAP_MS = 30_000;
+
     function onVisible() {
-      if (document.visibilityState === "visible") void refreshData();
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (document.visibilityState !== "visible") return;
+      if (!hiddenAt) return;
+      const awayMs = Date.now() - hiddenAt;
+      const sinceRefresh = Date.now() - lastRefreshAt;
+      if (awayMs < MIN_AWAY_MS) return;
+      if (sinceRefresh < MIN_REFRESH_GAP_MS) return;
+      lastRefreshAt = Date.now();
+      void refreshData();
     }
+
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refreshData]);

@@ -43,6 +43,11 @@ import {
   effectiveWorkoutVolumeGoalKg,
   suggestWorkoutVolumeGoalKg,
 } from "@/lib/workout-volume-goal";
+import {
+  clearWorkoutDraft,
+  loadWorkoutDraft,
+  patchWorkoutDraft,
+} from "@/lib/workout-draft";
 import { RANK_GRADE_BADGE } from "@/lib/rank-grade";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +115,24 @@ export function DungeonTab({
     name: string;
     exercises: FavoriteWorkoutExercise[];
     index: number;
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const q = loadWorkoutDraft()?.menuQueue;
+    if (
+      !q?.name ||
+      !Array.isArray(q.exercises) ||
+      q.exercises.length === 0 ||
+      q.index < 0 ||
+      q.index >= q.exercises.length
+    ) {
+      return null;
+    }
+    return {
+      name: q.name,
+      exercises: q.exercises,
+      index: q.index,
+    };
+  });
   const menuQueueRef = useRef(menuQueue);
   menuQueueRef.current = menuQueue;
   const clearPrefill = useCallback(() => setPrefill(null), []);
@@ -291,6 +313,8 @@ export function DungeonTab({
   }
 
   function applyFavorite(fav: FavoriteWorkout) {
+    setMenuQueue(null);
+    patchWorkoutDraft({ menuQueue: null });
     setPrefill(favoriteToPrefill(fav));
     document
       .getElementById("workout-add-form")
@@ -306,11 +330,13 @@ export function DungeonTab({
       ...ex,
       sets: Math.max(1, Math.min(20, ex.sets ?? MENU_DEFAULT_SETS)),
     }));
-    setMenuQueue({
+    const nextQueue = {
       name: menu.name,
       exercises: normalized,
       index: 0,
-    });
+    };
+    setMenuQueue(nextQueue);
+    patchWorkoutDraft({ menuQueue: nextQueue });
     setPrefill(exerciseToPrefill(normalized[0]));
     document
       .getElementById("workout-add-form")
@@ -319,14 +345,30 @@ export function DungeonTab({
 
   function advanceMenuQueue() {
     const q = menuQueueRef.current;
-    if (!q) return;
+    if (!q) {
+      patchWorkoutDraft({ menuQueue: null });
+      return;
+    }
     const nextIndex = q.index + 1;
     if (nextIndex >= q.exercises.length) {
       setMenuQueue(null);
+      patchWorkoutDraft({ menuQueue: null });
       return;
     }
-    setMenuQueue({ ...q, index: nextIndex });
+    const nextQueue = { ...q, index: nextIndex };
+    setMenuQueue(nextQueue);
+    patchWorkoutDraft({ menuQueue: nextQueue });
     setPrefill(exerciseToPrefill(q.exercises[nextIndex]));
+  }
+
+  function endMenuQueue() {
+    setMenuQueue(null);
+    patchWorkoutDraft({ menuQueue: null });
+  }
+
+  function discardRestoredSession() {
+    setMenuQueue(null);
+    clearWorkoutDraft();
   }
 
   async function handleWorkoutSave(log: Omit<WorkoutLog, "id">) {
@@ -553,7 +595,7 @@ export function DungeonTab({
               </button>
               <button
                 type="button"
-                onClick={() => setMenuQueue(null)}
+                onClick={endMenuQueue}
                 className="rounded-lg border border-border px-2.5 py-1 text-[11px] text-text-muted"
               >
                 結束菜單
@@ -580,6 +622,8 @@ export function DungeonTab({
           prefill={prefill}
           onPrefillConsumed={clearPrefill}
           onSave={handleWorkoutSave}
+          menuQueue={menuQueue}
+          onDiscardDraft={discardRestoredSession}
         />
       </div>
 
