@@ -38,6 +38,7 @@ import {
   countWorkoutSets,
   groupWorkoutsByExercise,
 } from "@/lib/workout-grouping";
+import { getLatestInbodyRecord } from "@/lib/nutrition-goals";
 import { getLatestBodyWeightKg } from "@/lib/workout-volume";
 import {
   effectiveWorkoutVolumeGoalKg,
@@ -219,7 +220,7 @@ export function DungeonTab({
     [profile, settleDateVolume],
   );
 
-  const latestInbody = profile.inbodyHistory.at(-1);
+  const latestInbody = getLatestInbodyRecord(profile.inbodyHistory);
 
   const suggestedVolumeGoal = useMemo(
     () =>
@@ -589,8 +590,10 @@ export function DungeonTab({
         {menuQueue && (
           <div className="mb-3 rounded-xl border border-accent/40 bg-accent/10 px-3 py-2">
             <p className="text-xs font-semibold text-accent-light">
-              菜單「{menuQueue.name}」{menuQueue.index + 1}/
-              {menuQueue.exercises.length}：
+              菜單「{menuQueue.name}」
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-accent-light">
+              {menuQueue.index + 1}/{menuQueue.exercises.length}{" "}
               {menuQueue.exercises[menuQueue.index]?.exerciseName}
             </p>
             <p className="mt-0.5 text-[11px] text-text-muted">

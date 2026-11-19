@@ -417,33 +417,18 @@ export function WorkoutAddForm({
             請先從「常用訓練」或「訓練菜單」按帶入，才可開始記錄。
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-sm text-text-muted">動作（唯讀）</span>
-              <input
-                type="text"
-                value={exerciseName}
-                readOnly
-                className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated px-3 text-sm text-text"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm text-text-muted">負載類型（唯讀）</span>
-              <input
-                type="text"
-                value={loadTypeLabel(loadType)}
-                readOnly
-                className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-elevated px-3 text-sm text-text"
-              />
-            </label>
-          </div>
+          <p className="rounded-lg bg-bg-elevated px-2.5 py-1.5 text-sm">
+            <span className="font-semibold text-accent-light">{exerciseName}</span>
+            <span className="mx-1.5 text-text-muted">·</span>
+            <span className="text-text-muted">{loadTypeLabel(loadType)}</span>
+          </p>
         )}
 
         {hasPreset && loadType === "bodyweight" && (
           <p className="text-xs text-text-muted">
-            有效負重 ≈ 體重 × {BODYWEIGHT_FACTOR}
-            {effectiveBw != null ? ` → ${effectiveBw}kg` : "（請先在體態頁更新 InBody）"}
+            {bodyWeightKg != null && effectiveBw != null
+              ? `依最新體重 ${bodyWeightKg}kg × ${BODYWEIGHT_FACTOR} → 有效 ${effectiveBw}kg`
+              : `有效負重 ≈ 體重 × ${BODYWEIGHT_FACTOR}（請先在體態頁更新 InBody）`}
           </p>
         )}
         {hasPreset && loadType === "assisted_bw" && (
@@ -464,8 +449,10 @@ export function WorkoutAddForm({
 
         {hasPreset && loadType === "weighted_bw" && (
           <p className="text-xs text-text-muted">
-            每組填額外負重；有效負重 ≈ 體重 × {BODYWEIGHT_FACTOR}
-            {effectiveBw != null ? `（${effectiveBw}kg）` : ""} + 額外 kg
+            每組填額外負重；
+            {bodyWeightKg != null && effectiveBw != null
+              ? `依最新體重 ${bodyWeightKg}kg × ${BODYWEIGHT_FACTOR}（${effectiveBw}kg）+ 額外 kg`
+              : `有效負重 ≈ 體重 × ${BODYWEIGHT_FACTOR} + 額外 kg`}
           </p>
         )}
 

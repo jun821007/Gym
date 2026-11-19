@@ -1,3 +1,4 @@
+import { getLatestInbodyRecord } from "@/lib/nutrition-goals";
 import type {
   SettlementSetLine,
   UserProfile,
@@ -26,9 +27,16 @@ export const GEAR_LABELS: Record<string, string> = {
   wrist: "護腕",
 };
 
+/** 依 recorded_at 取最新 InBody 體重（避免 history 順序不穩） */
 export function getLatestBodyWeightKg(profile: UserProfile): number | null {
-  const w = profile.inbodyHistory.at(-1)?.weight_kg;
+  const w = getLatestInbodyRecord(profile.inbodyHistory)?.weight_kg;
   return w != null && w > 0 ? w : null;
+}
+
+/** 有效自重（體重 × 0.95），顯示用四捨五入到 0.1 */
+export function effectiveBodyWeightKg(bodyWeightKg: number | null): number | null {
+  if (bodyWeightKg == null || bodyWeightKg <= 0) return null;
+  return Math.round(bodyWeightKg * BODYWEIGHT_FACTOR * 10) / 10;
 }
 
 /** 資料庫儲存的單組重量（單邊／雙邊為使用者輸入值） */
@@ -177,22 +185,33 @@ export function formatLoadLabel(
   >,
   bodyWeightKg: number | null,
 ): string {
-  const bw =
-    bodyWeightKg != null ? Math.round(bodyWeightKg * BODYWEIGHT_FACTOR * 10) / 10 : null;
+  const effective = effectiveBodyWeightKg(bodyWeightKg);
+  const scale =
+    bodyWeightKg != null && bodyWeightKg > 0 ? formatKg(bodyWeightKg) : null;
 
   switch (log.loadType) {
     case "unilateral":
       return `單邊 ${formatKg(log.weightKg)}kg`;
     case "bodyweight":
-      return bw != null ? `自重(${bw}kg)` : "自重";
-    case "weighted_bw":
-      return bw != null
-        ? `自重+${log.extraWeightKg ?? 0}kg`
-        : `+${log.extraWeightKg ?? 0}kg`;
-    case "assisted_bw":
-      return bw != null
-        ? `輔助-${log.assistKg ?? 0}kg`
-        : `輔助-${log.assistKg ?? 0}kg`;
+      // 同時顯示秤上體重與有效負重，體重更新時數字會跟著變
+      if (scale != null && effective != null) {
+        return `自重 ${scale}kg（有效${formatKg(effective)}）`;
+      }
+      return "自重";
+    case "weighted_bw": {
+      const extra = log.extraWeightKg ?? 0;
+      if (scale != null && effective != null) {
+        return `自重${scale}+${formatKg(extra)}kg（有效${formatKg(effective + extra)}）`;
+      }
+      return `+${formatKg(extra)}kg`;
+    }
+    case "assisted_bw": {
+      const assist = log.assistKg ?? 0;
+      if (scale != null && effective != null) {
+        return `輔助-${formatKg(assist)}kg（體重${scale}→有效${formatKg(Math.max(0, effective - assist))}）`;
+      }
+      return `輔助-${formatKg(assist)}kg`;
+    }
     default:
       return log.weightKg > 0 ? `${formatKg(log.weightKg)}kg` : "";
   }
