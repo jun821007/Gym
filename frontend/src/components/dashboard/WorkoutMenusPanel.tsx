@@ -699,53 +699,49 @@ export function WorkoutMenusPanel({
 
       {showCreate &&
         createPortal(
-          <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/55 p-4 sm:items-center">
+          <div className="fixed inset-0 z-[230] flex items-start justify-center bg-black/55 px-4 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-4">
             <div
               role="dialog"
-              className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-2xl border border-border bg-bg-card p-4"
+              className="flex max-h-[min(92dvh,100%)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-bg-card"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-sm font-bold text-accent-light">
-                {editingMenu ? "編輯訓練菜單" : "新增訓練菜單"}
-              </h3>
-              <p className="mt-1 text-xs text-text-muted">
-                同一動作可多次加入（熱身＋正式）。可先設預設組數再加入。
-              </p>
-
-              <label className="mt-3 block text-xs text-text-muted">
-                菜單名稱
-                <input
-                  type="text"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm outline-none focus:border-accent"
-                  placeholder="例如：拉背日"
-                  autoFocus
-                />
-              </label>
-
-              <label className="mt-2 flex items-center gap-2 text-xs text-text-muted">
-                預設組數（加入時套用）
-                <SetsInput
-                  value={defaultSets}
-                  onCommit={setDefaultSets}
-                  className="h-9 w-14 rounded-lg border border-border bg-bg-app px-1 text-center text-sm tabular-nums outline-none focus:border-accent"
-                />
-              </label>
-
-              {pickable.length === 0 && selectedPicks.length === 0 ? (
-                <p className="mt-3 py-4 text-center text-sm text-text-muted">
-                  尚無常用訓練動作，請先在上方新增。
+              <div className="shrink-0 space-y-2 border-b border-border/60 px-4 pb-3 pt-4">
+                <h3 className="text-sm font-bold text-accent-light">
+                  {editingMenu ? "編輯訓練菜單" : "新增訓練菜單"}
+                </h3>
+                <p className="text-[11px] leading-snug text-text-muted">
+                  同一動作可多次加入（熱身＋正式）。先設預設組數再加入。
                 </p>
-              ) : (
-                <>
-                  {pickable.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+
+                <div className="flex items-end gap-2">
+                  <label className="min-w-0 flex-1 text-xs text-text-muted">
+                    菜單名稱
+                    <input
+                      type="text"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      className="mt-1 min-h-[40px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm outline-none focus:border-accent"
+                      placeholder="例如：拉背日"
+                      autoFocus
+                    />
+                  </label>
+                  <label className="flex shrink-0 flex-col gap-1 text-xs text-text-muted">
+                    預設組數
+                    <SetsInput
+                      value={defaultSets}
+                      onCommit={setDefaultSets}
+                      className="h-10 w-14 rounded-xl border border-border bg-bg-app px-1 text-center text-sm tabular-nums outline-none focus:border-accent"
+                    />
+                  </label>
+                </div>
+
+                {pickable.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
                       onClick={() => setCreateFilterCat("__all__")}
                       className={cn(
-                        "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
+                        "min-h-[30px] rounded-lg border px-2.5 text-xs font-semibold",
                         createFilterCat === "__all__"
                           ? "border-accent bg-accent/20 text-accent-light"
                           : "border-border bg-bg-elevated text-text-muted",
@@ -762,7 +758,7 @@ export function WorkoutMenusPanel({
                           type="button"
                           onClick={() => setCreateFilterCat(cat)}
                           className={cn(
-                            "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
+                            "min-h-[30px] rounded-lg border px-2.5 text-xs font-semibold",
                             createFilterCat === cat
                               ? "border-accent bg-accent/20 text-accent-light"
                               : "border-border bg-bg-elevated text-text-muted",
@@ -773,19 +769,27 @@ export function WorkoutMenusPanel({
                       );
                     })}
                   </div>
-                  )}
+                )}
+              </div>
 
-                  <div className="mt-3 rounded-xl border border-border bg-bg-elevated p-2.5">
-                    <p className="text-xs font-semibold text-text-muted">
-                      已排入（{selectedPicks.length}）
-                    </p>
-                    {selectedPicks.length === 0 ? (
-                      <p className="mt-1 text-[11px] text-text-muted">
-                        下方按「加入」；熱身可先把預設組數改成 1～2 再加入。
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                {pickable.length === 0 && selectedPicks.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-text-muted">
+                    尚無常用訓練動作，請先在上方新增。
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-border bg-bg-elevated p-2.5">
+                      <p className="text-xs font-semibold text-text-muted">
+                        已排入（{selectedPicks.length}）
                       </p>
-                    ) : (
-                      <ul className="mt-1.5 max-h-32 space-y-1 overflow-y-auto">
-                        {selectedPicks.map((pick, i) => (
+                      {selectedPicks.length === 0 ? (
+                        <p className="mt-1 text-[11px] text-text-muted">
+                          下方按「加入」；熱身可先把預設組數改成 1～2 再加入。
+                        </p>
+                      ) : (
+                        <ul className="mt-1.5 space-y-1">
+                          {selectedPicks.map((pick, i) => (
                             <li
                               key={`${pick.favId}-${pick.exerciseName}-${i}`}
                               className="flex items-center gap-2 rounded-lg bg-bg-app px-2 py-1.5"
@@ -812,75 +816,80 @@ export function WorkoutMenusPanel({
                                 移除
                               </button>
                             </li>
-                        ))}
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {pickable.length > 0 && (
+                      <ul className="space-y-1.5">
+                        {visiblePickable.map((fav) => {
+                          const addedCount = selectedPicks.filter(
+                            (p) => p.favId === fav.id,
+                          ).length;
+                          const load =
+                            fav.exercises[0]?.loadType ?? "bilateral";
+                          return (
+                            <li
+                              key={fav.id}
+                              className="flex items-center gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-text">
+                                  {fav.name}
+                                </span>
+                                <span className="text-[11px] text-text-muted">
+                                  {workoutCategoryLabel(fav.category)} ·{" "}
+                                  {loadTypeLabel(load)}
+                                  {addedCount > 0
+                                    ? ` · 已加 ${addedCount}`
+                                    : ""}
+                                </span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => addPick(fav.id)}
+                                className="min-h-[36px] shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 text-xs font-semibold text-accent-light"
+                              >
+                                加入×{defaultSets}
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
+                )}
+              </div>
 
-                  {pickable.length > 0 && (
-                  <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
-                    {visiblePickable.map((fav) => {
-                      const addedCount = selectedPicks.filter(
-                        (p) => p.favId === fav.id,
-                      ).length;
-                      const load =
-                        fav.exercises[0]?.loadType ?? "bilateral";
-                      return (
-                        <li
-                          key={fav.id}
-                          className="flex items-center gap-2 rounded-lg border border-border bg-bg-elevated px-2.5 py-2"
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-text">
-                              {fav.name}
-                            </span>
-                            <span className="text-[11px] text-text-muted">
-                              {workoutCategoryLabel(fav.category)} ·{" "}
-                              {loadTypeLabel(load)}
-                              {addedCount > 0 ? ` · 已加 ${addedCount}` : ""}
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => addPick(fav.id)}
-                            className="min-h-[36px] shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 text-xs font-semibold text-accent-light"
-                          >
-                            加入×{defaultSets}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  )}
-                </>
-              )}
-
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  disabled={creating}
-                  onClick={closeEditor}
-                  className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm disabled:opacity-50"
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  disabled={
-                    creating ||
-                    (pickable.length === 0 && selectedPicks.length === 0)
-                  }
-                  onClick={() => void submitEditor()}
-                  className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
-                >
-                  {creating
-                    ? editingMenu
-                      ? "儲存中…"
-                      : "新增中…"
-                    : editingMenu
-                      ? "儲存修改"
-                      : "確認新增"}
-                </button>
+              <div className="shrink-0 border-t border-border/60 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={creating}
+                    onClick={closeEditor}
+                    className="min-h-[44px] flex-1 rounded-xl border border-border bg-bg-elevated text-sm disabled:opacity-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      creating ||
+                      (pickable.length === 0 && selectedPicks.length === 0)
+                    }
+                    onClick={() => void submitEditor()}
+                    className="min-h-[44px] flex-1 rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-50"
+                  >
+                    {creating
+                      ? editingMenu
+                        ? "儲存中…"
+                        : "新增中…"
+                      : editingMenu
+                        ? "儲存修改"
+                        : "確認新增"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>,
