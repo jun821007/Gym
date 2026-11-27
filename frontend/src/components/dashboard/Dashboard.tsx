@@ -118,7 +118,10 @@ export function Dashboard({
 
   function switchTab(next: TabId) {
     setTab(next);
-    document.querySelector(".app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector(".app-scroll")?.scrollTo({ top: 0 });
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }
 
   const swipeTabs = useSwipeTabs(tab, switchTab, {

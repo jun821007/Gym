@@ -16,9 +16,12 @@
   --danger: #e85d75;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-layout-screen-gap: 0px;
   --tab-bar-content-height: 44px;
   --tab-bar-height: calc(var(--tab-bar-content-height) + var(--safe-bottom));
-  --fab-offset: calc(var(--tab-bar-height) + 0.65rem);
+  --fab-offset: calc(
+    var(--tab-bar-height) + var(--app-layout-screen-gap, 0px) + 0.65rem
+  );
   --pixel-xs: 11px;
   --pixel-sm: 13px;
   --pixel-md: 15px;
@@ -96,7 +99,10 @@ body {
 }
 
 .app-scroll {
+  display: flex;
   flex: 1;
+  min-height: 0;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -122,13 +128,26 @@ body {
   z-index: 90;
   width: 100%;
   box-sizing: border-box;
-  height: var(--tab-bar-height);
+  min-height: var(--tab-bar-height);
+  height: auto;
   padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   border-top: 1px solid var(--border);
   background: var(--bg-app);
+}
+
+/* iOS PWA：layout viewport 矮於螢幕時，只延伸背景、不抬高 icon */
+.app-bottom-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: var(--app-layout-screen-gap, 0px);
+  background: var(--bg-app);
+  pointer-events: none;
 }
 
 .app-bottom-bar:has(.app-bottom-bar-settings) {

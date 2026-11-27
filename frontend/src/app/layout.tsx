@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_TC, Press_Start_2P } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const noto = Noto_Sans_TC({
@@ -54,6 +55,7 @@ export default function RootLayout({
   return (
     <html lang="zh-TW" className={`${noto.variable} ${pressStart.variable}`}>
       <body className="overflow-x-hidden antialiased">
+        <Script src="/app-height-lock.js" strategy="beforeInteractive" />
         {children}
       </body>
     </html>

@@ -569,8 +569,8 @@ export function DungeonTab({
       : 0;
 
   return (
-    <div className="space-y-3 pb-2">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex w-full min-h-0 flex-1 flex-col gap-3 pb-2">
+      <div className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-bold text-accent-light">地下城</p>
           <p className="text-[11px] text-text-muted">
@@ -736,7 +736,7 @@ export function DungeonTab({
       <button
         type="button"
         onClick={() => openSettleSheet()}
-        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border-[3px] border-solid border-border-pixel bg-accent text-base font-bold text-bg-app"
+        className="mt-auto flex min-h-[52px] w-full shrink-0 items-center justify-center gap-2 rounded-xl border-[3px] border-solid border-border-pixel bg-accent text-base font-bold text-bg-app"
       >
         今日結算
         {settlement && (
