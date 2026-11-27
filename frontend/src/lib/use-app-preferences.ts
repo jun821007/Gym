@@ -5,21 +5,38 @@ import {
   DEFAULT_APP_PREFERENCES,
   loadAppPreferences,
   saveAppPreferences,
+  type DungeonBringInTab,
 } from "@/lib/app-preferences";
 
 export function useAppPreferences() {
   const [swipeTabsEnabled, setSwipeTabsEnabledState] = useState(
     DEFAULT_APP_PREFERENCES.swipeTabsEnabled,
   );
+  const [dungeonBringInTab, setDungeonBringInTabState] =
+    useState<DungeonBringInTab>(DEFAULT_APP_PREFERENCES.dungeonBringInTab);
 
   useEffect(() => {
-    setSwipeTabsEnabledState(loadAppPreferences().swipeTabsEnabled);
+    const prefs = loadAppPreferences();
+    setSwipeTabsEnabledState(prefs.swipeTabsEnabled);
+    setDungeonBringInTabState(prefs.dungeonBringInTab);
   }, []);
 
   const setSwipeTabsEnabled = useCallback((enabled: boolean) => {
     setSwipeTabsEnabledState(enabled);
-    saveAppPreferences({ swipeTabsEnabled: enabled });
+    const prev = loadAppPreferences();
+    saveAppPreferences({ ...prev, swipeTabsEnabled: enabled });
   }, []);
 
-  return { swipeTabsEnabled, setSwipeTabsEnabled };
+  const setDungeonBringInTab = useCallback((tab: DungeonBringInTab) => {
+    setDungeonBringInTabState(tab);
+    const prev = loadAppPreferences();
+    saveAppPreferences({ ...prev, dungeonBringInTab: tab });
+  }, []);
+
+  return {
+    swipeTabsEnabled,
+    setSwipeTabsEnabled,
+    dungeonBringInTab,
+    setDungeonBringInTab,
+  };
 }

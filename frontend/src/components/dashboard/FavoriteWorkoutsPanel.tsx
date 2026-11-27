@@ -36,6 +36,8 @@ interface FavoriteWorkoutsPanelProps {
     },
   ) => void | Promise<void>;
   defaultOpen?: boolean;
+  /** 嵌入全屏 sheet：不顯示外層收合標題 */
+  embedded?: boolean;
 }
 
 export function FavoriteWorkoutsPanel({
@@ -45,8 +47,9 @@ export function FavoriteWorkoutsPanel({
   onCreate,
   onUpdate,
   defaultOpen = false,
+  embedded = false,
 }: FavoriteWorkoutsPanelProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(embedded || defaultOpen);
   const [activeCategory, setActiveCategory] = useState<WorkoutCategory>("back");
   const [selectedId, setSelectedId] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -197,125 +200,132 @@ export function FavoriteWorkoutsPanel({
     { value: "__custom__", label: "＋ 新增分類…" },
   ];
 
+  const panelBody = (
+    <div className={embedded ? undefined : "mt-3"}>
+      <div className="mb-2 flex justify-end gap-1.5">
+        {onCreate && (
+          <button
+            type="button"
+            onClick={() => {
+              setNewCategory(activeCategory);
+              setCustomCategory("");
+              setShowCreate(true);
+            }}
+            className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent-light"
+          >
+            + 新增動作
+          </button>
+        )}
+      </div>
+
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {categories.map((cat) => {
+          const count = grouped.get(cat)?.length ?? 0;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                setActiveCategory(cat);
+                setSelectedId("");
+              }}
+              className={cn(
+                "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
+                activeCategory === cat
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border bg-bg-elevated text-text-muted",
+              )}
+            >
+              {workoutCategoryLabel(cat)}
+              {count > 0 && (
+                <span className="ml-0.5 opacity-80">({count})</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeItems.length === 0 ? (
+        <p className="py-2 text-center text-xs text-text-muted">
+          尚無{workoutCategoryLabel(activeCategory)}常用動作
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <label className="block text-xs text-text-muted">
+            選擇動作
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm"
+            >
+              <option value="">請選擇動作</option>
+              {activeItems.map((fav) => (
+                <option key={fav.id} value={fav.id}>
+                  {fav.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={!selected}
+              onClick={applySelected}
+              className="min-h-[40px] flex-1 rounded-lg bg-accent/20 text-sm font-bold text-accent-light disabled:opacity-40"
+            >
+              帶入表單
+            </button>
+            {onUpdate && (
+              <button
+                type="button"
+                disabled={!selected}
+                onClick={() => selected && openEdit(selected)}
+                className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
+              >
+                編輯
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!selected}
+              onClick={() => selected && setPendingDeleteId(selected.id)}
+              className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
+            >
+              刪除
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
-      <Card>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between text-left"
-          onClick={() => setOpen((o) => !o)}
-        >
-          <div>
-            <span className="card-title mb-0">常用訓練</span>
-            {open && (
-              <p className="mt-1 text-xs text-text-muted">
-                {totalCount} 項
-                {summaryParts.length > 0 && ` · ${summaryParts.join(" · ")}`}
-              </p>
-            )}
-          </div>
-          <span className="text-sm text-text-muted">{open ? "收起" : "展開"}</span>
-        </button>
-
-        {open && (
-          <div className="mt-3">
-            <div className="mb-2 flex justify-end gap-1.5">
-              {onCreate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewCategory(activeCategory);
-                    setCustomCategory("");
-                    setShowCreate(true);
-                  }}
-                  className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-xs font-semibold text-accent-light"
-                >
-                  + 新增動作
-                </button>
+      {embedded ? (
+        panelBody
+      ) : (
+        <Card>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <div>
+              <span className="card-title mb-0">常用訓練</span>
+              {open && (
+                <p className="mt-1 text-xs text-text-muted">
+                  {totalCount} 項
+                  {summaryParts.length > 0 && ` · ${summaryParts.join(" · ")}`}
+                </p>
               )}
             </div>
-
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {categories.map((cat) => {
-                const count = grouped.get(cat)?.length ?? 0;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(cat);
-                      setSelectedId("");
-                    }}
-                    className={cn(
-                      "min-h-[32px] rounded-lg border px-2.5 text-xs font-semibold",
-                      activeCategory === cat
-                        ? "border-accent bg-accent/20 text-accent-light"
-                        : "border-border bg-bg-elevated text-text-muted",
-                    )}
-                  >
-                    {workoutCategoryLabel(cat)}
-                    {count > 0 && (
-                      <span className="ml-0.5 opacity-80">({count})</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {activeItems.length === 0 ? (
-              <p className="py-2 text-center text-xs text-text-muted">
-                尚無{workoutCategoryLabel(activeCategory)}常用動作
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <label className="block text-xs text-text-muted">
-                  選擇動作
-                  <select
-                    value={selectedId}
-                    onChange={(e) => setSelectedId(e.target.value)}
-                    className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-bg-app px-3 text-sm"
-                  >
-                    <option value="">請選擇動作</option>
-                    {activeItems.map((fav) => (
-                      <option key={fav.id} value={fav.id}>
-                        {fav.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={!selected}
-                    onClick={applySelected}
-                    className="min-h-[40px] flex-1 rounded-lg bg-accent/20 text-sm font-bold text-accent-light disabled:opacity-40"
-                  >
-                    帶入表單
-                  </button>
-                  {onUpdate && (
-                    <button
-                      type="button"
-                      disabled={!selected}
-                      onClick={() => selected && openEdit(selected)}
-                      className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
-                    >
-                      編輯
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={!selected}
-                    onClick={() => selected && setPendingDeleteId(selected.id)}
-                    className="min-h-[40px] rounded-lg border border-border px-3 text-xs text-text-muted disabled:opacity-40"
-                  >
-                    刪除
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
+            <span className="text-sm text-text-muted">
+              {open ? "收起" : "展開"}
+            </span>
+          </button>
+          {open && panelBody}
+        </Card>
+      )}
 
       {pending && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4">

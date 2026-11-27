@@ -36,6 +36,8 @@ interface WorkoutMenusPanelProps {
   ) => void | Promise<void>;
   onCreate?: (fav: Omit<FavoriteWorkout, "id">) => void | Promise<void>;
   defaultOpen?: boolean;
+  /** 嵌入全屏 sheet：不顯示外層收合標題 */
+  embedded?: boolean;
 }
 
 function loadTypeLabel(loadType: FavoriteWorkoutExercise["loadType"]) {
@@ -331,8 +333,9 @@ export function WorkoutMenusPanel({
   onUpdate,
   onCreate,
   defaultOpen = true,
+  embedded = false,
 }: WorkoutMenusPanelProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(embedded || defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reorderingId, setReorderingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FavoriteWorkout | null>(
@@ -549,27 +552,8 @@ export function WorkoutMenusPanel({
 
   if (sorted.length === 0 && !onCreate) return null;
 
-  return (
-    <>
-      <Card>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between text-left"
-          onClick={() => setOpen((o) => !o)}
-        >
-          <div>
-            <span className="card-title mb-0">訓練菜單</span>
-            {open && (
-              <p className="mt-1 text-xs text-text-muted">
-                {sorted.length} 份 · 點開後拖曳排序，帶入後依序打卡
-              </p>
-            )}
-          </div>
-          <span className="text-sm text-text-muted">{open ? "收起" : "展開"}</span>
-        </button>
-
-        {open && (
-          <div className="mt-3 space-y-2">
+  const listBody = (
+          <div className={embedded ? "space-y-2" : "mt-3 space-y-2"}>
             {onCreate && (
               <div className="flex justify-end">
                 <button
@@ -694,8 +678,34 @@ export function WorkoutMenusPanel({
               })
             )}
           </div>
-        )}
-      </Card>
+  );
+
+  return (
+    <>
+      {embedded ? (
+        listBody
+      ) : (
+        <Card>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <div>
+              <span className="card-title mb-0">訓練菜單</span>
+              {open && (
+                <p className="mt-1 text-xs text-text-muted">
+                  {sorted.length} 份 · 點開後拖曳排序，帶入後依序打卡
+                </p>
+              )}
+            </div>
+            <span className="text-sm text-text-muted">
+              {open ? "收起" : "展開"}
+            </span>
+          </button>
+          {open && listBody}
+        </Card>
+      )}
 
       {showCreate &&
         createPortal(

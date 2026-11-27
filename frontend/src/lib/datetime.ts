@@ -6,6 +6,19 @@ export function toDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** 訓練日切點：04:00 前仍算「前一天」的健身房日 */
+export const GYM_DAY_CUTOFF_HOUR = 4;
+
+/** 依 04:00 切點的訓練日（YYYY-MM-DD） */
+export function gymDayDateKey(now: Date = new Date()): string {
+  const d = new Date(now);
+  if (d.getHours() < GYM_DAY_CUTOFF_HOUR) {
+    d.setDate(d.getDate() - 1);
+  }
+  return toDateKey(d);
+}
+
+
 /** 將 DB / ISO 字串統一成 YYYY-MM-DD，避免含時間時篩選錯位 */
 export function normalizeDateKey(value: string | null | undefined): string {
   if (!value) return toDateKey();
@@ -22,6 +35,43 @@ export function isSameDateKey(
   dateKey: string = toDateKey(),
 ): boolean {
   return normalizeDateKey(value) === normalizeDateKey(dateKey);
+}
+
+/**
+ * 結算預設日：優先未結算的訓練日（跨午夜夜練不會跳到日曆隔天）
+ */
+export function suggestSettleDateKey(
+  workouts: Array<{ logDate: string }>,
+  settlements: Array<{ logDate: string }> = [],
+  now: Date = new Date(),
+): string {
+  const gymDay = gymDayDateKey(now);
+  const settled = new Set(
+    settlements.map((s) => normalizeDateKey(s.logDate)),
+  );
+  const hasUnsettledLogs = (key: string) =>
+    workouts.some(
+      (w) => normalizeDateKey(w.logDate) === key && !settled.has(key),
+    );
+
+  if (hasUnsettledLogs(gymDay)) return gymDay;
+
+  const calendarYesterday = (() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    return toDateKey(d);
+  })();
+  if (hasUnsettledLogs(calendarYesterday)) return calendarYesterday;
+
+  let latestKey: string | null = null;
+  for (const w of workouts) {
+    const key = normalizeDateKey(w.logDate);
+    if (settled.has(key)) continue;
+    if (!latestKey || key > latestKey) latestKey = key;
+  }
+  if (latestKey) return latestKey;
+
+  return gymDay;
 }
 
 export function isToday(value: string): boolean {

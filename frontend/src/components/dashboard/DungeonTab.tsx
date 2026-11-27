@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FavoriteWorkoutsPanel } from "@/components/dashboard/FavoriteWorkoutsPanel";
@@ -12,14 +12,19 @@ import { WorkoutGroupedList } from "@/components/dashboard/WorkoutGroupedList";
 import { WorkoutSettlementModal } from "@/components/dashboard/WorkoutSettlementModal";
 import { WorkoutVolumeGoalBar } from "@/components/dashboard/WorkoutVolumeGoalBar";
 import { Card } from "@/components/ui/Card";
+import { FullScreenSheet } from "@/components/ui/FullScreenSheet";
 import {
   formatDateLabel,
   groupByDateKey,
+  gymDayDateKey,
   isSameDateKey,
   isToday,
+  suggestSettleDateKey,
   toDateKey,
   yesterdayDateKey,
 } from "@/lib/datetime";
+import { useAppPreferences } from "@/lib/use-app-preferences";
+import type { DungeonBringInTab } from "@/lib/app-preferences";
 import { fileToCompressedBase64 } from "@/lib/image-compress";
 import {
   buildBodyMetricsPayload,
@@ -100,7 +105,10 @@ export function DungeonTab({
 }: DungeonTabProps) {
   const bodyWeightKg = getLatestBodyWeightKg(profile);
   const MENU_DEFAULT_SETS = 3;
-  const todayKey = toDateKey();
+  const calendarTodayKey = toDateKey();
+  /** 04:00 前仍算前一天的訓練日 */
+  const sessionDayKey = gymDayDateKey();
+  const { dungeonBringInTab, setDungeonBringInTab } = useAppPreferences();
 
   const exerciseFavorites = useMemo(
     () => favoriteWorkouts.filter((f) => (f.kind ?? "exercise") !== "menu"),
@@ -137,11 +145,9 @@ export function DungeonTab({
   const menuQueueRef = useRef(menuQueue);
   menuQueueRef.current = menuQueue;
   const clearPrefill = useCallback(() => setPrefill(null), []);
-  const [logsHistoryOpen, setLogsHistoryOpen] = useState(false);
   const [expandedHistoryDays, setExpandedHistoryDays] = useState<Set<string>>(
-    () => new Set(),
+    () => new Set([yesterdayDateKey()]),
   );
-  const [gradesHistoryOpen, setGradesHistoryOpen] = useState(true);
   /** 今日清單預設收合；有打卡後自動展開 */
   const [todayListOpen, setTodayListOpen] = useState(false);
   const prevTodayCountRef = useRef(0);
@@ -155,22 +161,30 @@ export function DungeonTab({
   const [uploading, setUploading] = useState(false);
   const [pastePreview, setPastePreview] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [gradeBrowseDateKey, setGradeBrowseDateKey] = useState(todayKey);
+  const [gradeBrowseDateKey, setGradeBrowseDateKey] = useState(sessionDayKey);
   const [settleTargetDate, setSettleTargetDate] = useState<string | null>(
     null,
   );
+  const [sheet, setSheet] = useState<null | "history" | "bring" | "settle">(
+    null,
+  );
+  const [historyTab, setHistoryTab] = useState<"grades" | "logs">("grades");
   const fileRef = useRef<HTMLInputElement>(null);
   const pasteRef = useRef<HTMLDivElement>(null);
-  const pasteSectionRef = useRef<HTMLDivElement>(null);
 
-  const effectiveSettleDate = settleTargetDate ?? todayKey;
+  const defaultSettleDate = useMemo(
+    () => suggestSettleDateKey(workouts, settlementHistory),
+    [workouts, settlementHistory],
+  );
+  const effectiveSettleDate = settleTargetDate ?? defaultSettleDate;
 
   useEffect(() => {
     const today =
-      settlementHistory.find((s) => isSameDateKey(s.logDate, todayKey)) ??
-      null;
+      settlementHistory.find((s) =>
+        isSameDateKey(s.logDate, sessionDayKey),
+      ) ?? null;
     setSettlement(today);
-  }, [settlementHistory, todayKey]);
+  }, [settlementHistory, sessionDayKey]);
 
   function openSettlementModal(s: DailyWorkoutSettlement, reply = "") {
     setModalSettlement(s);
@@ -181,12 +195,12 @@ export function DungeonTab({
   const todayWorkouts = useMemo(
     () =>
       workouts
-        .filter((w) => isSameDateKey(w.logDate, todayKey))
+        .filter((w) => isSameDateKey(w.logDate, sessionDayKey))
         .sort(
           (a, b) =>
             new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
         ),
-    [workouts, todayKey],
+    [workouts, sessionDayKey],
   );
 
   const settleDateWorkouts = useMemo(
@@ -272,7 +286,9 @@ export function DungeonTab({
   );
 
   const historyGroups = useMemo(() => {
-    const past = workouts.filter((w) => !isSameDateKey(w.logDate, todayKey));
+    const past = workouts.filter(
+      (w) => !isSameDateKey(w.logDate, sessionDayKey),
+    );
     return groupByDateKey(past).map((g) => ({
       ...g,
       items: g.items.sort(
@@ -280,7 +296,7 @@ export function DungeonTab({
           new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
       ),
     }));
-  }, [workouts, todayKey]);
+  }, [workouts, sessionDayKey]);
 
   function toggleHistoryDay(dateKey: string) {
     setExpandedHistoryDays((prev) => {
@@ -328,6 +344,7 @@ export function DungeonTab({
     setMenuQueue(null);
     patchWorkoutDraft({ menuQueue: null });
     setPrefill(favoriteToPrefill(fav));
+    setSheet(null);
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -350,6 +367,7 @@ export function DungeonTab({
     setMenuQueue(nextQueue);
     patchWorkoutDraft({ menuQueue: nextQueue });
     setPrefill(exerciseToPrefill(normalized[0]));
+    setSheet(null);
     document
       .getElementById("workout-add-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -429,18 +447,19 @@ export function DungeonTab({
     }
   }
 
-  function toggleLogsHistory() {
-    setLogsHistoryOpen((open) => {
-      const next = !open;
-      if (next) {
-        setExpandedHistoryDays((prev) => {
-          const expanded = new Set(prev);
-          expanded.add(yesterdayDateKey());
-          return expanded;
-        });
-      }
-      return next;
-    });
+  function openSettleSheet(dateKey?: string) {
+    const next =
+      dateKey ??
+      settleTargetDate ??
+      suggestSettleDateKey(workouts, settlementHistory);
+    setSettleTargetDate(next);
+    setGradeBrowseDateKey(next);
+    setPastePreview(null);
+    setSheet("settle");
+  }
+
+  function setBringInTab(tab: DungeonBringInTab) {
+    setDungeonBringInTab(tab);
   }
 
   async function handleRefresh() {
@@ -456,11 +475,8 @@ export function DungeonTab({
   const handleRequestSettle = useCallback((dateKey: string) => {
     setSettleTargetDate(dateKey);
     setGradeBrowseDateKey(dateKey);
-    pasteSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-    window.setTimeout(() => pasteRef.current?.focus(), 300);
+    setPastePreview(null);
+    setSheet("settle");
   }, []);
 
   const submitSettlement = useCallback(
@@ -498,11 +514,11 @@ export function DungeonTab({
           totalVolumeKg:
             data.settlement.totalVolumeKg ?? settleDateVolume,
         };
-        if (isSameDateKey(targetDate, todayKey)) {
+        if (isSameDateKey(targetDate, sessionDayKey)) {
           setSettlement(s);
         }
-        if (settleTargetDate) setSettleTargetDate(null);
         await onSettlementSaved(s);
+        setSheet(null);
         openSettlementModal(s, data.reply ?? "");
         onSettlement?.({
           settlement: s,
@@ -518,10 +534,9 @@ export function DungeonTab({
       effectiveSettleDate,
       settleDateWorkouts,
       settleDateVolume,
-      todayKey,
+      sessionDayKey,
       bodyWeightKg,
       settleBodyMetrics,
-      settleTargetDate,
       onSettlement,
       onSettlementSaved,
     ],
@@ -548,43 +563,57 @@ export function DungeonTab({
     return () => el.removeEventListener("paste", onPaste);
   }, [submitSettlement, uploading]);
 
+  const volumePct =
+    volumeGoalKg > 0
+      ? Math.min(100, Math.round((todayVolume / volumeGoalKg) * 100))
+      : 0;
+
   return (
-    <div className="space-y-4 pb-2">
-      <div className="flex justify-end">
-        {onRefresh && (
+    <div className="space-y-3 pb-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-accent-light">地下城</p>
+          <p className="text-[11px] text-text-muted">
+            訓練日 {formatDateLabel(sessionDayKey)}
+            {sessionDayKey !== calendarTodayKey ? "（04:00 前仍算昨天）" : ""}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="text-[11px] text-text-muted underline disabled:opacity-50"
+            >
+              {refreshing ? "同步中…" : "同步"}
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => void handleRefresh()}
-            disabled={refreshing}
-            className="text-xs text-text-muted underline disabled:opacity-50"
+            onClick={() => setSheet("history")}
+            className="min-h-[36px] rounded-lg border border-border px-3 text-xs font-semibold text-text-muted"
           >
-            {refreshing ? "同步中…" : "重新同步訓練紀錄"}
+            歷史
           </button>
-        )}
+        </div>
       </div>
-      {(exerciseFavorites.length > 0 || onSaveFavoriteWorkout) &&
-        onDeleteFavoriteWorkout && (
-        <FavoriteWorkoutsPanel
-          favorites={exerciseFavorites}
-          onApply={applyFavorite}
-          onDelete={onDeleteFavoriteWorkout}
-          onCreate={onSaveFavoriteWorkout}
-          onUpdate={onUpdateFavoriteWorkout}
-        />
-      )}
 
-      {(workoutMenus.length > 0 || onSaveFavoriteWorkout) &&
-        onDeleteFavoriteWorkout && (
-        <WorkoutMenusPanel
-          menus={workoutMenus}
-          exerciseFavorites={exerciseFavorites}
-          onApplyMenu={startMenuQueue}
-          onDelete={onDeleteFavoriteWorkout}
-          onRename={onRenameFavoriteWorkout}
-          onUpdate={onUpdateFavoriteWorkout}
-          onCreate={onSaveFavoriteWorkout}
-        />
-      )}
+      <div className="rounded-xl border border-border/80 bg-bg-elevated px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-text-muted">今日進度</span>
+          <span className="tabular-nums text-accent-light">
+            {Math.round(todayVolume)} / {volumeGoalKg} kg · {volumePct}%
+            {settlement ? ` · ${settlement.grade}` : ""}
+          </span>
+        </div>
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bg-app">
+          <div
+            className="h-full rounded-full bg-accent transition-[width]"
+            style={{ width: `${volumePct}%` }}
+          />
+        </div>
+      </div>
 
       <div id="workout-add-form">
         {menuQueue && (
@@ -595,9 +624,6 @@ export function DungeonTab({
             <p className="mt-0.5 text-sm font-bold text-accent-light">
               {menuQueue.index + 1}/{menuQueue.exercises.length}{" "}
               {menuQueue.exercises[menuQueue.index]?.exerciseName}
-            </p>
-            <p className="mt-0.5 text-[11px] text-text-muted">
-              打卡後自動帶入下一動作；次數／重量請自行填。
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
@@ -630,6 +656,15 @@ export function DungeonTab({
             )}
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => setSheet("bring")}
+          className="mb-3 min-h-[44px] w-full rounded-xl border border-accent/40 bg-accent/10 text-sm font-bold text-accent-light"
+        >
+          帶入動作（常用／菜單）
+        </button>
+
         <WorkoutAddForm
           profile={profile}
           workouts={workouts}
@@ -698,156 +733,67 @@ export function DungeonTab({
         )}
       </Card>
 
-      <div ref={pasteSectionRef} className="pixel-card pixel-card--hero">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-pixel-sm font-bold text-accent-light">
-              ▶ 貼上截圖結算
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              {latestInbody?.weight_kg
-                ? `依體重 ${latestInbody.weight_kg}kg、清單、截圖綜合評分`
-                : "請先在體態頁記錄體重，評分更準"}
-            </p>
-            {settleTargetDate && !isSameDateKey(settleTargetDate, todayKey) && (
-              <p className="mt-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent-light">
-                補登 {formatDateLabel(settleTargetDate)}（{settleTargetDate}）
-                <button
-                  type="button"
-                  onClick={() => setSettleTargetDate(null)}
-                  className="ml-2 underline"
-                >
-                  改回今日
-                </button>
-              </p>
+      <button
+        type="button"
+        onClick={() => openSettleSheet()}
+        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border-[3px] border-solid border-border-pixel bg-accent text-base font-bold text-bg-app"
+      >
+        今日結算
+        {settlement && (
+          <span
+            className={cn(
+              "inline-flex h-8 w-8 items-center justify-center border-2 border-solid font-pixel text-sm",
+              RANK_GRADE_BADGE[settlement.grade] ?? RANK_GRADE_BADGE.S,
             )}
-          </div>
-          {settlement && (
-            <span
+          >
+            {settlement.grade}
+          </span>
+        )}
+      </button>
+
+      <FullScreenSheet
+        open={sheet === "history"}
+        title="歷史"
+        onClose={() => setSheet(null)}
+      >
+        <div className="mb-3 flex gap-1.5">
+          {(
+            [
+              ["grades", `評分${olderGradeCount > 0 ? ` (${olderGradeCount})` : ""}`],
+              ["logs", `訓練清單 (${historyGroups.length})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setHistoryTab(id)}
               className={cn(
-                "flex h-14 w-14 shrink-0 items-center justify-center border-[4px] border-solid font-pixel text-3xl",
-                RANK_GRADE_BADGE[settlement.grade] ?? RANK_GRADE_BADGE.S,
+                "min-h-[36px] flex-1 rounded-lg border text-xs font-semibold",
+                historyTab === id
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border bg-bg-elevated text-text-muted",
               )}
             >
-              {settlement.grade}
-            </span>
-          )}
+              {label}
+            </button>
+          ))}
         </div>
-
-        <div
-          ref={pasteRef}
-          tabIndex={0}
-          className="h-0 overflow-hidden outline-none"
-          aria-hidden
-        />
-
-        {pastePreview && (
-          <img
-            src={pastePreview}
-            alt="已貼上的截圖"
-            className="mx-auto mt-3 max-h-28 object-contain"
+        {historyTab === "grades" ? (
+          <WorkoutGradeHistory
+            settlements={settlementHistory}
+            workouts={workouts}
+            browseDateKey={gradeBrowseDateKey}
+            onBrowseDateChange={setGradeBrowseDateKey}
+            onSelect={(s) => {
+              setSheet(null);
+              openSettlementModal(s);
+            }}
+            onDelete={onDeleteSettlement}
+            onRequestSettle={handleRequestSettle}
+            settlePending={uploading}
           />
-        )}
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) submitSettlement(f);
-            e.target.value = "";
-          }}
-        />
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            className="min-h-[48px] border-[3px] border-solid border-border-pixel bg-bg-elevated text-sm font-semibold text-text disabled:opacity-50"
-          >
-            從相簿選擇
-          </button>
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => pasteRef.current?.focus()}
-            className="min-h-[48px] border-[3px] border-solid border-border-pixel bg-accent text-sm font-bold text-bg-app disabled:opacity-40"
-          >
-            {uploading ? "評分中…" : "開始貼上評分"}
-          </button>
-        </div>
-
-        {settleDateWorkouts.length === 0 && (
-          <p className="mt-2 text-center text-xs text-text-muted">
-            {isSameDateKey(effectiveSettleDate, todayKey)
-              ? "建議先填今日清單，評分會更準；僅截圖也可評分"
-              : `${formatDateLabel(effectiveSettleDate)} 尚無重訓清單，僅截圖也可評分`}
-          </p>
-        )}
-
-        {settlement && !showModal && (
-          <button
-            type="button"
-            onClick={() => settlement && openSettlementModal(settlement)}
-            className="mt-3 w-full text-center text-sm text-accent-light underline"
-          >
-            再看一次今日結算
-          </button>
-        )}
-      </div>
-
-      <Card>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between text-left"
-          onClick={() => setGradesHistoryOpen((o) => !o)}
-        >
-          <span className="card-title mb-0">
-            歷史評分
-            {olderGradeCount > 0 && (
-              <span className="ml-2 font-normal text-text-muted">
-                ({olderGradeCount})
-              </span>
-            )}
-          </span>
-          <span className="text-sm text-text-muted">
-            {gradesHistoryOpen ? "收起" : "展開"}
-          </span>
-        </button>
-        {gradesHistoryOpen && (
-          <div className="mt-3">
-            <WorkoutGradeHistory
-              settlements={settlementHistory}
-              workouts={workouts}
-              browseDateKey={gradeBrowseDateKey}
-              onBrowseDateChange={setGradeBrowseDateKey}
-              onSelect={(s) => openSettlementModal(s)}
-              onDelete={onDeleteSettlement}
-              onRequestSettle={handleRequestSettle}
-              settlePending={uploading}
-            />
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <button
-          type="button"
-          className="flex w-full items-center justify-between text-left"
-          onClick={toggleLogsHistory}
-        >
-          <span className="card-title mb-0">歷史訓練清單</span>
-          <span className="text-sm text-text-muted">
-            {logsHistoryOpen
-              ? "收起"
-              : `展開 · ${historyGroups.length} 天`}
-          </span>
-        </button>
-        {logsHistoryOpen && (
-          <div className="mt-3 space-y-4">
+        ) : (
+          <div className="space-y-4">
             {historyGroups.length === 0 ? (
               <p className="py-4 text-center text-sm text-text-muted">
                 尚無過往紀錄
@@ -897,7 +843,10 @@ export function DungeonTab({
                         <WorkoutGroupedList
                           workouts={group.items}
                           bodyWeightKg={bodyWeightKg}
-                          onSelectLog={(w) => setPrefill(historyToPrefill(w))}
+                          onSelectLog={(w) => {
+                            setPrefill(historyToPrefill(w));
+                            setSheet(null);
+                          }}
                           onDelete={
                             onDeleteWorkout
                               ? (id) => {
@@ -924,7 +873,190 @@ export function DungeonTab({
             </p>
           </div>
         )}
-      </Card>
+      </FullScreenSheet>
+
+      <FullScreenSheet
+        open={sheet === "bring"}
+        title="帶入動作"
+        onClose={() => setSheet(null)}
+      >
+        <div className="mb-3 flex gap-1.5">
+          {(
+            [
+              ["menus", "菜單"],
+              ["favorites", "常用"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setBringInTab(id)}
+              className={cn(
+                "min-h-[36px] flex-1 rounded-lg border text-xs font-semibold",
+                dungeonBringInTab === id
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border bg-bg-elevated text-text-muted",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {dungeonBringInTab === "menus" ? (
+          onDeleteFavoriteWorkout ? (
+            <WorkoutMenusPanel
+              menus={workoutMenus}
+              exerciseFavorites={exerciseFavorites}
+              onApplyMenu={startMenuQueue}
+              onDelete={onDeleteFavoriteWorkout}
+              onRename={onRenameFavoriteWorkout}
+              onUpdate={onUpdateFavoriteWorkout}
+              onCreate={onSaveFavoriteWorkout}
+              embedded
+            />
+          ) : (
+            <p className="py-6 text-center text-sm text-text-muted">尚無菜單</p>
+          )
+        ) : onDeleteFavoriteWorkout ? (
+          <FavoriteWorkoutsPanel
+            favorites={exerciseFavorites}
+            onApply={applyFavorite}
+            onDelete={onDeleteFavoriteWorkout}
+            onCreate={onSaveFavoriteWorkout}
+            onUpdate={onUpdateFavoriteWorkout}
+            embedded
+          />
+        ) : (
+          <p className="py-6 text-center text-sm text-text-muted">尚無常用動作</p>
+        )}
+      </FullScreenSheet>
+
+      <FullScreenSheet
+        open={sheet === "settle"}
+        title="今日結算"
+        onClose={() => setSheet(null)}
+      >
+        <div className="mb-3 rounded-xl border border-border bg-bg-elevated p-3">
+          <p className="text-xs font-semibold text-text-muted">結算日</p>
+          <p className="mt-1 text-sm font-bold text-accent-light">
+            {formatDateLabel(effectiveSettleDate)}（{effectiveSettleDate}）
+          </p>
+          <p className="mt-1 text-[11px] text-text-muted">
+            凌晨 04:00 前預設算前一天訓練日；可手動切換。
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSettleTargetDate(sessionDayKey)}
+              className={cn(
+                "min-h-[36px] rounded-lg border px-3 text-xs font-semibold",
+                isSameDateKey(effectiveSettleDate, sessionDayKey)
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border text-text-muted",
+              )}
+            >
+              訓練日
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettleTargetDate(calendarTodayKey)}
+              className={cn(
+                "min-h-[36px] rounded-lg border px-3 text-xs font-semibold",
+                isSameDateKey(effectiveSettleDate, calendarTodayKey)
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border text-text-muted",
+              )}
+            >
+              日曆今天
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettleTargetDate(yesterdayDateKey())}
+              className={cn(
+                "min-h-[36px] rounded-lg border px-3 text-xs font-semibold",
+                isSameDateKey(effectiveSettleDate, yesterdayDateKey())
+                  ? "border-accent bg-accent/20 text-accent-light"
+                  : "border-border text-text-muted",
+              )}
+            >
+              昨天
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-text-muted">
+            清單 {settleDateWorkouts.length} 筆 · 訓練量{" "}
+            {Math.round(settleDateVolume)} kg
+            {latestInbody?.weight_kg
+              ? ` · 依體重 ${latestInbody.weight_kg}kg`
+              : ""}
+          </p>
+        </div>
+
+        <div
+          ref={pasteRef}
+          tabIndex={0}
+          className="h-0 overflow-hidden outline-none"
+          aria-hidden
+        />
+
+        {pastePreview && (
+          <img
+            src={pastePreview}
+            alt="已貼上的截圖"
+            className="mx-auto mb-3 max-h-36 object-contain"
+          />
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void submitSettlement(f);
+            e.target.value = "";
+          }}
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            className="min-h-[48px] rounded-xl border border-border bg-bg-elevated text-sm font-semibold disabled:opacity-50"
+          >
+            從相簿選擇
+          </button>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => pasteRef.current?.focus()}
+            className="min-h-[48px] rounded-xl bg-accent text-sm font-bold text-bg-app disabled:opacity-40"
+          >
+            {uploading ? "評分中…" : "開始貼上評分"}
+          </button>
+        </div>
+
+        {settleDateWorkouts.length === 0 && (
+          <p className="mt-3 text-center text-xs text-text-muted">
+            此日尚無重訓清單，僅截圖也可評分
+          </p>
+        )}
+
+        {settlement &&
+          isSameDateKey(settlement.logDate, effectiveSettleDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSheet(null);
+                openSettlementModal(settlement);
+              }}
+              className="mt-3 w-full text-center text-sm text-accent-light underline"
+            >
+              再看一次此日結算
+            </button>
+          )}
+      </FullScreenSheet>
 
       {showModal && modalSettlement && (
         <WorkoutSettlementModal

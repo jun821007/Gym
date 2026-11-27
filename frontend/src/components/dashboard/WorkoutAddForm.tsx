@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { DateShiftHeader } from "@/components/ui/DateShiftHeader";
-import { toDateKey } from "@/lib/datetime";
+import { gymDayDateKey, toDateKey } from "@/lib/datetime";
 import {
   formatExerciseSetStat,
   getExerciseHistoryStats,
@@ -106,7 +106,7 @@ export function WorkoutAddForm({
   const [extraWeightKg, setExtraWeightKg] = useState("");
   const [assistKg, setAssistKg] = useState("");
   const [setRows, setSetRows] = useState<SetRow[]>([emptySet()]);
-  const [dateKey, setDateKey] = useState(toDateKey);
+  const [dateKey, setDateKey] = useState(() => gymDayDateKey());
   const [saving, setSaving] = useState(false);
   const [restoredBanner, setRestoredBanner] = useState(false);
 
@@ -135,7 +135,7 @@ export function WorkoutAddForm({
     setWeightKg(draft.weightKg);
     setExtraWeightKg(draft.extraWeightKg);
     setAssistKg(draft.assistKg);
-    setDateKey(draft.dateKey || toDateKey());
+    setDateKey(draft.dateKey || gymDayDateKey());
     setSetRows(
       draft.setRows.length > 0 ? draft.setRows.map((r) => ({ ...r })) : [emptySet()],
     );
